@@ -26,6 +26,8 @@ const FACTOR_TEXT: Record<string, string> = {
   msRepaysLate: "Moonshift repayments late",
   msMarginCalls: "Margin calls",
   msLiquidations: "Liquidations",
+  msDividendsReceived: "GPU dividends received",
+  msShareTrades: "GPU share trades",
 };
 
 // One line of the connected wallet's activity feed (credit service shape).
@@ -69,7 +71,8 @@ function clock(iso: string) {
 
 function days(seconds: number) {
   const d = seconds / 86400;
-  return d >= 1 ? `${fmt(d, d >= 10 ? 0 : 1)} days` : `${Math.round(seconds / 60)} min`;
+  // One decimal unless whole, the same way the credit memo writes it.
+  return d >= 1 ? `${fmt(d, Number.isInteger(Math.round(d * 10) / 10) ? 0 : 1)} days` : `${Math.round(seconds / 60)} min`;
 }
 
 function until(iso: string | null | undefined, now: number) {
