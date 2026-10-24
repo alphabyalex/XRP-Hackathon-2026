@@ -5,6 +5,7 @@ import { useLiveGpus, useApiUnreachable, useNow } from "@/lib/liveData";
 import { gpuView } from "@/lib/gpuView";
 import { AppWindow } from "./AppWindow";
 import { MarketTable } from "./MarketTable";
+import { ResourcePricingBreakdown } from "./ResourcePricingBreakdown";
 import { ApiErrorNotice } from "./ApiErrorNotice";
 import { ACCOUNT_DISPLAY } from "@/lib/session";
 
@@ -19,7 +20,7 @@ export function MarketContent() {
       <div className="wrap">
         <div className="shead">
           <h2>Two GPUs, trading now.</h2>
-          <p>Each one is an NVIDIA T4 running on AWS. Prices come from the order book on the XRP Ledger DEX. Yield is last 24 hours of payouts, annualized.</p>
+          <p>Multi-cloud GPU compute: GPU-A on AWS EC2, GPU-B on Akash Network decentralized cloud. Transparent hardware resource pricing (GPU, vCPU, RAM, NVMe SSD) indexed in real time.</p>
         </div>
         {unreachable && <ApiErrorNotice />}
         <AppWindow tabs={["Market", "Portfolio", "Borrow", "Playground"]} activeTab="Market" acct={<>{ACCOUNT_DISPLAY}&nbsp;&nbsp;<AccountBalance /> USDC</>}>
@@ -27,6 +28,7 @@ export function MarketContent() {
             <MarketTable views={views} />
           </div>
         </AppWindow>
+        <ResourcePricingBreakdown />
       </div>
     </main>
   );

@@ -35,6 +35,25 @@ export function MarketTable({ views }: { views: GpuView[] }) {
                   <div>
                     <b>{v.dashLabel}</b>
                     <span>{v.gpu.hw}</span>
+                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 4 }}>
+                      <span style={{ fontSize: 11, padding: "1px 5px", background: "var(--tint)", borderRadius: 4, color: "var(--ink2)", fontFamily: "var(--mono)" }}>
+                        1x T4 16GB
+                      </span>
+                      <span style={{ fontSize: 11, padding: "1px 5px", background: "var(--tint)", borderRadius: 4, color: "var(--ink2)", fontFamily: "var(--mono)" }}>
+                        4 vCPU
+                      </span>
+                      <span style={{ fontSize: 11, padding: "1px 5px", background: "var(--tint)", borderRadius: 4, color: "var(--ink2)", fontFamily: "var(--mono)" }}>
+                        16 GB RAM
+                      </span>
+                      <span style={{ fontSize: 11, padding: "1px 5px", background: "var(--tint)", borderRadius: 4, color: "var(--ink2)", fontFamily: "var(--mono)" }}>
+                        {v.gpu.id === "gpu-a" ? "125 GB NVMe" : "100 GB NVMe"}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--ink3)", marginTop: 3, fontFamily: "var(--mono)" }}>
+                      {v.gpu.id === "gpu-a"
+                        ? "Indexed Cost: $0.526/hr (AWS On-Demand)"
+                        : "Indexed Cost: $0.160/hr (Akash Spot - 69.6% savings)"}
+                    </div>
                   </div>
                 </div>
               </td>
