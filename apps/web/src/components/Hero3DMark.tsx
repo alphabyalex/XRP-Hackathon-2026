@@ -43,21 +43,30 @@ export function Hero3DMark() {
     const grp = new THREE.Group();
     scene.add(grp);
 
-    const css = getComputedStyle(document.documentElement);
+    const readColor = (name: string, fallback: string) => {
+      const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      return value || fallback;
+    };
     const inkM = new THREE.MeshPhysicalMaterial({
-      color: 0x111113,
+      color: new THREE.Color(readColor("--ink", "#111113")),
       roughness: 0.38,
       metalness: 0,
       clearcoat: 0.7,
       clearcoatRoughness: 0.25,
     });
     const accM = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(css.getPropertyValue("--accent").trim()),
+      color: new THREE.Color(readColor("--accent", "#ffc21a")),
       roughness: 0.42,
       metalness: 0,
       clearcoat: 0.5,
       clearcoatRoughness: 0.3,
     });
+    const applyThemeColors = () => {
+      inkM.color.set(readColor("--ink", "#111113"));
+      accM.color.set(readColor("--accent", "#ffc21a"));
+    };
+    const themeObserver = new MutationObserver(applyThemeColors);
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-accent"] });
 
     const o = (y: number) => Math.sqrt(Math.max(0, 44 * 44 - (y - 50) ** 2));
     interface Piece {
@@ -179,6 +188,7 @@ export function Hero3DMark() {
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
+      themeObserver.disconnect();
       removeEventListener("resize", size);
       geometries.forEach((g) => g.dispose());
       inkM.dispose();

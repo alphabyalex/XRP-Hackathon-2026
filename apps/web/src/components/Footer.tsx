@@ -1,13 +1,14 @@
+import Link from "next/link";
 import { MoonMark } from "./MoonMark";
 
 export function Footer() {
   return (
     <footer>
       <div className="wrap">
-        <div className="logo" style={{ fontSize: 16 }}>
+        <Link className="logo" href="/" style={{ fontSize: 16 }}>
           <MoonMark size={22} />
           Moonshift
-        </div>
+        </Link>
       </div>
     </footer>
   );
