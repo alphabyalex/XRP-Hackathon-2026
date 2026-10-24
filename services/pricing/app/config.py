@@ -113,7 +113,7 @@ REVENUE_SPIKE_MULTIPLE = D("2")
 # ---- Runtime ---------------------------------------------------------------------------
 
 MOCK = _env_bool("MOCK")
-AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+AWS_REGION = os.getenv("AWS_REGION", "us-east-2")
 BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0")
 BEDROCK_TIMEOUT_SECONDS = float(os.getenv("BEDROCK_TIMEOUT_SECONDS", "8"))
 INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "")

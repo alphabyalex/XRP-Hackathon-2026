@@ -94,5 +94,28 @@ def scrub(text: str, allowed: set[Decimal]) -> str | None:
     return " ".join(kept).replace("—", ", ")
 
 
+def parse_single_text(raw: str, keys: tuple[str, ...] = ("memo", "alert", "text")) -> str | None:
+    """Extract a target text field from a JSON object."""
+    start, end = raw.find("{"), raw.rfind("}")
+    if start < 0 or end <= start:
+        return None
+    try:
+        obj = json.loads(raw[start : end + 1])
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(obj, dict):
+        return None
+    for k in keys:
+        val = obj.get(k)
+        if isinstance(val, str) and val.strip():
+            return val.strip().replace("—", ", ")
+    return None
+
+
+def has_unverified_numbers(text: str, allowed: set[Decimal]) -> bool:
+    """Return True if the text contains any number not present in the allowed set."""
+    return len(unknown_numbers(text, allowed)) > 0
+
+
 def clean_flags(flags: list[str]) -> list[str]:
     return [f for f in flags if f in ALLOWED_FLAGS]

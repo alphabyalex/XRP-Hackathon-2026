@@ -65,6 +65,61 @@ def loan(data: dict, flags: list[str]) -> str:
     return " ".join(s + _flags(flags))
 
 
+def credit_memo(credit_profile: dict, quote: dict, loan_request: dict) -> str:
+    borrower = loan_request.get("borrower") or credit_profile.get("address") or "the borrower"
+    score = credit_profile.get("score", "unrated")
+    grade = credit_profile.get("grade", "N/A")
+    principal = loan_request.get("principal") or quote.get("principal") or "0"
+    collateral_shares = loan_request.get("collateralShares") or loan_request.get("collateral_shares") or "0"
+    gpu_id = loan_request.get("gpuId") or loan_request.get("gpu_id") or "GPU"
+    apr = quote.get("apr", "0")
+    ltv = quote.get("ltv", "0")
+    max_ltv = quote.get("maxLtv") or quote.get("max_ltv") or "0"
+    liquidation_ltv = quote.get("liquidationLtv") or quote.get("liquidation_ltv") or "0"
+    term_seconds = (
+        loan_request.get("termSeconds")
+        or loan_request.get("term_seconds")
+        or quote.get("termSeconds")
+        or "600"
+    )
+    pd = quote.get("pd", "0")
+
+    s = [
+        f"Borrower {borrower} holds Grade {grade} credit with a score of {score}.",
+        f"The requested loan of {principal} TDX is secured by {collateral_shares} shares of {gpu_id}.",
+        f"The loan offers an initial LTV of {ltv} against a maximum LTV limit of {max_ltv}.",
+        f"Terms specify an APR of {apr} for {term_seconds} seconds with an estimated default probability of {pd}.",
+        f"Liquidation is scheduled if LTV rises to {liquidation_ltv}.",
+    ]
+    return " ".join(s)
+
+
+def risk_alert(event: dict) -> str:
+    event_type = event.get("type", "margin_call")
+    loan_id = event.get("loanId") or event.get("loan_id") or "loan"
+    ltv = event.get("ltv", "0")
+    threshold = (
+        event.get("thresholdLtv")
+        or event.get("marginCallLtv")
+        or event.get("margin_call_ltv")
+        or "0"
+    )
+    liq_threshold = event.get("liquidationLtv") or event.get("liquidation_ltv") or "0"
+    balance = event.get("outstandingBalance") or event.get("outstanding_balance") or "0"
+    gpu_id = event.get("gpuId") or event.get("gpu_id") or "GPU"
+
+    if event_type == "liquidation":
+        return (
+            f"Loan {loan_id} has breached the liquidation threshold of {liq_threshold or threshold} with an LTV of {ltv}. "
+            f"Collateral shares of {gpu_id} are being liquidated to satisfy the outstanding balance of {balance} TDX."
+        )
+    return (
+        f"A margin call has been issued for loan {loan_id}. "
+        f"The current loan-to-value ratio has risen to {ltv}, crossing the margin call threshold of {threshold}. "
+        f"Please deposit additional collateral or pay down principal on your outstanding balance of {balance} TDX to prevent liquidation."
+    )
+
+
 TEMPLATES = {"dividend": dividend, "nav": nav, "loan": loan}
 
 
