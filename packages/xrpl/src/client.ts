@@ -17,6 +17,11 @@ export async function getClient(): Promise<Client> {
   const endpoint = process.env.QUICKNODE_WSS || process.env.XRPL_WSS || XRPL_WSS;
   connectingPromise = (async () => {
     const client = new Client(endpoint);
+    client.on("disconnected", () => {
+      if (clientInstance === client) {
+        clientInstance = null;
+      }
+    });
     await client.connect();
     clientInstance = client;
     connectingPromise = null;
