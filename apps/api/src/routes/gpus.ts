@@ -29,8 +29,29 @@ async function buildSummary(gpuId: GpuId) {
     utilizationPct: String(computeState?.utilization_pct_1h ?? 0),
     impliedYieldPct: nav.implied_yield_pct,
     holdersCount: holders.length,
+    monteCarlo: (computeState as any)?.monte_carlo,
   };
 }
+
+gpusRouter.get("/monte-carlo/status", async (_req, res) => {
+  try {
+    const status = await compute.getMonteCarloStatus();
+    res.json(status);
+  } catch (err) {
+    res.status(500).json({ error: { code: "INTERNAL", message: (err as Error).message } });
+  }
+});
+
+gpusRouter.post("/monte-carlo/switch-demo", async (req, res) => {
+  try {
+    const gpuId = (req.query.gpu_id as string) || "gpu-a";
+    const prompt = (req.query.prompt as string) || (req.body?.prompt as string);
+    const result = await compute.runSwitchDemo(gpuId, prompt);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: { code: "INTERNAL", message: (err as Error).message } });
+  }
+});
 
 gpusRouter.get("/gpus", async (_req, res) => {
   try {
