@@ -2,17 +2,49 @@
 
 from __future__ import annotations
 
+import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import StreamingResponse
 
 from app.config import Settings
+from app.data import RiskDataClient
+from app.events import EventLog
+from app.keeper import Keeper
 from app.models import QuoteRequest
 from app.risk import calculate_quote
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    data_client: RiskDataClient | None = None,
+    event_log: EventLog | None = None,
+) -> FastAPI:
     settings = settings or Settings.from_env()
-    app = FastAPI(title="Moonshift Risk Desk", version="0.1.0")
+    data_client = data_client or RiskDataClient(settings)
+    event_log = event_log or EventLog(settings.state_dir)
+    keeper = Keeper(settings, data_client, event_log)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        settings.state_dir.mkdir(parents=True, exist_ok=True)
+        task = asyncio.create_task(keeper.loop())
+        try:
+            yield
+        finally:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            await data_client.close()
+
+    app = FastAPI(title="Moonshift Risk Desk", version="0.1.0", lifespan=lifespan)
     app.state.settings = settings
+    app.state.data_client = data_client
+    app.state.events = event_log
+    app.state.keeper = keeper
 
     def require_internal_key(x_ms_internal_key: str | None) -> None:
         if settings.internal_api_key and x_ms_internal_key != settings.internal_api_key:
@@ -33,6 +65,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> dict[str, object]:
         require_internal_key(x_ms_internal_key)
         return calculate_quote(request, settings)
+
+    @app.get("/loans/health")
+    async def loans_health(x_ms_internal_key: str | None = Header(default=None)) -> dict[str, object]:
+        require_internal_key(x_ms_internal_key)
+        return await keeper.check_once()
+
+    @app.get("/events")
+    async def events(x_ms_internal_key: str | None = Header(default=None)) -> StreamingResponse:
+        require_internal_key(x_ms_internal_key)
+        return StreamingResponse(
+            event_log.stream(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     return app
 

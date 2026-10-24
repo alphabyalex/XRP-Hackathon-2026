@@ -37,3 +37,19 @@ def test_quote_response_matches_contract_shape() -> None:
     assert response.status_code == 200
     assert response.json() == example["response"]
 
+
+def test_loans_health_reports_mock_loans(tmp_path) -> None:
+    with TestClient(create_app(Settings(state_dir=tmp_path))) as client:
+        response = client.get("/loans/health")
+
+    assert response.status_code == 200
+    assert response.json()["simulated"] is True
+    assert len(response.json()["loans"]) == 3
+
+
+def test_internal_health_route_requires_configured_key(tmp_path) -> None:
+    key = secrets.token_urlsafe(32)
+    client = TestClient(create_app(Settings(internal_api_key=key, state_dir=tmp_path)))
+
+    assert client.get("/loans/health").status_code == 401
+

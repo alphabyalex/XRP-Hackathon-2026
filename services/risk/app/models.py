@@ -62,3 +62,17 @@ class ScenarioRequest(ContractModel):
     gpu_price_shock_pct: Decimal = Field(alias="gpuPriceShockPct", ge=Decimal("-100"), le=Decimal("1000"))
     utilization_shock_pct: Decimal = Field(alias="utilizationShockPct", ge=Decimal("-100"), le=Decimal("100"))
     default_rate_multiplier: Decimal = Field(alias="defaultRateMultiplier", gt=Decimal("0"), le=Decimal("10"))
+
+
+class OpenLoan(ContractModel):
+    loan_id: str = Field(alias="loanId", min_length=1)
+    borrower: str = Field(min_length=1)
+    gpu_id: str = Field(alias="gpuId", min_length=1)
+    collateral_shares: Decimal = Field(alias="collateralShares", gt=Decimal("0"))
+    outstanding_balance: Decimal = Field(alias="outstandingBalance", ge=Decimal("0"))
+    margin_call_ltv: Decimal = Field(alias="marginCallLtv", gt=Decimal("0"))
+    liquidation_ltv: Decimal = Field(alias="liquidationLtv", gt=Decimal("0"))
+    apr: Decimal = Field(default=Decimal("0.080000"), ge=Decimal("0"))
+    status: str = "open"
+    margin_call_at: datetime | None = Field(default=None, alias="marginCallAt")
+    simulated: bool = False

@@ -12,10 +12,13 @@
   confidence and volatility adjustments, dividend coverage, estimated PD, and
   expected loss. The quote example returns its documented response exactly.
 - Phase 2 checks: 7 service tests pass and Python compile checks pass.
+- Phase 3: added the interval keeper, persisted cure windows, idempotent
+  margin-call and liquidation actions, dry-run behavior, the mock loan/oracle
+  source, loan-health endpoint, and bounded persisted SSE event log.
+- Phase 3 checks: 14 service tests pass and Python compile checks pass.
 
 ## Next
 
-- Phase 3: add the dry-run keeper and event stream.
 - Phase 4: add gated simulated stress scenarios.
 - Phase 5: add the seeded 30-day loan-book simulator.
 - Phase 6 and stretch: complete docs, rate curve, and vault health summary.
