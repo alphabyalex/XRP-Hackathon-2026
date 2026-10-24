@@ -1,0 +1,5 @@
+-r requirements.txt
+
+# Install this only on the AWS GPU worker after validating the AMI and CUDA
+# combination. Keep the version pinned after that validation.
+vllm==0.10.2
