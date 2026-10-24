@@ -133,7 +133,8 @@ class Linker:
         """public_key set: ownership proven by a signed challenge. None: a pasted address, read-only."""
         at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
         self.db.execute(
-            "INSERT OR REPLACE INTO wallets VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO wallets (borrower, network, address, public_key, verified, connected_at, connect_score) "
+            "VALUES (?, ?, ?, ?, ?, ?, NULL)",
             (borrower, network, address, public_key, 1 if public_key else 0, at),
         )
         return self.wallet_for(borrower) or {}
@@ -155,7 +156,12 @@ class Linker:
             "verified": bool(r["verified"]),
             "status": "verified" if r["verified"] else "not verified",
             "connectedAt": r["connected_at"],
+            "connectScore": r["connect_score"],
         }
+
+    def set_connect_score(self, borrower: str, score: int) -> None:
+        """First score of a newly connected wallet; later changes are measured from it."""
+        self.db.execute("UPDATE wallets SET connect_score = ? WHERE borrower = ? AND connect_score IS NULL", (score, borrower))
 
     def borrowers_for_wallet(self, network: str, address: str) -> list[str]:
         rows = self.db.execute("SELECT borrower FROM wallets WHERE network = ? AND address = ?", (network, address))

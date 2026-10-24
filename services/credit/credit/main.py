@@ -80,7 +80,7 @@ async def build_profile(
         try:
             if wallet:
                 own = {"verified": wallet["verified"], "status": wallet["status"], "borrower": address}
-                body = await combine.build(
+                with_wallet = await combine.build(
                     network,
                     address,
                     {"network": wallet["network"], "address": wallet["address"], "ownership": own},
@@ -88,6 +88,16 @@ async def build_profile(
                     reference=link,
                     refresh_link=refresh_link,
                 )
+                # The wallet is blended in by its confidence, on top of the borrower's own profile.
+                if link:
+                    base = await combine.build(network, address, link, refresh)
+                else:
+                    base, _ = await profile.build(network, address, refresh)
+                connect_score = wallet["connectScore"]
+                if connect_score is None:
+                    connect_score = with_wallet["score"]
+                    linker().set_connect_score(address, connect_score)
+                body = combine.blend(base, with_wallet, connect_score)
             elif link:
                 body = await combine.build(network, address, link, refresh)
             else:

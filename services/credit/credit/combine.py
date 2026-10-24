@@ -122,3 +122,39 @@ async def reference_line(link: dict[str, Any]) -> dict[str, Any]:
         "ownScore": {"score": body["score"], "grade": body["grade"], "confidence": body["confidence"]},
         "ownership": link["ownership"],
     }
+
+
+# Weight of a connected wallet's history, by its confidence: a thin wallet nudges the borrower's
+# score, a long history moves it. Changes seen after connecting count at least LIVE_WEIGHT, so a
+# payment or an outflow always shows.
+WALLET_WEIGHT = {"low": 0.2, "medium": 0.5, "high": 0.8}
+LIVE_WEIGHT = 0.5
+
+
+def blend(base: dict[str, Any], wallet: dict[str, Any], connect_score: int) -> dict[str, Any]:
+    """base: the borrower's profile without the wallet. wallet: the profile with the wallet's history.
+    score = base + w * (wallet at connect - base) + max(w, LIVE_WEIGHT) * (wallet now - wallet at connect)"""
+    w = WALLET_WEIGHT.get(wallet["confidence"], 0.2)
+    live = max(w, LIVE_WEIGHT)
+    raw = base["score"] + w * (connect_score - base["score"]) + live * (wallet["score"] - connect_score)
+    final = max(0, min(100, int(raw + 0.5)))
+    out = dict(wallet)
+    out.update(
+        {
+            "score": final,
+            "grade": scoring.grade_for(final),
+            "confidence": base["confidence"],
+            "blend": {
+                "baseScore": base["score"],
+                "walletScore": wallet["score"],
+                "walletConfidence": wallet["confidence"],
+                "connectScore": connect_score,
+                "weight": w,
+                "liveWeight": live,
+            },
+        }
+    )
+    out["components"] = [
+        {**c, "weight": w} if c.get("part") == "Connected wallet" else c for c in wallet["components"]
+    ]
+    return out
