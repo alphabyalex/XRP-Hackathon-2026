@@ -1,0 +1,1527 @@
+{
+  "source": {
+    "name": "GPU Economy",
+    "url": "https://gpueconomy.com/data",
+    "license": "CC BY 4.0"
+  },
+  "sourceUpdatedAt": "2026-10-24T21:40:12.886Z",
+  "checkedAt": "2026-10-24T22:25:28.487Z",
+  "refreshSeconds": 900,
+  "stale": false,
+  "historyStale": false,
+  "gpus": [
+    {
+      "id": "mi300x",
+      "name": "AMD Instinct MI300X",
+      "vramGb": 192,
+      "rentalUsdPerHour": "2.810200",
+      "providers": 8,
+      "sourceUrl": "https://gpueconomy.com/gpu/mi300x",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "2.810200"
+        }
+      ]
+    },
+    {
+      "id": "mi325x",
+      "name": "AMD Instinct MI325X",
+      "vramGb": 256,
+      "rentalUsdPerHour": "2.250000",
+      "providers": 3,
+      "sourceUrl": "https://gpueconomy.com/gpu/mi325x",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "2.250000"
+        }
+      ]
+    },
+    {
+      "id": "mi350x",
+      "name": "AMD Instinct MI350X",
+      "vramGb": 288,
+      "rentalUsdPerHour": "5.080000",
+      "providers": 2,
+      "sourceUrl": "https://gpueconomy.com/gpu/mi350x",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "5.080000"
+        }
+      ]
+    },
+    {
+      "id": "mi355x",
+      "name": "AMD Instinct MI355X",
+      "vramGb": 288,
+      "rentalUsdPerHour": "5.990000",
+      "providers": 3,
+      "sourceUrl": "https://gpueconomy.com/gpu/mi355x",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "5.990000"
+        }
+      ]
+    },
+    {
+      "id": "a10",
+      "name": "NVIDIA A10",
+      "vramGb": 24,
+      "rentalUsdPerHour": "1.220000",
+      "providers": 9,
+      "sourceUrl": "https://gpueconomy.com/gpu/a10",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "1.220000"
+        }
+      ]
+    },
+    {
+      "id": "a100-40",
+      "name": "NVIDIA A100 40GB",
+      "vramGb": 40,
+      "rentalUsdPerHour": "1.980000",
+      "providers": 21,
+      "sourceUrl": "https://gpueconomy.com/gpu/a100-40",
+      "weeklyHistory": [
+        {
+          "date": "2026-08-31",
+          "price": "1.000000",
+          "providers": 1
+        },
+        {
+          "date": "2026-09-07",
+          "price": "2.100000",
+          "providers": 9
+        },
+        {
+          "date": "2026-09-14",
+          "price": "1.990000",
+          "providers": 13
+        },
+        {
+          "date": "2026-09-21",
+          "price": "1.990000",
+          "providers": 16
+        },
+        {
+          "date": "2026-09-28",
+          "price": "1.980000",
+          "providers": 18
+        },
+        {
+          "date": "2026-10-05",
+          "price": "1.980000",
+          "providers": 19
+        },
+        {
+          "date": "2026-10-12",
+          "price": "1.980000",
+          "providers": 19
+        },
+        {
+          "date": "2026-10-19",
+          "price": "1.980000",
+          "providers": 19
+        }
+      ],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "1.980000"
+        }
+      ]
+    },
+    {
+      "id": "a100-80",
+      "name": "NVIDIA A100 80GB",
+      "vramGb": 80,
+      "rentalUsdPerHour": "2.000000",
+      "providers": 61,
+      "sourceUrl": "https://gpueconomy.com/gpu/a100-80",
+      "weeklyHistory": [
+        {
+          "date": "2026-08-31",
+          "price": "1.190000",
+          "providers": 1
+        },
+        {
+          "date": "2026-09-07",
+          "price": "2.500000",
+          "providers": 15
+        },
+        {
+          "date": "2026-09-14",
+          "price": "2.000000",
+          "providers": 23
+        },
+        {
+          "date": "2026-09-21",
+          "price": "1.770000",
+          "providers": 32
+        },
+        {
+          "date": "2026-09-28",
+          "price": "1.770000",
+          "providers": 38
+        },
+        {
+          "date": "2026-10-05",
+          "price": "1.790000",
+          "providers": 43
+        },
+        {
+          "date": "2026-10-12",
+          "price": "1.770000",
+          "providers": 46
+        },
+        {
+          "date": "2026-10-19",
+          "price": "1.770000",
+          "providers": 48
+        }
+      ],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "2.000000"
+        }
+      ]
+    },
+    {
+      "id": "a10g",
+      "name": "NVIDIA A10G",
+      "vramGb": 24,
+      "rentalUsdPerHour": "1.006000",
+      "providers": 3,
+      "sourceUrl": "https://gpueconomy.com/gpu/a10g",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "1.006000"
+        }
+      ]
+    },
+    {
+      "id": "a2",
+      "name": "NVIDIA A2",
+      "vramGb": 16,
+      "rentalUsdPerHour": "0.234650",
+      "providers": 2,
+      "sourceUrl": "https://gpueconomy.com/gpu/a2",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.234650"
+        }
+      ]
+    },
+    {
+      "id": "a30",
+      "name": "NVIDIA A30",
+      "vramGb": 24,
+      "rentalUsdPerHour": "0.410000",
+      "providers": 9,
+      "sourceUrl": "https://gpueconomy.com/gpu/a30",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.410000"
+        }
+      ]
+    },
+    {
+      "id": "a40",
+      "name": "NVIDIA A40",
+      "vramGb": 48,
+      "rentalUsdPerHour": "0.640000",
+      "providers": 8,
+      "sourceUrl": "https://gpueconomy.com/gpu/a40",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.640000"
+        }
+      ]
+    },
+    {
+      "id": "b200",
+      "name": "NVIDIA B200",
+      "vramGb": 192,
+      "rentalUsdPerHour": "7.080000",
+      "providers": 38,
+      "sourceUrl": "https://gpueconomy.com/gpu/b200",
+      "weeklyHistory": [
+        {
+          "date": "2026-08-31",
+          "price": "5.980000",
+          "providers": 1
+        },
+        {
+          "date": "2026-09-07",
+          "price": "6.690000",
+          "providers": 13
+        },
+        {
+          "date": "2026-09-14",
+          "price": "6.590000",
+          "providers": 18
+        },
+        {
+          "date": "2026-09-21",
+          "price": "6.690000",
+          "providers": 27
+        },
+        {
+          "date": "2026-09-28",
+          "price": "6.990000",
+          "providers": 31
+        },
+        {
+          "date": "2026-10-05",
+          "price": "6.840000",
+          "providers": 34
+        },
+        {
+          "date": "2026-10-12",
+          "price": "7.500000",
+          "providers": 37
+        },
+        {
+          "date": "2026-10-19",
+          "price": "6.990000",
+          "providers": 39
+        }
+      ],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "7.080000"
+        }
+      ]
+    },
+    {
+      "id": "b300",
+      "name": "NVIDIA B300",
+      "vramGb": 288,
+      "rentalUsdPerHour": "8.990000",
+      "providers": 25,
+      "sourceUrl": "https://gpueconomy.com/gpu/b300",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "8.990000"
+        }
+      ]
+    },
+    {
+      "id": "gb200",
+      "name": "NVIDIA GB200 NVL72",
+      "vramGb": 186,
+      "rentalUsdPerHour": "13.250000",
+      "providers": 6,
+      "sourceUrl": "https://gpueconomy.com/gpu/gb200",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "13.250000"
+        }
+      ]
+    },
+    {
+      "id": "gb300",
+      "name": "NVIDIA GB300 NVL72",
+      "vramGb": 288,
+      "rentalUsdPerHour": "18.000000",
+      "providers": 3,
+      "sourceUrl": "https://gpueconomy.com/gpu/gb300",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "18.000000"
+        }
+      ]
+    },
+    {
+      "id": "gtx-1070-ti",
+      "name": "NVIDIA GeForce GTX 1070 Ti",
+      "vramGb": 8,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/gtx-1070-ti",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "gtx-1080",
+      "name": "NVIDIA GeForce GTX 1080",
+      "vramGb": 8,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/gtx-1080",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "gtx-1080-ti",
+      "name": "NVIDIA GeForce GTX 1080 Ti",
+      "vramGb": 11,
+      "rentalUsdPerHour": null,
+      "providers": 1,
+      "sourceUrl": "https://gpueconomy.com/gpu/gtx-1080-ti",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "gtx-1660-super",
+      "name": "NVIDIA GeForce GTX 1660 SUPER",
+      "vramGb": 6,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/gtx-1660-super",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "gtx-1660-ti",
+      "name": "NVIDIA GeForce GTX 1660 Ti",
+      "vramGb": 6,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/gtx-1660-ti",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-2060-12",
+      "name": "NVIDIA GeForce RTX 2060 12GB",
+      "vramGb": 12,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-2060-12",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-2080-ti",
+      "name": "NVIDIA GeForce RTX 2080 Ti",
+      "vramGb": 11,
+      "rentalUsdPerHour": "0.257650",
+      "providers": 2,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-2080-ti",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.257650"
+        }
+      ]
+    },
+    {
+      "id": "rtx-3060",
+      "name": "NVIDIA GeForce RTX 3060",
+      "vramGb": 12,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-3060",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-3060-ti",
+      "name": "NVIDIA GeForce RTX 3060 Ti",
+      "vramGb": 8,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-3060-ti",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-3070",
+      "name": "NVIDIA GeForce RTX 3070",
+      "vramGb": 8,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-3070",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-3070-ti",
+      "name": "NVIDIA GeForce RTX 3070 Ti",
+      "vramGb": 8,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-3070-ti",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-3080",
+      "name": "NVIDIA GeForce RTX 3080",
+      "vramGb": 10,
+      "rentalUsdPerHour": "0.350250",
+      "providers": 2,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-3080",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.350250"
+        }
+      ]
+    },
+    {
+      "id": "rtx-3080-ti",
+      "name": "NVIDIA GeForce RTX 3080 Ti",
+      "vramGb": 12,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-3080-ti",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-3090",
+      "name": "NVIDIA GeForce RTX 3090",
+      "vramGb": 24,
+      "rentalUsdPerHour": "0.450000",
+      "providers": 8,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-3090",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.450000"
+        }
+      ]
+    },
+    {
+      "id": "rtx-3090-ti",
+      "name": "NVIDIA GeForce RTX 3090 Ti",
+      "vramGb": 24,
+      "rentalUsdPerHour": null,
+      "providers": 1,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-3090-ti",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-4060",
+      "name": "NVIDIA GeForce RTX 4060",
+      "vramGb": 8,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-4060",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-4060-ti",
+      "name": "NVIDIA GeForce RTX 4060 Ti",
+      "vramGb": 16,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-4060-ti",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-4070",
+      "name": "NVIDIA GeForce RTX 4070",
+      "vramGb": 12,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-4070",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-4070-super",
+      "name": "NVIDIA GeForce RTX 4070 SUPER",
+      "vramGb": 12,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-4070-super",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-4070-ti",
+      "name": "NVIDIA GeForce RTX 4070 Ti",
+      "vramGb": 12,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-4070-ti",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-4070-ti-super",
+      "name": "NVIDIA GeForce RTX 4070 Ti SUPER",
+      "vramGb": 16,
+      "rentalUsdPerHour": null,
+      "providers": 1,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-4070-ti-super",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-4080",
+      "name": "NVIDIA GeForce RTX 4080",
+      "vramGb": 16,
+      "rentalUsdPerHour": null,
+      "providers": 1,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-4080",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-4080-super",
+      "name": "NVIDIA GeForce RTX 4080 SUPER",
+      "vramGb": 16,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-4080-super",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-5060",
+      "name": "NVIDIA GeForce RTX 5060",
+      "vramGb": 8,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-5060",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-5060-ti",
+      "name": "NVIDIA GeForce RTX 5060 Ti",
+      "vramGb": 16,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-5060-ti",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-5070",
+      "name": "NVIDIA GeForce RTX 5070",
+      "vramGb": 12,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-5070",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-5070-ti",
+      "name": "NVIDIA GeForce RTX 5070 Ti",
+      "vramGb": 16,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-5070-ti",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-5080",
+      "name": "NVIDIA GeForce RTX 5080",
+      "vramGb": 16,
+      "rentalUsdPerHour": "0.476950",
+      "providers": 2,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-5080",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.476950"
+        }
+      ]
+    },
+    {
+      "id": "gh200",
+      "name": "NVIDIA GH200",
+      "vramGb": 96,
+      "rentalUsdPerHour": "3.195000",
+      "providers": 4,
+      "sourceUrl": "https://gpueconomy.com/gpu/gh200",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "3.195000"
+        }
+      ]
+    },
+    {
+      "id": "h100",
+      "name": "NVIDIA H100 80GB (form factor not stated)",
+      "vramGb": 80,
+      "rentalUsdPerHour": "3.662900",
+      "providers": 26,
+      "sourceUrl": "https://gpueconomy.com/gpu/h100",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "3.662900"
+        }
+      ]
+    },
+    {
+      "id": "h100-nvl",
+      "name": "NVIDIA H100 NVL",
+      "vramGb": 94,
+      "rentalUsdPerHour": "4.234900",
+      "providers": 8,
+      "sourceUrl": "https://gpueconomy.com/gpu/h100-nvl",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "4.234900"
+        }
+      ]
+    },
+    {
+      "id": "h100-pcie",
+      "name": "NVIDIA H100 PCIe",
+      "vramGb": 80,
+      "rentalUsdPerHour": "2.890000",
+      "providers": 11,
+      "sourceUrl": "https://gpueconomy.com/gpu/h100-pcie",
+      "weeklyHistory": [
+        {
+          "date": "2026-08-31",
+          "price": "1.990000",
+          "providers": 1
+        },
+        {
+          "date": "2026-09-07",
+          "price": "2.500000",
+          "providers": 3
+        },
+        {
+          "date": "2026-09-14",
+          "price": "2.250000",
+          "providers": 4
+        },
+        {
+          "date": "2026-09-21",
+          "price": "2.500000",
+          "providers": 5
+        },
+        {
+          "date": "2026-09-28",
+          "price": "2.250000",
+          "providers": 6
+        },
+        {
+          "date": "2026-10-05",
+          "price": "2.500000",
+          "providers": 7
+        },
+        {
+          "date": "2026-10-12",
+          "price": "2.540000",
+          "providers": 8
+        },
+        {
+          "date": "2026-10-19",
+          "price": "2.540000",
+          "providers": 8
+        }
+      ],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "2.890000"
+        }
+      ]
+    },
+    {
+      "id": "h100-sxm",
+      "name": "NVIDIA H100 SXM",
+      "vramGb": 80,
+      "rentalUsdPerHour": "3.517050",
+      "providers": 42,
+      "sourceUrl": "https://gpueconomy.com/gpu/h100-sxm",
+      "weeklyHistory": [
+        {
+          "date": "2026-08-31",
+          "price": "2.690000",
+          "providers": 1
+        },
+        {
+          "date": "2026-09-07",
+          "price": "3.950000",
+          "providers": 17
+        },
+        {
+          "date": "2026-09-14",
+          "price": "3.920000",
+          "providers": 18
+        },
+        {
+          "date": "2026-09-21",
+          "price": "3.700000",
+          "providers": 24
+        },
+        {
+          "date": "2026-09-28",
+          "price": "3.490000",
+          "providers": 28
+        },
+        {
+          "date": "2026-10-05",
+          "price": "3.250000",
+          "providers": 31
+        },
+        {
+          "date": "2026-10-12",
+          "price": "3.250000",
+          "providers": 35
+        },
+        {
+          "date": "2026-10-19",
+          "price": "3.270000",
+          "providers": 36
+        }
+      ],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "3.517050"
+        }
+      ]
+    },
+    {
+      "id": "h200",
+      "name": "NVIDIA H200",
+      "vramGb": 141,
+      "rentalUsdPerHour": "4.590000",
+      "providers": 54,
+      "sourceUrl": "https://gpueconomy.com/gpu/h200",
+      "weeklyHistory": [
+        {
+          "date": "2026-08-31",
+          "price": "3.590000",
+          "providers": 1
+        },
+        {
+          "date": "2026-09-07",
+          "price": "4.480000",
+          "providers": 16
+        },
+        {
+          "date": "2026-09-14",
+          "price": "4.330000",
+          "providers": 20
+        },
+        {
+          "date": "2026-09-21",
+          "price": "4.290000",
+          "providers": 32
+        },
+        {
+          "date": "2026-09-28",
+          "price": "4.290000",
+          "providers": 37
+        },
+        {
+          "date": "2026-10-05",
+          "price": "4.290000",
+          "providers": 43
+        },
+        {
+          "date": "2026-10-12",
+          "price": "4.560000",
+          "providers": 46
+        },
+        {
+          "date": "2026-10-19",
+          "price": "4.540000",
+          "providers": 47
+        }
+      ],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "4.590000"
+        }
+      ]
+    },
+    {
+      "id": "h200-nvl",
+      "name": "NVIDIA H200 NVL",
+      "vramGb": 141,
+      "rentalUsdPerHour": "3.705000",
+      "providers": 6,
+      "sourceUrl": "https://gpueconomy.com/gpu/h200-nvl",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "3.705000"
+        }
+      ]
+    },
+    {
+      "id": "l4",
+      "name": "NVIDIA L4",
+      "vramGb": 24,
+      "rentalUsdPerHour": "0.799200",
+      "providers": 22,
+      "sourceUrl": "https://gpueconomy.com/gpu/l4",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.799200"
+        }
+      ]
+    },
+    {
+      "id": "l40",
+      "name": "NVIDIA L40",
+      "vramGb": 48,
+      "rentalUsdPerHour": "0.955000",
+      "providers": 10,
+      "sourceUrl": "https://gpueconomy.com/gpu/l40",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.955000"
+        }
+      ]
+    },
+    {
+      "id": "l40s",
+      "name": "NVIDIA L40S",
+      "vramGb": 48,
+      "rentalUsdPerHour": "1.500000",
+      "providers": 39,
+      "sourceUrl": "https://gpueconomy.com/gpu/l40s",
+      "weeklyHistory": [
+        {
+          "date": "2026-08-31",
+          "price": "0.790000",
+          "providers": 1
+        },
+        {
+          "date": "2026-09-07",
+          "price": "1.550000",
+          "providers": 13
+        },
+        {
+          "date": "2026-09-14",
+          "price": "1.520000",
+          "providers": 18
+        },
+        {
+          "date": "2026-09-21",
+          "price": "1.540000",
+          "providers": 25
+        },
+        {
+          "date": "2026-09-28",
+          "price": "1.400000",
+          "providers": 28
+        },
+        {
+          "date": "2026-10-05",
+          "price": "1.470000",
+          "providers": 32
+        },
+        {
+          "date": "2026-10-12",
+          "price": "1.500000",
+          "providers": 34
+        },
+        {
+          "date": "2026-10-19",
+          "price": "1.520000",
+          "providers": 32
+        }
+      ],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "1.500000"
+        }
+      ]
+    },
+    {
+      "id": "quadro-p4000",
+      "name": "NVIDIA Quadro P4000",
+      "vramGb": 8,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/quadro-p4000",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "quadro-rtx-4000",
+      "name": "NVIDIA Quadro RTX 4000",
+      "vramGb": 8,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/quadro-rtx-4000",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "quadro-rtx-6000",
+      "name": "NVIDIA Quadro RTX 6000",
+      "vramGb": 24,
+      "rentalUsdPerHour": "0.507300",
+      "providers": 4,
+      "sourceUrl": "https://gpueconomy.com/gpu/quadro-rtx-6000",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.507300"
+        }
+      ]
+    },
+    {
+      "id": "rtx-2000-ada",
+      "name": "NVIDIA RTX 2000 Ada",
+      "vramGb": 16,
+      "rentalUsdPerHour": "0.240000",
+      "providers": 2,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-2000-ada",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.240000"
+        }
+      ]
+    },
+    {
+      "id": "rtx-4000-ada",
+      "name": "NVIDIA RTX 4000 Ada",
+      "vramGb": 20,
+      "rentalUsdPerHour": "0.520000",
+      "providers": 5,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-4000-ada",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.520000"
+        }
+      ]
+    },
+    {
+      "id": "rtx-4000-sff-ada",
+      "name": "NVIDIA RTX 4000 SFF Ada",
+      "vramGb": 20,
+      "rentalUsdPerHour": "0.470000",
+      "providers": 2,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-4000-sff-ada",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.470000"
+        }
+      ]
+    },
+    {
+      "id": "rtx-4090",
+      "name": "NVIDIA RTX 4090",
+      "vramGb": 24,
+      "rentalUsdPerHour": "0.467600",
+      "providers": 16,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-4090",
+      "weeklyHistory": [
+        {
+          "date": "2026-08-31",
+          "price": "0.340000",
+          "providers": 1
+        },
+        {
+          "date": "2026-09-07",
+          "price": "0.340000",
+          "providers": 1
+        },
+        {
+          "date": "2026-09-14",
+          "price": "0.390000",
+          "providers": 3
+        },
+        {
+          "date": "2026-09-21",
+          "price": "0.430000",
+          "providers": 8
+        },
+        {
+          "date": "2026-09-28",
+          "price": "0.420000",
+          "providers": 12
+        },
+        {
+          "date": "2026-10-05",
+          "price": "0.420000",
+          "providers": 14
+        },
+        {
+          "date": "2026-10-12",
+          "price": "0.440000",
+          "providers": 15
+        },
+        {
+          "date": "2026-10-19",
+          "price": "0.430000",
+          "providers": 14
+        }
+      ],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.467600"
+        }
+      ]
+    },
+    {
+      "id": "rtx-4500-ada",
+      "name": "NVIDIA RTX 4500 Ada Generation",
+      "vramGb": 24,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-4500-ada",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-5000-ada",
+      "name": "NVIDIA RTX 5000 Ada Generation",
+      "vramGb": 32,
+      "rentalUsdPerHour": null,
+      "providers": 1,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-5000-ada",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-5090",
+      "name": "NVIDIA RTX 5090",
+      "vramGb": 32,
+      "rentalUsdPerHour": "0.790000",
+      "providers": 17,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-5090",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.790000"
+        }
+      ]
+    },
+    {
+      "id": "rtx-6000-ada",
+      "name": "NVIDIA RTX 6000 Ada",
+      "vramGb": 48,
+      "rentalUsdPerHour": "1.065000",
+      "providers": 11,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-6000-ada",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "1.065000"
+        }
+      ]
+    },
+    {
+      "id": "rtx-a2000",
+      "name": "NVIDIA RTX A2000",
+      "vramGb": 6,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-a2000",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "rtx-a4000",
+      "name": "NVIDIA RTX A4000",
+      "vramGb": 16,
+      "rentalUsdPerHour": "0.200000",
+      "providers": 9,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-a4000",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.200000"
+        }
+      ]
+    },
+    {
+      "id": "rtx-a5000",
+      "name": "NVIDIA RTX A5000",
+      "vramGb": 24,
+      "rentalUsdPerHour": "0.580950",
+      "providers": 8,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-a5000",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.580950"
+        }
+      ]
+    },
+    {
+      "id": "rtx-a6000",
+      "name": "NVIDIA RTX A6000",
+      "vramGb": 48,
+      "rentalUsdPerHour": "0.590000",
+      "providers": 19,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-a6000",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.590000"
+        }
+      ]
+    },
+    {
+      "id": "rtx-pro-4500",
+      "name": "NVIDIA RTX PRO 4500 Blackwell",
+      "vramGb": 32,
+      "rentalUsdPerHour": "0.857350",
+      "providers": 6,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-pro-4500",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.857350"
+        }
+      ]
+    },
+    {
+      "id": "rtx-pro-5000",
+      "name": "NVIDIA RTX PRO 5000 Blackwell",
+      "vramGb": 48,
+      "rentalUsdPerHour": "1.207550",
+      "providers": 2,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-pro-5000",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "1.207550"
+        }
+      ]
+    },
+    {
+      "id": "rtx-pro-6000",
+      "name": "NVIDIA RTX PRO 6000 Blackwell",
+      "vramGb": 96,
+      "rentalUsdPerHour": "2.313700",
+      "providers": 40,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-pro-6000",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "2.313700"
+        }
+      ]
+    },
+    {
+      "id": "rtx-pro-6000-max-q",
+      "name": "NVIDIA RTX PRO 6000 Blackwell Max-Q",
+      "vramGb": 96,
+      "rentalUsdPerHour": "1.860700",
+      "providers": 2,
+      "sourceUrl": "https://gpueconomy.com/gpu/rtx-pro-6000-max-q",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "1.860700"
+        }
+      ]
+    },
+    {
+      "id": "t4",
+      "name": "NVIDIA T4",
+      "vramGb": 16,
+      "rentalUsdPerHour": "0.550000",
+      "providers": 15,
+      "sourceUrl": "https://gpueconomy.com/gpu/t4",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.550000"
+        }
+      ]
+    },
+    {
+      "id": "p100-12",
+      "name": "NVIDIA Tesla P100 12GB",
+      "vramGb": 12,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/p100-12",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "titan-rtx",
+      "name": "NVIDIA TITAN RTX",
+      "vramGb": 24,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/titan-rtx",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "titan-v",
+      "name": "NVIDIA TITAN V",
+      "vramGb": 12,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/titan-v",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "titan-xp",
+      "name": "NVIDIA TITAN Xp",
+      "vramGb": 12,
+      "rentalUsdPerHour": null,
+      "providers": 0,
+      "sourceUrl": "https://gpueconomy.com/gpu/titan-xp",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": null
+        }
+      ]
+    },
+    {
+      "id": "v100",
+      "name": "NVIDIA V100",
+      "vramGb": 16,
+      "rentalUsdPerHour": "2.480000",
+      "providers": 11,
+      "sourceUrl": "https://gpueconomy.com/gpu/v100",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "2.480000"
+        }
+      ]
+    },
+    {
+      "id": "v100-32",
+      "name": "NVIDIA V100 32GB",
+      "vramGb": 32,
+      "rentalUsdPerHour": "0.770000",
+      "providers": 10,
+      "sourceUrl": "https://gpueconomy.com/gpu/v100-32",
+      "weeklyHistory": [],
+      "observations": [
+        {
+          "time": "2026-10-24T21:40:12.886Z",
+          "rentalUsdPerHour": "0.770000"
+        }
+      ]
+    }
+  ]
+}
