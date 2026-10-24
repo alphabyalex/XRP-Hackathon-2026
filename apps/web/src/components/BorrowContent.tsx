@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LoanQuoteApiResponse, PortfolioResponse, XlsLoanRecord } from "@moonshift/shared";
 import { getPortfolio } from "@/lib/api";
 import { fmt, shortHash } from "@/lib/format";
-import { listLoans, openFromQuote, payNext, payOff, pct, quoteLoan, txUrl, useApiEvents } from "@/lib/lendingApi";
+import { listLoans, maxPrincipal, openFromQuote, payNext, payOff, pct, quoteLoan, txUrl, useApiEvents } from "@/lib/lendingApi";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
 import { HealthMeter, LoanTxs, StatusChip, StressControls, TxLink } from "./LendingBits";
@@ -52,7 +52,9 @@ export function BorrowContent({
 }) {
   const [portfolio, setPortfolio] = useState(initialPortfolio);
   const [shares, setShares] = useState("100");
-  const [principal, setPrincipal] = useState("100");
+  const [principal, setPrincipal] = useState("");
+  // Until the borrower types an amount, it follows the largest approved one.
+  const [amountTouched, setAmountTouched] = useState(false);
   const [quote, setQuote] = useState<LoanQuoteApiResponse | null>(null);
   const [quoteErr, setQuoteErr] = useState<string | null>(null);
   const [quoting, setQuoting] = useState(false);
@@ -72,6 +74,23 @@ export function BorrowContent({
     if (p) setPortfolio(p);
     if (l) setLoans(l.loans);
   }, []);
+
+  // Default the amount to the largest one risk approves for these shares.
+  useEffect(() => {
+    if (amountTouched || !(Number(shares) > 0)) return;
+    let alive = true;
+    const t = setTimeout(() => {
+      maxPrincipal(ACCOUNT, gpuId, String(Number(shares)))
+        .then((m) => {
+          if (alive && !amountTouched) setPrincipal(Number(m.maxPrincipal) > 0 ? String(Number(m.maxPrincipal)) : "1");
+        })
+        .catch(() => alive && !amountTouched && setPrincipal((p) => p || "50"));
+    }, 300);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [shares, gpuId, amountTouched, requote]);
 
   // Live quote, debounced. Stale responses are dropped.
   useEffect(() => {
@@ -123,6 +142,7 @@ export function BorrowContent({
         `XLS-66 LoanSet tx ${shortHash(loan.txs.loanSet ?? "")} · ${loan.collateralShares} ${code} escrowed`
       );
       setQuote(null);
+      setAmountTouched(false); // next loan: back to the largest approved amount
       setRequote((n) => n + 1); // a quote opens one loan; fetch a fresh one
       await refresh();
     } catch (e) {
@@ -235,7 +255,11 @@ export function BorrowContent({
                   Borrow
                 </label>
                 <div className="inp">
-                  <input id="amt" type="number" min={1} value={principal} inputMode="decimal" onChange={(e) => setPrincipal(e.target.value)} />
+                  <input id="amt" type="number" min={1} value={principal} inputMode="decimal" onChange={(e) => {
+                      setAmountTouched(true);
+                      setPrincipal(e.target.value);
+                    }}
+                  />
                   <span>USDC</span>
                 </div>
                 <span className="note">Collateral worth {quote ? fmt(Number(quote.collateralValue), 2) : "..."} USDC</span>

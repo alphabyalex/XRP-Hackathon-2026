@@ -95,6 +95,9 @@ lendingRouter.get(
 
 lendingRouter.post("/loans/quote", handle(async (req) => svc.buildQuote(req.body as LoanQuoteApiRequest)));
 
+// { borrower, gpuId, collateralShares } -> { maxPrincipal, collateralValue, termSeconds }
+lendingRouter.post("/loans/max", handle(async (req) => svc.maxApprovedPrincipal(req.body)));
+
 lendingRouter.get("/loans", handle(async (req) => ({ loans: await svc.listLoans(req.query.borrower as string | undefined) })));
 
 lendingRouter.get(

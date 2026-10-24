@@ -1278,3 +1278,13 @@ a.txl:hover {
     grid-template-columns: 1fr;
   }
 }
+/* grid children default to min-width: auto, so a number input could push the
+   panel wider than the viewport (horizontal scroll at 1280px) */
+.lend-grid > *,
+.two > *,
+.loans > * {
+  min-width: 0;
+}
+.inp input {
+  width: 100%;
+}

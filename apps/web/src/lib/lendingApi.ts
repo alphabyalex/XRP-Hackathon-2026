@@ -22,6 +22,8 @@ export const withdraw = (lender: string, amount: string) => post<{ round: number
 
 export const quoteLoan = (borrower: string, gpuId: string, collateralShares: string, principal: string) =>
   post<LoanQuoteApiResponse>("/loans/quote", { borrower, gpuId, collateralShares, principal });
+export const maxPrincipal = (borrower: string, gpuId: string, collateralShares: string) =>
+  post<{ maxPrincipal: string; collateralValue: string; termSeconds: number }>("/loans/max", { borrower, gpuId, collateralShares });
 export const openFromQuote = (quoteId: string) => post<XlsLoanRecord>("/loans/open", { quoteId });
 export const listLoans = (borrower?: string) =>
   apiFetch<{ loans: XlsLoanRecord[] }>(`/loans${borrower ? `?borrower=${encodeURIComponent(borrower)}` : ""}`);

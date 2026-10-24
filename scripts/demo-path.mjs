@@ -51,7 +51,9 @@ await step("deposit", async () => {
 });
 
 const quote = await step("quote", async () => {
-  const q = await call("POST", "/loans/quote", { borrower: "ALICE", gpuId: "gpu-a", collateralShares: "100", principal: "100" });
+  // Same default the /borrow page uses: the largest amount risk approves.
+  const max = await call("POST", "/loans/max", { borrower: "ALICE", gpuId: "gpu-a", collateralShares: "100" });
+  const q = await call("POST", "/loans/quote", { borrower: "ALICE", gpuId: "gpu-a", collateralShares: "100", principal: max.maxPrincipal });
   console.log(
     `    quote: ${q.quote.decision}, APR ${(q.quote.apr * 100).toFixed(2)}%, LTV ${(q.quote.ltv * 100).toFixed(1)}%, margin call ${(q.quote.marginCallLtv * 100).toFixed(1)}%, liquidation ${(q.quote.liquidationLtv * 100).toFixed(1)}%, grade ${q.credit.grade}, sources ${JSON.stringify(q.sources)}`
   );
@@ -61,7 +63,7 @@ const quote = await step("quote", async () => {
 const loan = quote && (await step("open", async () => {
   const l = await call("POST", "/loans/open", { quoteId: quote.quoteId });
   row("Borrower escrows 100 GPA shares", "GPU shares locked as collateral (EscrowCreate, MS_COLLATERAL)", l.txs.escrow, net);
-  row("Loan opens: 100 USDC from the vault", "XLS-66 LoanSet, broker signs, borrower countersigns", l.txs.loanSet, net);
+  row(`Loan opens: ${Number(l.principal).toFixed(0)} USDC from the vault`, "XLS-66 LoanSet, broker signs, borrower countersigns", l.txs.loanSet, net);
   return l;
 }));
 
@@ -86,10 +88,13 @@ if (loan) {
   });
 }
 
-const q2 = await step("quote 2", () => call("POST", "/loans/quote", { borrower: "ALICE", gpuId: "gpu-a", collateralShares: "80", principal: "60" }));
+const q2 = await step("quote 2", async () => {
+  const max = await call("POST", "/loans/max", { borrower: "ALICE", gpuId: "gpu-a", collateralShares: "80" });
+  return call("POST", "/loans/quote", { borrower: "ALICE", gpuId: "gpu-a", collateralShares: "80", principal: String(Math.max(1, Math.floor(Number(max.maxPrincipal) * 0.8))) });
+});
 const loan2 = q2 && (await step("open 2", async () => {
   const l = await call("POST", "/loans/open", { quoteId: q2.quoteId });
-  row("Second loan: 60 USDC against 80 GPA", "XLS-66 LoanSet", l.txs.loanSet, net);
+  row(`Second loan: ${Number(l.principal).toFixed(0)} USDC against 80 GPA`, "XLS-66 LoanSet", l.txs.loanSet, net);
   return l;
 }));
 if (loan2) {

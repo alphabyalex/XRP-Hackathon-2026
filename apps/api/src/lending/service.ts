@@ -159,6 +159,51 @@ export async function buildQuote(req: LoanQuoteApiRequest): Promise<LoanQuoteApi
   return out;
 }
 
+// Largest principal risk approves for this collateral. Approval depends on
+// the principal itself (dividend coverage falls as the loan grows), so this
+// searches the risk model directly; no memo, no stored quote.
+export async function maxApprovedPrincipal(req: { borrower: string; gpuId: string; collateralShares: string; termSeconds?: number }) {
+  const gpu = GPUS.find((g) => g.id === req.gpuId);
+  if (!gpu) throw new LendingError("BAD_REQUEST", `unknown gpuId ${req.gpuId}`);
+  const shares = Number(req.collateralShares);
+  if (!(shares > 0)) throw new LendingError("BAD_REQUEST", "collateralShares must be positive");
+  const name = lending.nameOf(req.borrower);
+  const address = lending.addressOf(req.borrower);
+  const round = (await lending.vaultOverview()).investing;
+  if (!round) throw new LendingError("NO_LENDING_ROUND", "no vault round is lending right now; run npm run demo:reset", 409);
+  const roundLeft = Math.floor((new Date(round.redemptionDate).getTime() - Date.now()) / 1000) - 3 * 3600;
+  const termSeconds = Math.max(120, Math.min(Math.floor(req.termSeconds ?? DEFAULT_TERM_SECONDS), roundLeft));
+  const [{ profile }, oracle, nav] = await Promise.all([
+    credit.getProfile(CREDIT_NETWORK(), address, name),
+    collateralPrice(gpu.id),
+    pricing.getNav(gpu.id).catch(() => null),
+  ]);
+  const { buckets } = await compute.getRevenueHistory(gpu.id, 24, Number(nav?.trailing_revenue_24h ?? 48.2));
+  const base = {
+    borrower: address,
+    gpuId: gpu.id,
+    collateralShares: fix6(shares),
+    termSeconds,
+    creditProfile: credit.toRiskProfile(profile),
+    revenueHistory: buckets,
+    collateralPrice: oracle.price,
+    collateralPriceHistory: oracle.history,
+  };
+  const approves = async (principal: number) => (await risk.quote({ ...base, principal: fix6(principal) })).quote.decision === "approve";
+  const cap = Math.min(shares * Number(oracle.price), Number(round.assetsAvailable));
+  let lo = 0;
+  let hi = cap;
+  if (!(await approves(1))) return { maxPrincipal: "0.00", collateralValue: fix6(shares * Number(oracle.price)), termSeconds };
+  lo = 1;
+  for (let i = 0; i < 14 && hi - lo > 0.5; i++) {
+    const mid = (lo + hi) / 2;
+    if (await approves(mid)) lo = mid;
+    else hi = mid;
+  }
+  // Whole USDC, a little under the edge so rounding never flips it to decline.
+  return { maxPrincipal: Math.max(0, Math.floor(lo * 0.99)).toFixed(2), collateralValue: fix6(shares * Number(oracle.price)), termSeconds };
+}
+
 // ---------------------------------------------------------------------------
 // Loan records
 // ---------------------------------------------------------------------------
