@@ -6,13 +6,19 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "features": "tsx src/scripts/features.ts",
+    "setup": "tsx src/scripts/setup.ts",
+    "smoke": "tsx src/scripts/smoke.ts"
   },
   "dependencies": {
     "@moonshift/shared": "*",
+    "dotenv": "^16.4.5",
     "xrpl": "^4.1.0"
   },
   "devDependencies": {
+    "tsx": "^4.19.2",
     "typescript": "^5.6.3"
   }
 }
+
