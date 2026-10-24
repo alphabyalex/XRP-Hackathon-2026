@@ -1,0 +1,24 @@
+{
+  "endpoint": "POST /streams/xrpl (called by Quicknode Streams, not by our services)",
+  "note": "Destination of the Quicknode Stream (XRPL ledger dataset) running the filter in services/credit/quicknode/streams_filter.js. Verified with HMAC-SHA256 over X-QN-Nonce + X-QN-Timestamp + body using QUICKNODE_STREAMS_TOKEN. Gzip bodies are accepted. Also accepts an unfiltered ledger payload ({ data: [ledger, ...] }) and filters it locally against the watchlist. Returns 2xx so Quicknode does not retry; returns 401 on a bad signature.",
+  "headers": { "X-QN-Nonce": "<nonce>", "X-QN-Timestamp": "<unix seconds>", "X-QN-Signature": "<hex hmac>" },
+  "request": {
+    "network": "xrpl-testnet",
+    "matches": [
+      {
+        "ledgerIndex": 21791500,
+        "closeTimeIso": "2026-10-24T17:05:11Z",
+        "addresses": ["rHu4dJcC3DALsgvprvekBt9dG3poU95Rzb"],
+        "tx": {
+          "hash": "0000000000000000000000000000000000000000000000000000000000000006",
+          "TransactionType": "Payment",
+          "Account": "rHu4dJcC3DALsgvprvekBt9dG3poU95Rzb",
+          "Destination": "r3MngmkiUcdTYos1Q2LADyp6C8tpm8WLSH",
+          "Amount": "820000000",
+          "metaData": { "TransactionResult": "tesSUCCESS", "delivered_amount": "820000000", "AffectedNodes": [] }
+        }
+      }
+    ]
+  },
+  "response": { "ok": true, "received": 1, "events": 1 }
+}

@@ -1,0 +1,24 @@
+{
+  "endpoint": "POST /profiles",
+  "note": "Batch version of GET /profile. At most 20 items. Each profile has the exact shape of contracts/credit/profile.json. A failed item goes to errors and does not fail the batch.",
+  "request": {
+    "items": [
+      { "network": "mainnet", "address": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh" },
+      { "network": "testnet", "address": "rHu4dJcC3DALsgvprvekBt9dG3poU95Rzb" },
+      { "network": "testnet", "address": "not-an-address" }
+    ],
+    "refresh": false
+  },
+  "response": {
+    "profiles": ["<profile, see profile.json>", "<profile, see profile.json>"],
+    "errors": [
+      { "network": "testnet", "address": "not-an-address", "code": "INVALID_ADDRESS", "message": "not a classic XRPL address" }
+    ]
+  },
+  "errors": {
+    "INVALID_NETWORK": "422, network is not mainnet, testnet or devnet",
+    "INVALID_ADDRESS": "422, not a classic r-address",
+    "ACCOUNT_NOT_FOUND": "404, the account does not exist on that network",
+    "UPSTREAM_ERROR": "502, the XRPL endpoint failed after retries"
+  }
+}

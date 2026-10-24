@@ -1,0 +1,54 @@
+{
+  "endpoint": "GET /events (Server-Sent Events)",
+  "note": "Each event is: event: <type>\\ndata: <json>\\n\\n. A comment line ': ping' is sent every 15 seconds. credit_event data is the same body that credit POSTs to api /internal/credit-events. via is streams (Quicknode Streams webhook), websocket (Quicknode or public WebSocket subscribe) or simulated (POST /monitor/simulate).",
+  "examples": [
+    {
+      "type": "credit_event",
+      "data": {
+        "id": "ce_7f3a9c1d2b",
+        "kind": "LARGE_OUTFLOW",
+        "severity": "warn",
+        "network": "testnet",
+        "address": "rHu4dJcC3DALsgvprvekBt9dG3poU95Rzb",
+        "txHash": "0000000000000000000000000000000000000000000000000000000000000006",
+        "amount": "820.000000",
+        "currency": "XRP",
+        "detail": "Sent 820 XRP, 64% of the balance before the payment",
+        "ledgerIndex": 21791500,
+        "at": "2026-10-24T17:05:12Z",
+        "via": "streams",
+        "simulated": false
+      }
+    },
+    {
+      "type": "credit_event",
+      "data": {
+        "id": "ce_1a2b3c4d5e",
+        "kind": "MISSED_PAYMENT",
+        "severity": "critical",
+        "network": "testnet",
+        "address": "rHu4dJcC3DALsgvprvekBt9dG3poU95Rzb",
+        "txHash": "0000000000000000000000000000000000000000000000000000000000000007",
+        "amount": "50.000000",
+        "currency": "TDX",
+        "detail": "Loan 0000...0007 was due 2026-10-24T17:10:00Z and no MS_REPAY was seen",
+        "ledgerIndex": null,
+        "at": "2026-10-24T17:10:30Z",
+        "via": "streams",
+        "simulated": false
+      }
+    },
+    {
+      "type": "profile",
+      "data": { "network": "testnet", "address": "rHu4dJcC3DALsgvprvekBt9dG3poU95Rzb", "score": 61, "grade": "C", "confidence": "medium", "source": "quicknode", "asOf": "2026-10-24T17:05:13Z" }
+    }
+  ],
+  "kinds": {
+    "LARGE_OUTFLOW": "warn, a single outgoing payment of at least LARGE_OUTFLOW_RATIO (default 0.5) of the balance before it",
+    "MISSED_PAYMENT": "critical, a Moonshift loan passed its due time with no MS_REPAY from the borrower",
+    "MS_REPAY": "info, borrower repaid a Moonshift loan",
+    "MS_LOAN_DISBURSE": "info, borrower received a Moonshift loan",
+    "MARGIN_CALL": "warn, borrower received a payment with memo MS_MARGIN_CALL",
+    "LIQUIDATION": "critical, the lender finished (claimed) a collateral escrow owned by the borrower"
+  }
+}
