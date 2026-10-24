@@ -19,7 +19,7 @@ function WalletGlyph() {
 }
 
 export function WalletButton() {
-  const { wallet, busy, wrongNetwork, connect, disconnect } = useWallet();
+  const { wallet, busy, phase, wrongNetwork, connect, disconnect } = useWallet();
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const toast = useToast();
@@ -48,7 +48,7 @@ export function WalletButton() {
   if (!wallet || wrongNetwork) {
     return (
       <button type="button" className="btn ink sm cta wallet-pill" disabled={busy} onClick={signIn}>
-        {busy ? "Connecting..." : wrongNetwork ? "Switch to Testnet" : "Connect wallet"}
+        {phase === "setup" ? "Setting up..." : busy ? "Connecting..." : wrongNetwork ? "Switch to Testnet" : "Connect wallet"}
       </button>
     );
   }

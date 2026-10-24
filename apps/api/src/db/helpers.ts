@@ -3,10 +3,19 @@ import { db } from "./db.js";
 import { explorerUrl } from "@moonshift/shared";
 import type { TxResult } from "@moonshift/shared";
 
+// A user's account reads as their wallet (rLfW…sbTs), not its internal U_<address> name.
+function readable(summary: string): string {
+  return summary.replace(/U_(r[1-9A-HJ-NP-Za-km-z]{24,34})/g, (_m, addr: string) => {
+    const row = db.prepare(`SELECT wallet_address FROM users WHERE account_address = ?`).get(addr) as { wallet_address: string } | undefined;
+    const w = row?.wallet_address ?? addr;
+    return `${w.slice(0, 4)}…${w.slice(-4)}`;
+  });
+}
+
 export function logTx(tx: TxResult, kind: string, account: string, summary: string): void {
   db.prepare(
     `INSERT OR REPLACE INTO tx_log (hash, kind, account, summary, explorer_url, created_at) VALUES (?, ?, ?, ?, ?, ?)`
-  ).run(tx.hash, kind, account, summary, tx.explorerUrl || explorerUrl(tx.hash), new Date().toISOString());
+  ).run(tx.hash, kind, account, readable(summary), tx.explorerUrl || explorerUrl(tx.hash), new Date().toISOString());
 }
 
 export function addRevenue(gpuId: string, source: "inference" | "contract", amount: string, ref: string | null): void {

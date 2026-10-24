@@ -196,6 +196,21 @@ p {
   color: var(--ink);
 }
 
+/* Signed out: one line and the button where something personal would be */
+.connect-prompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding: 22px 0;
+}
+.connect-prompt p {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink2);
+}
+
 /* Header wallet pill and its menu */
 .wallet-pill {
   white-space: nowrap;

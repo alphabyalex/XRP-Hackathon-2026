@@ -11,7 +11,7 @@ import { useToast } from "./Toast";
 import { HealthMeter, LoanTxs, StatusChip, StressControls, TxLink } from "./LendingBits";
 import { WalletConnect } from "./WalletConnect";
 import { useWallet } from "@/lib/wallet";
-import { ACCOUNT } from "@/lib/session";
+import { ConnectPrompt } from "./ConnectPrompt";
 
 const FACTOR_TEXT: Record<string, string> = {
   accountAgeDays: "Account age (days)",
@@ -96,7 +96,7 @@ export function BorrowContent({
   gpuId,
   gpuLabel,
 }: {
-  initialPortfolio: PortfolioResponse;
+  initialPortfolio: PortfolioResponse | null;
   initialProfile: CreditProfile | null;
   initialMax: MaxAmount | null;
   initialWallet: ConnectedWallet | null;
@@ -138,11 +138,11 @@ export function BorrowContent({
   // The max on screen answers this request; the server-rendered one counts.
   const maxFor = useRef(initialMax ? `${defaultShares}|${gpuId}|0` : "");
 
-  const held = Number(portfolio.shares.find((s) => s.gpuId === gpuId)?.qty ?? 0);
+  const held = Number(portfolio?.shares.find((s) => s.gpuId === gpuId)?.qty ?? 0);
   const code = `${gpuLabel} shares`;
 
   const refresh = useCallback(async () => {
-    const [p, l] = await Promise.all([getPortfolio(ACCOUNT).catch(() => null), listLoans(ACCOUNT).catch(() => null)]);
+    const [p, l] = await Promise.all([getPortfolio().catch(() => null), listLoans(true).catch(() => null)]);
     if (p) setPortfolio(p);
     if (l) setLoans(l.loans);
   }, []);
@@ -151,7 +151,7 @@ export function BorrowContent({
   useEffect(() => {
     if (initialProfile && requote === 0) return;
     let alive = true;
-    borrowerProfile(ACCOUNT)
+    borrowerProfile()
       .then((p) => alive && setProfile(p))
       .catch(() => {});
     return () => {
@@ -163,7 +163,7 @@ export function BorrowContent({
   useEffect(() => {
     if (!wallet) return setActivity([]);
     let alive = true;
-    walletGet(ACCOUNT)
+    walletGet()
       .then((r) => alive && setActivity(((r as { activity?: Activity[] }).activity ?? []).slice(0, 8)))
       .catch(() => {});
     return () => {
@@ -180,7 +180,7 @@ export function BorrowContent({
     if (wallet?.address !== data.address) void site.refresh();
     const item = data.activity as Activity | undefined;
     // The new profile and what moved land together, so highlighted rows already show the new points.
-    borrowerProfile(ACCOUNT)
+    borrowerProfile()
       .then(setProfile)
       .catch(() => {})
       .finally(() => {
@@ -203,7 +203,7 @@ export function BorrowContent({
     if (key === maxFor.current) return;
     let alive = true;
     const t = setTimeout(() => {
-      maxPrincipal(ACCOUNT, gpuId, String(s))
+      maxPrincipal(gpuId, String(s))
         .then((m) => {
           if (!alive) return;
           maxFor.current = key;
@@ -232,7 +232,7 @@ export function BorrowContent({
     setQuoting(true);
     const t = setTimeout(async () => {
       try {
-        const q = await quoteLoan(ACCOUNT, gpuId, String(s), String(p));
+        const q = await quoteLoan(gpuId, String(s), String(p));
         if (mine === seq.current) {
           setQuote(q);
           setQuoteErr(null);
@@ -275,6 +275,10 @@ export function BorrowContent({
 
 
   useEffect(() => {
+    if (!walletKey) {
+      setLoans([]);
+      return;
+    }
     void refresh();
     const t = setInterval(() => setNow(Date.now()), 1000);
     const poll = setInterval(() => void refresh(), 20_000);
@@ -282,7 +286,7 @@ export function BorrowContent({
       clearInterval(t);
       clearInterval(poll);
     };
-  }, [refresh]);
+  }, [refresh, walletKey]);
 
   useApiEvents(["loan", "vault", "risk"], (type, data) => {
     if (type === "loan" && data?.alert?.text) setAlerts((a) => ({ ...a, [data.id]: data.alert.text }));
@@ -339,6 +343,29 @@ export function BorrowContent({
         .sort((a, b) => Number(changed.has(b[0])) - Number(changed.has(a[0])) || Math.abs(b[1].points) - Math.abs(a[1].points))
         .slice(0, Math.max(5, changed.size))
     : [];
+
+  const head = (
+    <div className="shead">
+      <h2>Borrow against your GPU shares.</h2>
+      <p>
+        Your shares stay yours. They sit in an XRPL escrow while you borrow USDC from the Moonshift lending vault, and they come back the moment you
+        repay. Terms come from your on-chain payment history and the GPU&apos;s real revenue.
+      </p>
+    </div>
+  );
+
+  if (!wallet) {
+    return (
+      <main className="s">
+        <div className="wrap">
+          {head}
+          <div className="trade card">
+            <ConnectPrompt />
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="s">

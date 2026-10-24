@@ -1,45 +1,54 @@
 "use client";
-// One wallet connection for the whole site (header pill, /borrow, ...).
-// Crossmark testnet sign-in: the api issues a challenge, Crossmark signs it,
-// the credit service verifies the signature. The app only sees the address,
-// public key and signature. The connection is remembered in localStorage for
-// an instant header on the next page load; the api stays the source of truth.
+// The signed-in wallet is the user, site-wide (header pill, /borrow, /lend,
+// /portfolio, ...). Crossmark testnet sign-in: the api issues a challenge,
+// Crossmark signs it, the api verifies the signature, looks up or creates the
+// wallet's Moonshift account and sets an httpOnly session cookie. The app only
+// sees the address, public key and signature. The last wallet is remembered in
+// localStorage for an instant header on the next page load; the api's session
+// stays the source of truth.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { walletChallenge, walletConnect, walletDisconnect, walletGet, walletVerify, type ConnectedWallet } from "./lendingApi";
-import { ACCOUNT } from "./session";
+import { walletChallenge, walletDisconnect, walletGet, walletVerify, type ConnectedWallet } from "./lendingApi";
 
 const STORE_KEY = "moonshift.wallet";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+type Account = { address: string };
+// signing: waiting for Crossmark; setup: the api is preparing the account.
+export type WalletPhase = "idle" | "signing" | "setup" | "disconnecting";
+
 export type WalletState = {
   wallet: ConnectedWallet | null;
-  // false until the api has answered; readers can fall back to server-rendered data
+  account: Account | null;
+  // false until the api has answered
   loaded: boolean;
+  phase: WalletPhase;
   busy: boolean;
   // Crossmark is on another network than testnet
   wrongNetwork: boolean;
   error: string | null;
   connect: () => Promise<void>;
-  connectAddress: (address: string) => Promise<void>;
   disconnect: () => Promise<void>;
   refresh: () => Promise<void>;
 };
 
 const Ctx = createContext<WalletState | null>(null);
 
-function remember(w: ConnectedWallet | null) {
+type Stored = { wallet: ConnectedWallet; account: Account | null };
+
+function remember(v: Stored | null) {
   try {
-    if (w) localStorage.setItem(STORE_KEY, JSON.stringify(w));
+    if (v) localStorage.setItem(STORE_KEY, JSON.stringify(v));
     else localStorage.removeItem(STORE_KEY);
   } catch {
-    // storage blocked (private mode): the api still knows the wallet
+    // storage blocked (private mode): the session cookie still works
   }
 }
 
-function recalled(): ConnectedWallet | null {
+function recalled(): Stored | null {
   try {
     const raw = localStorage.getItem(STORE_KEY);
-    return raw ? (JSON.parse(raw) as ConnectedWallet) : null;
+    const v = raw ? JSON.parse(raw) : null;
+    return v?.wallet?.address ? (v as Stored) : null;
   } catch {
     return null;
   }
@@ -55,34 +64,40 @@ async function crossmark() {
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [wallet, setWalletState] = useState<ConnectedWallet | null>(null);
+  const [account, setAccount] = useState<Account | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState<WalletPhase>("idle");
   const [wrongNetwork, setWrongNetwork] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const setWallet = useCallback((w: ConnectedWallet | null) => {
+  const set = useCallback((w: ConnectedWallet | null, a: Account | null) => {
     setWalletState(w);
-    remember(w);
+    setAccount(w ? a : null);
+    remember(w ? { wallet: w, account: a } : null);
   }, []);
 
   const refresh = useCallback(async () => {
     try {
-      setWallet((await walletGet(ACCOUNT)).wallet);
+      const me = await walletGet();
+      set(me.wallet, me.account);
     } catch {
       // api unreachable: keep what we have
     } finally {
       setLoaded(true);
     }
-  }, [setWallet]);
+  }, [set]);
 
   useEffect(() => {
-    const w = recalled();
-    if (w) setWalletState(w);
+    const r = recalled();
+    if (r) {
+      setWalletState(r.wallet);
+      setAccount(r.account);
+    }
     void refresh();
   }, [refresh]);
 
   const connect = useCallback(async () => {
-    setBusy(true);
+    setPhase("signing");
     setError(null);
     try {
       const sdk = await crossmark();
@@ -91,7 +106,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setWrongNetwork(true);
         throw new Error("Switch Crossmark to Testnet");
       }
-      const ch = await walletChallenge(ACCOUNT);
+      const ch = await walletChallenge();
       const { response } = await sdk.async.signInAndWait(ch.messageHex);
       const d = response?.data;
       if (!d?.address) throw new Error("Crossmark did not return an address.");
@@ -101,49 +116,35 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
       if (!d.publicKey || !d.signature) throw new Error("Crossmark did not sign the sign-in request.");
       setWrongNetwork(false);
-      setWallet(await walletVerify(ACCOUNT, { challengeId: ch.challengeId, publicKey: d.publicKey, signature: d.signature, address: d.address }));
+      setPhase("setup");
+      const out = await walletVerify({ challengeId: ch.challengeId, publicKey: d.publicKey, signature: d.signature, address: d.address });
+      set(out.wallet, out.account);
     } catch (e) {
       setError((e as Error).message);
       throw e;
     } finally {
-      setBusy(false);
+      setPhase("idle");
     }
-  }, [setWallet]);
-
-  const connectAddress = useCallback(
-    async (address: string) => {
-      setBusy(true);
-      setError(null);
-      try {
-        setWallet(await walletConnect(ACCOUNT, address));
-      } catch (e) {
-        setError((e as Error).message);
-        throw e;
-      } finally {
-        setBusy(false);
-      }
-    },
-    [setWallet]
-  );
+  }, [set]);
 
   const disconnect = useCallback(async () => {
-    setBusy(true);
+    setPhase("disconnecting");
     setError(null);
     try {
-      await walletDisconnect(ACCOUNT);
-      setWallet(null);
+      await walletDisconnect();
+      set(null, null);
       setWrongNetwork(false);
     } catch (e) {
       setError((e as Error).message);
       throw e;
     } finally {
-      setBusy(false);
+      setPhase("idle");
     }
-  }, [setWallet]);
+  }, [set]);
 
   const value = useMemo(
-    () => ({ wallet, loaded, busy, wrongNetwork, error, connect, connectAddress, disconnect, refresh }),
-    [wallet, loaded, busy, wrongNetwork, error, connect, connectAddress, disconnect, refresh]
+    () => ({ wallet, account, loaded, phase, busy: phase !== "idle", wrongNetwork, error, connect, disconnect, refresh }),
+    [wallet, account, loaded, phase, wrongNetwork, error, connect, disconnect, refresh]
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -16,7 +16,6 @@ import { CodeSample } from "./CodeSample";
 import { PlaygroundTry } from "./PlaygroundTry";
 import { ApiErrorNotice } from "./ApiErrorNotice";
 import { Reveal } from "./Reveal";
-import { ACCOUNT_DISPLAY } from "@/lib/session";
 
 const Hero3DMark = dynamic(() => import("./Hero3DMark").then((m) => m.Hero3DMark), {
   ssr: false,
@@ -83,7 +82,7 @@ export function HomeContent() {
             </div>
           </Reveal>
           <Reveal>
-            <AppWindow tabs={["Market", "Portfolio", "Borrow", "Playground"]} activeTab="Market" acct={<>{ACCOUNT_DISPLAY}&nbsp;&nbsp;<AccountBalance /> USDC</>}>
+            <AppWindow tabs={["Market", "Portfolio", "Borrow", "Playground"]} activeTab="Market" acct={<AccountBalance />}>
               <div className="tbl">
                 <MarketTable views={views} />
               </div>

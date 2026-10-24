@@ -23,7 +23,7 @@ export function PlaygroundTry() {
     setOut("");
     setMeta(null);
     try {
-      const res = await chat([{ role: "user", content: prompt }], "DEV");
+      const res = await chat([{ role: "user", content: prompt }]);
       if (my !== runId.current) return;
       const text = res.choices[0]?.message.content ?? "";
       const finish = () => {

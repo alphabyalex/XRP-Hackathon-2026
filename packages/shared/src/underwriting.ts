@@ -213,7 +213,7 @@ export interface AgentText {
 export type XlsLoanStatus = "open" | "margin_call" | "repaid" | "liquidated" | "defaulted";
 
 export interface LoanQuoteApiRequest {
-  borrower: string; // AccountName (ALICE) or address
+  borrower: string; // AccountName (a user's U_<address>, or a system account) or address
   gpuId: string;
   collateralShares: DecimalString;
   principal: DecimalString;

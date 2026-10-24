@@ -3,7 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { AccountResponse } from "@moonshift/shared";
 import { apiFetch } from "@/lib/api";
-import { ACCOUNT } from "@/lib/session";
+import { useWallet } from "@/lib/wallet";
+import { ConnectPrompt } from "./ConnectPrompt";
 import { payOff, useApiEvents } from "@/lib/lendingApi";
 import { fmt } from "@/lib/format";
 import { Button } from "./Button";
@@ -32,13 +33,17 @@ export function AccountPortfolio() {
   const fetching=useRef(false);
   const queued=useRef(false);
   const toast=useToast();
+  // The signed-in account (the api resolves "me" from the session cookie).
+  const {wallet}=useWallet();
+  const signedIn=!!wallet;
   const refresh=useCallback(async()=>{
+    if(!signedIn){setData(null);setError(false);return;}
     if(fetching.current){queued.current=true;return;}
     fetching.current=true;
-    try{const next=await apiFetch<AccountResponse>(`/account/${encodeURIComponent(ACCOUNT)}`);setData(next);setError(false);}
+    try{const next=await apiFetch<AccountResponse>("/account/me");setData(next);setError(false);}
     catch{setError(true);}
     finally{fetching.current=false;if(queued.current){queued.current=false;void refresh();}}
-  },[]);
+  },[signedIn]);
   useEffect(()=>{void refresh();const timer=setInterval(()=>void refresh(),15000);return()=>clearInterval(timer);},[refresh]);
   useApiEvents(["dividend","tx","loan","risk","calendar"],()=>void refresh());
   useEffect(()=>{if(data){const timer=setTimeout(()=>setDeferred(true),0);return()=>clearTimeout(timer);}},[data]);
@@ -59,6 +64,10 @@ export function AccountPortfolio() {
   const earned=active.reduce((s,h)=>s+Number(h.earned7d),0);
   const options=[...(held.length>1?[{value:"All",label:"All"}]:[]),...held.map(h=>({value:h.gpuId,label:h.label}))];
   const selected=selection==="All" && held.length===1 ? held[0].gpuId : selection;
+  if(!signedIn) return <main className="wrap account-portfolio">
+    <header className="account-header"><div><p className="account-eyebrow">Portfolio</p></div></header>
+    <ConnectPrompt/>
+  </main>;
   return <main className="wrap account-portfolio">
     <header className="account-header">
       <div><p className="account-eyebrow">Portfolio</p>

@@ -1,5 +1,5 @@
 {
-  "_note": "Demo addresses. Mainnet ones are read-only, scored through Quicknode (scores checked 2026-10-24). demoLinks attach a mainnet payment history to a demo borrower WITHOUT a signature, always labeled 'unverified, demo'; the borrower is resolved by name from contracts/accounts.<network>.json so a fresh demo:reset account keeps the link.",
+  "_note": "Demo addresses. Mainnet ones are read-only, scored through Quicknode (scores checked 2026-10-24). demoLinks attach (system test accounts only; users link their own wallet by signing in) a mainnet payment history to a demo borrower WITHOUT a signature, always labeled 'unverified, demo'; the borrower is resolved by name from contracts/accounts.<network>.json so a fresh demo:reset account keeps the link.",
   "mainnet": [
     {
       "address": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -18,11 +18,6 @@
     }
   ],
   "demoLinks": [
-    {
-      "borrowerName": "ALICE",
-      "network": "devnet",
-      "mainnetAddress": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh"
-    },
     {
       "borrowerName": "DEV",
       "network": "devnet",

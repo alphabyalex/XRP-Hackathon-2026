@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AccountReturnsResponse } from "@moonshift/shared";
 import { apiFetch } from "@/lib/api";
-import { ACCOUNT } from "@/lib/session";
 import { useApiEvents } from "@/lib/lendingApi";
 import { fmt } from "@/lib/format";
 import { Segmented } from "./Segmented";
@@ -17,7 +16,7 @@ export function PortfolioReturns() {
   const refresh = useCallback(async () => {
     const sequence = ++request.current;
     try {
-      const result = await apiFetch<AccountReturnsResponse>(`/account/${encodeURIComponent(ACCOUNT)}/returns?days=${days}`);
+      const result = await apiFetch<AccountReturnsResponse>(`/account/me/returns?days=${days}`);
       if (sequence === request.current) { setData(result); setFailed(false); }
     } catch { if (sequence === request.current) setFailed(true); }
   }, [days]);

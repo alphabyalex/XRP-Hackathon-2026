@@ -4,7 +4,6 @@ import { Button } from "./Button";
 import { fmt, txToastLine, typedAmount } from "@/lib/format";
 import { openLoan } from "@/lib/api";
 import { useToast } from "./Toast";
-import { ACCOUNT } from "@/lib/session";
 
 // Ported from .borrow .trade / borrow() in moonshift_v2_source.html.
 // apps/api always lends at max LTV (50%), see docs/CONTRACTS.md request;
@@ -37,7 +36,7 @@ export function BorrowPanel({
     if (!amount || busy) return;
     setBusy(true);
     try {
-      const loan = await openLoan(ACCOUNT, gpuId, String(c));
+      const loan = await openLoan(gpuId, String(c));
       toast(
         `Borrowed ${fmt(Number(loan.principal), 2)} USDC`,
         txToastLine("EscrowCreate + Payment in one Batch", loan.disburseTx ?? loan.escrowTx ?? "")
