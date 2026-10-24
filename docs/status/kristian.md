@@ -147,3 +147,8 @@
 - Keep `MOCK=1` and `KEEPER_DRY_RUN=1` as the defaults. The service will not
   submit ledger transactions.
 
+
+## Portfolio phase 1
+- Merged origin/alex. Nav order: Borrow, Lend, Market, Portfolio, Developers, How it earns. Open app remains on the right.
+- BRAND.md is absent from the checkout; following the explicit brand rules supplied in the request.
+
