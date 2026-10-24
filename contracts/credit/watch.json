@@ -1,0 +1,20 @@
+{
+  "endpoint": "POST /watch, DELETE /watch/{network}/{address}, GET /watch",
+  "note": "Adds a borrower to live monitoring. In MONITOR_MODE=streams the address is added to the Quicknode Key-Value Store list read by the Streams filter (needs QUICKNODE_API_KEY, otherwise kvSynced is false). In MONITOR_MODE=websocket the WebSocket subscription is updated. Optional loans let credit raise MISSED_PAYMENT for loans it learns about from api rather than from the ledger.",
+  "request": {
+    "network": "testnet",
+    "address": "rHu4dJcC3DALsgvprvekBt9dG3poU95Rzb",
+    "loans": [{ "loanId": "0000000000000000000000000000000000000000000000000000000000000007", "dueAt": "2026-10-24T17:10:00Z", "principal": "50.000000" }]
+  },
+  "response": {
+    "network": "testnet",
+    "address": "rHu4dJcC3DALsgvprvekBt9dG3poU95Rzb",
+    "watching": true,
+    "mode": "streams",
+    "kvSynced": true
+  },
+  "listResponse": {
+    "mode": "streams",
+    "watched": [{ "network": "testnet", "address": "rHu4dJcC3DALsgvprvekBt9dG3poU95Rzb", "since": "2026-10-24T17:00:00Z", "openLoans": 1 }]
+  }
+}

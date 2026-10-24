@@ -1,0 +1,20 @@
+{
+  "endpoint": "POST {API_URL}/internal/credit-events (implemented by apps/api, called by credit)",
+  "note": "Sent once per credit event with header X-MS-Internal-Key. Body is the credit_event data from contracts/credit/events_sse.json. credit retries 3 times with backoff on non-2xx, then drops the event and logs it. id is unique per event, so api can ignore duplicates.",
+  "request": {
+    "id": "ce_7f3a9c1d2b",
+    "kind": "LARGE_OUTFLOW",
+    "severity": "warn",
+    "network": "testnet",
+    "address": "rHu4dJcC3DALsgvprvekBt9dG3poU95Rzb",
+    "txHash": "0000000000000000000000000000000000000000000000000000000000000006",
+    "amount": "820.000000",
+    "currency": "XRP",
+    "detail": "Sent 820 XRP, 64% of the balance before the payment",
+    "ledgerIndex": 21791500,
+    "at": "2026-10-24T17:05:12Z",
+    "via": "streams",
+    "simulated": false
+  },
+  "response": { "ok": true }
+}

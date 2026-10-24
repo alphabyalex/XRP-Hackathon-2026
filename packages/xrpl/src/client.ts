@@ -18,6 +18,11 @@ export async function getClient(): Promise<Client> {
   const endpoint = networkInfo().wss;
   connectingPromise = (async () => {
     const client = new Client(endpoint);
+    client.on("disconnected", () => {
+      if (clientInstance === client) {
+        clientInstance = null;
+      }
+    });
     await client.connect();
     clientInstance = client;
     connectingPromise = null;

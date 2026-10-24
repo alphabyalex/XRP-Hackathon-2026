@@ -1,0 +1,58 @@
+{
+  "endpoint": "GET /profile/{network}/{address}",
+  "note": "network is mainnet | testnet | devnet. Optional query ?refresh=1 bypasses the raw-response cache. Header X-MS-Internal-Key required when INTERNAL_API_KEY is set. MOCK=1 returns this response with address, network and readOnly taken from the request. Mock tx hashes are placeholders, and simulated is true.",
+  "request": { "network": "mainnet", "address": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh" },
+  "response": {
+    "address": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "network": "mainnet",
+    "readOnly": true,
+    "source": "quicknode",
+    "simulated": true,
+    "score": 74,
+    "grade": "B",
+    "confidence": "high",
+    "features": {
+      "accountAgeDays": { "value": 1412, "points": 10, "reason": "ACCOUNT_AGE_3Y_PLUS", "txHashes": ["0000000000000000000000000000000000000000000000000000000000000001"] },
+      "txCount": { "value": 640, "points": 5, "reason": "TX_COUNT_200_PLUS", "txHashes": [] },
+      "paymentVolumeInXrp": { "value": "8420.500000", "points": 3, "reason": "VOLUME_IN_1K_PLUS", "txHashes": ["0000000000000000000000000000000000000000000000000000000000000002", "0000000000000000000000000000000000000000000000000000000000000003"] },
+      "paymentVolumeOutXrp": { "value": "7310.250000", "points": 2, "reason": "VOLUME_OUT_1K_PLUS", "txHashes": ["0000000000000000000000000000000000000000000000000000000000000004"] },
+      "distinctCounterparties": { "value": 23, "points": 3, "reason": "COUNTERPARTIES_10_PLUS", "txHashes": [] },
+      "trustlines": { "value": 2, "points": 2, "reason": "TRUSTLINES_1_PLUS", "txHashes": [] },
+      "balanceStability": { "value": 0.64, "points": 3, "reason": "BALANCE_STABLE", "txHashes": [] },
+      "largestOutflowRatio": { "value": 0.58, "points": -4, "reason": "LARGE_OUTFLOW_50PCT", "txHashes": ["0000000000000000000000000000000000000000000000000000000000000005"] },
+      "msRepaysOnTime": { "value": 0, "points": 0, "reason": "NO_MS_REPAYS", "txHashes": [] },
+      "msRepaysLate": { "value": 0, "points": 0, "reason": "NO_LATE_REPAYS", "txHashes": [] },
+      "msMarginCalls": { "value": 0, "points": 0, "reason": "NO_MARGIN_CALLS", "txHashes": [] },
+      "msLiquidations": { "value": 0, "points": 0, "reason": "NO_LIQUIDATIONS", "txHashes": [] }
+    },
+    "reasons": [
+      "ACCOUNT_AGE_3Y_PLUS",
+      "TX_COUNT_200_PLUS",
+      "LARGE_OUTFLOW_50PCT",
+      "VOLUME_IN_1K_PLUS",
+      "COUNTERPARTIES_10_PLUS",
+      "BALANCE_STABLE",
+      "VOLUME_OUT_1K_PLUS",
+      "TRUSTLINES_1_PLUS"
+    ],
+    "scorecard": { "version": "2026-10-24.1", "basePoints": 50, "rawPoints": 74, "cap": null },
+    "history": {
+      "txFetched": 640,
+      "pages": 4,
+      "truncated": false,
+      "firstTxAt": "2022-12-12T09:14:31Z",
+      "lastTxAt": "2026-10-23T18:02:10Z",
+      "ledgerIndex": 107875115
+    },
+    "portfolio": {
+      "grade": "B",
+      "defaultRatePct": "2.4",
+      "loans": 180,
+      "text": "borrowers in this grade defaulted 2.4% (simulated)",
+      "simulated": true,
+      "source": "mock"
+    },
+    "ownership": null,
+    "asOf": "2026-10-24T17:00:00Z"
+  }
+}

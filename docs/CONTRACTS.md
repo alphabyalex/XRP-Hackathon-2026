@@ -189,3 +189,42 @@ Will NOT claim: that the blockchain proves the computation happened; that we
 are integrated with OpenRouter or Liquid Inference (roadmap only); that
 shares or dividends are real money; that we are first or only. Simulated
 traffic and any simulated GPU are always labeled SIMULATED in the UI and API.
+
+---
+
+## Requests from Kristian's Risk Desk
+
+The Risk Desk service owns loan quote calculations, monitoring decisions,
+scenario analysis, and repeatable loan-book statistics. Its HTTP examples are
+in `contracts/risk/`; it listens on port 7000 and uses `X-MS-Internal-Key` for
+service-to-service calls.
+
+Risk service routes are `POST /quote`, `GET /loans/health`,
+`POST /scenarios/run`, `GET /book/stats?grade=`, and `GET /events` (SSE).
+The stretch routes are `GET /rates/curve` and `GET /vault/health`. Quote money
+fields are six-place decimal strings; LTV, APR, PD, and coverage are decimal
+fractions. Stress and loan-book outputs are labeled simulated. The stress
+route is available only in mock mode or when `DEMO_SHOCK_ENABLED=1`.
+
+The keeper needs these API routes from Alex. Every route uses
+`X-MS-Internal-Key`:
+
+- `GET /internal/loans` returns open loan IDs, borrower, GPU ID, collateral
+  shares, outstanding balance, APR, PD estimate, quote margin-call and
+  liquidation LTV thresholds, and any existing margin-call timestamp. Amounts
+  are decimal strings with six places. Each record has `loanId`, `borrower`,
+  `gpuId`, `collateralShares`, `outstandingBalance`, `apr`, `pd`, `status`,
+  `marginCallLtv`, `liquidationLtv`, `marginCallAt` (nullable), and
+  `simulated` fields.
+- `POST /internal/loans/{id}/margin-call` records an idempotent margin call
+  with `{ idempotencyKey, observedLtv, threshold, occurredAt, reason }`.
+- `POST /internal/loans/{id}/liquidate` records an idempotent liquidation
+  request with `{ idempotencyKey, observedLtv, threshold, occurredAt,
+  reason }`. The API and XRPL adapter own any ledger transaction.
+- `GET /internal/oracle/{gpuId}/history?from=&to=` returns timestamped
+  per-share oracle prices as decimal strings, shaped as
+  `{ gpuId, prices: [{ timestamp, price }] }`.
+
+The loan records returned to the keeper must retain the margin-call and
+liquidation thresholds from the accepted risk quote. The Risk Desk does not
+submit XRPL transactions itself.

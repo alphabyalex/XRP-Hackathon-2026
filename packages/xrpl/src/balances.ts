@@ -56,24 +56,29 @@ export async function getHolders(gpuId: GpuId): Promise<Holder[]> {
   const holders: Holder[] = [];
 
   try {
-    const linesRes = await client.request({
-      command: "account_lines",
-      account: shareIssuerAddress,
-      ledger_index: "validated",
-    });
+    let marker: unknown = undefined;
+    do {
+      const linesRes: any = await client.request({
+        command: "account_lines",
+        account: shareIssuerAddress,
+        ledger_index: "validated",
+        ...(marker ? { marker } : {}),
+      });
 
-    for (const line of linesRes.result.lines) {
-      if (line.currency !== gpu.shareCode) continue;
-      if (excluded.has(line.account)) continue;
+      for (const line of linesRes.result.lines) {
+        if (line.currency !== gpu.shareCode) continue;
+        if (excluded.has(line.account)) continue;
 
-      const sharesNumber = Math.abs(Number(line.balance));
-      if (sharesNumber > 0) {
-        holders.push({
-          account: line.account,
-          shares: String(sharesNumber),
-        });
+        const sharesNumber = Math.abs(Number(line.balance));
+        if (sharesNumber > 0) {
+          holders.push({
+            account: line.account,
+            shares: String(sharesNumber),
+          });
+        }
       }
-    }
+      marker = linesRes.result.marker;
+    } while (marker);
   } catch {
     // If linesRes fails or no holders
   }

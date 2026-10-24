@@ -32,6 +32,7 @@ export {
   acceptCredential,
   createPermissionedDomain,
   setupPermissionedShares,
+  MS_KYC_CREDENTIAL_TYPE,
 } from "./permissioned.js";
 
 export {

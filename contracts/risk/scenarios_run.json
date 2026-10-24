@@ -1,0 +1,37 @@
+{
+  "request": {
+    "gpuPriceShockPct": -50,
+    "utilizationShockPct": -10,
+    "defaultRateMultiplier": 1.5
+  },
+  "response": {
+    "loans": [
+      {
+        "loanId": "loan-demo-001",
+        "ltv": "1.000000",
+        "state": "MARGIN_CALL",
+        "simulated": true
+      },
+      {
+        "loanId": "loan-demo-002",
+        "ltv": "1.100000",
+        "state": "LIQUIDATE",
+        "simulated": true
+      },
+      {
+        "loanId": "loan-demo-003",
+        "ltv": "1.200000",
+        "state": "LIQUIDATE",
+        "simulated": true
+      }
+    ],
+    "marginCalls": 1,
+    "liquidations": 2,
+    "vaultLoss": "5.235000",
+    "firstLossCoverAbsorbed": "5.235000",
+    "lenderApyBefore": "0.001682",
+    "lenderApyAfter": "0.001514",
+    "simulated": true
+  }
+}
+
