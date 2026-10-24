@@ -21,10 +21,14 @@
   margin-call and liquidation events, and never calls the API action routes.
 - Phase 4 checks: 16 service tests pass; the scenario response matches its
   contract example exactly.
+- Phase 5: added a fixed-seed, 30-day loan-book simulator with grade-specific
+  PDs and repaid, late, cured-margin-call, and liquidation outcomes. It supports
+  a grade filter and labels every summary as simulated.
+- Phase 5 checks: 19 service tests pass and the grade-C response matches its
+  contract example exactly.
 
 ## Next
 
-- Phase 5: add the seeded 30-day loan-book simulator.
 - Phase 6 and stretch: complete docs, rate curve, and vault health summary.
 
 ## Blockers

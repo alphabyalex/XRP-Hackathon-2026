@@ -6,16 +6,17 @@
     "grades": [
       {
         "grade": "C",
-        "loans": 20,
-        "defaultRate": "0.100000",
-        "marginCallRate": "0.200000",
-        "cureRate": "0.750000",
+        "loans": 100,
+        "defaultRate": "0.230000",
+        "marginCallRate": "0.300000",
+        "cureRate": "0.233333",
         "outcomes": {
-          "repaidOnTime": 14,
-          "late": 2,
-          "marginCalledThenCured": 3,
-          "liquidated": 1
-        }
+          "repaidOnTime": 67,
+          "late": 3,
+          "marginCalledThenCured": 7,
+          "liquidated": 23
+        },
+        "simulated": true
       }
     ],
     "simulated": true

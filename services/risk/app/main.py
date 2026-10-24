@@ -9,6 +9,7 @@ from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
+from app.book import build_book_stats
 from app.data import RiskDataClient
 from app.events import EventLog
 from app.keeper import Keeper
@@ -92,6 +93,16 @@ def create_app(
             return await run_scenario(request, settings, data_client, keeper, event_log)
         except ScenarioDisabled as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from None
+
+    @app.get("/book/stats")
+    async def book_stats(
+        grade: str | None = None,
+        x_ms_internal_key: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        require_internal_key(x_ms_internal_key)
+        if grade is not None and grade not in {"A", "B", "C", "D", "E"}:
+            raise HTTPException(status_code=422, detail="grade must be A, B, C, D, or E")
+        return build_book_stats(settings, grade)
 
     return app
 
