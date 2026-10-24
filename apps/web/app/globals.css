@@ -1450,3 +1450,16 @@ a.txl:hover {
 .note.qn {
   color: var(--ink2);
 }
+
+.sources .unverified {
+  color: var(--ink3);
+  font-size: 12px;
+}
+.foot-links {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.foot-links a {
+  color: inherit;
+}

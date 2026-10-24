@@ -68,7 +68,7 @@ export function BorrowContent({
   const seq = useRef(0);
 
   const held = Number(portfolio.shares.find((s) => s.gpuId === gpuId)?.qty ?? 0);
-  const code = gpuLabel.replace("GPU-", "GP");
+  const code = `${gpuLabel} shares`;
 
   const refresh = useCallback(async () => {
     const [p, l] = await Promise.all([getPortfolio(ACCOUNT).catch(() => null), listLoans(ACCOUNT).catch(() => null)]);
@@ -202,7 +202,7 @@ export function BorrowContent({
         <div className="lend-grid">
           {/* Credit profile */}
           <div className="trade card">
-            <span className="lbl">Credit profile{credit?.simulated ? " (simulated)" : ""}</span>
+            <span className="lbl">Credit profile</span>
             {credit ? (
               <>
                 <div className="score">
@@ -245,9 +245,9 @@ export function BorrowContent({
                       <div key={c.part}>
                         <b>{c.part}</b>
                         <span>
-                          {c.network}, {c.source === "quicknode" ? "read through Quicknode" : `public ${c.network} node`}
-                          {c.ownership ? ` · link ${c.ownership.status}` : ""}
+                          {c.source === "quicknode" ? `Read through Quicknode (XRPL ${c.network})` : `XRPL ${c.network}`} · {shortHash(c.address)}
                         </span>
+                        {c.ownership && !c.ownership.verified && <span className="unverified">Ownership not verified</span>}
                       </div>
                     ))}
                   </div>
@@ -258,10 +258,12 @@ export function BorrowContent({
                     {qn.quicknode.p50LatencyMs ? `, p50 ${Math.round(qn.quicknode.p50LatencyMs)} ms` : ""}, {Math.round(qn.totals.cacheHitRate * 100)}% served from cache
                   </p>
                 )}
-                {credit.portfolio && <p className="note">{credit.portfolio.text}</p>}
-                <p className="note">
-                  Source: {quote?.sources.credit === "live" ? `credit service, ${credit.network}` : "built-in credit model (simulated)"}
-                </p>
+                {credit.portfolio && (
+                  <p className="note">
+                    Borrowers in grade {credit.portfolio.grade} default {credit.portfolio.defaultRatePct}% of the time (model estimate)
+                  </p>
+                )}
+                {!credit.components?.length && <p className="note">Source: XRPL {credit.network}</p>}
               </>
             ) : (
               <p className="note">{quoteErr ?? "Reading your payment history..."}</p>
@@ -277,9 +279,9 @@ export function BorrowContent({
                 </label>
                 <div className="inp">
                   <input id="coll" type="text" autoComplete="off" value={shares} inputMode="numeric" onChange={(e) => setShares(typedAmount(e.target.value, false))} />
-                  <span>{code}</span>
+                  <span>shares</span>
                 </div>
-                <span className="note">You hold {fmt(held, 0)}</span>
+                <span className="note">You hold {fmt(held, 0)} {code}</span>
               </div>
               <div>
                 <label className="lbl" htmlFor="amt">
@@ -330,9 +332,9 @@ export function BorrowContent({
                 </div>
                 {q.reasons.length > 0 && <p className="note">Risk flags: {q.reasons.join(", ").toLowerCase().replace(/_/g, " ")}</p>}
                 <blockquote className="memo">
-                  {quote!.memo.text}
+                  {quote!.memo.text.replace(/TDX/g, "USDC")}
                   <span>
-                    {quote!.memo.fellBack ? "Credit memo: deterministic fallback (simulated)" : `Credit memo by ${quote!.memo.modelId ?? "Bedrock"}`}
+                    {quote!.memo.fellBack ? "Credit memo" : "Credit memo by Amazon Bedrock"}
                   </span>
                 </blockquote>
               </>

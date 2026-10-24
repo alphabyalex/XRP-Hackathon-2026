@@ -179,6 +179,28 @@ if (!mockXrpl) {
 start("api", "npm", ["run", "dev", "-w", "apps/api"], { cwd: ROOT, env: apiEnv });
 if (!args.has("--no-web")) start("web", "npm", ["run", "dev", "-w", "apps/web"], { cwd: ROOT, env: baseEnv });
 
+// Prewarm: read the borrower's credit profile (devnet history + linked mainnet
+// history through Quicknode) once, so the first /borrow load is instant.
+(async () => {
+  const api = "http://localhost:4000";
+  for (let i = 0; i < 90; i++) {
+    try {
+      if ((await fetch(`${api}/health`)).ok) break;
+    } catch {
+      // api still starting
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  const t0 = Date.now();
+  try {
+    await fetch(`${api}/credit/${apiEnv.NETWORK}/ALICE`);
+    await fetch(`${api}/loans/max`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ borrower: "ALICE", gpuId: "gpu-a", collateralShares: "100" }) });
+    log("demo", `prewarmed ALICE's credit profile and quote in ${Math.round((Date.now() - t0) / 1000)} s`);
+  } catch {
+    log("demo", "prewarm skipped (api not reachable yet)");
+  }
+})();
+
 log("demo", `network: ${apiEnv.NETWORK}  ledger: ${mockXrpl ? "in-memory mock" : "real devnet (XLS-65/66)"}`);
 log("demo", "open http://localhost:3000/borrow  (lenders: http://localhost:3000/lend)");
 log("demo", "Ctrl+C stops everything");

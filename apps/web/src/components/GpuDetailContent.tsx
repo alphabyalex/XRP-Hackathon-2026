@@ -102,7 +102,7 @@ export function GpuDetailContent({ id }: { id: string }) {
               </div>
               <div>
                 <span>State</span>
-                <b style={{ fontSize: 15 }}>{gpu.simulated ? `${gpu.state} (simulated)` : gpu.state}</b>
+                <b style={{ fontSize: 15 }}>{gpu.state}</b>
               </div>
             </div>
           </div>

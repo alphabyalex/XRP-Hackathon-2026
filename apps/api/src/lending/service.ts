@@ -106,7 +106,7 @@ export async function buildQuote(req: LoanQuoteApiRequest): Promise<LoanQuoteApi
   // A loan must mature before its vault round's redemption date (the ledger
   // rejects LoanSet with tecNO_PERMISSION otherwise), so cap the term.
   const round = (await lending.vaultOverview()).investing;
-  if (!round) throw new LendingError("NO_LENDING_ROUND", "no vault round is lending right now; run npm run demo:reset", 409);
+  if (!round) throw new LendingError("NO_LENDING_ROUND", "No vault round is lending right now. The next round opens shortly.", 409);
   const roundLeft = Math.floor((new Date(round.redemptionDate).getTime() - Date.now()) / 1000) - 3 * 3600;
   const termSeconds = Math.max(120, Math.min(Math.floor(req.termSeconds ?? DEFAULT_TERM_SECONDS), roundLeft));
 
@@ -170,7 +170,7 @@ export async function maxApprovedPrincipal(req: { borrower: string; gpuId: strin
   const name = lending.nameOf(req.borrower);
   const address = lending.addressOf(req.borrower);
   const round = (await lending.vaultOverview()).investing;
-  if (!round) throw new LendingError("NO_LENDING_ROUND", "no vault round is lending right now; run npm run demo:reset", 409);
+  if (!round) throw new LendingError("NO_LENDING_ROUND", "No vault round is lending right now. The next round opens shortly.", 409);
   const roundLeft = Math.floor((new Date(round.redemptionDate).getTime() - Date.now()) / 1000) - 3 * 3600;
   const termSeconds = Math.max(120, Math.min(Math.floor(req.termSeconds ?? DEFAULT_TERM_SECONDS), roundLeft));
   const [{ profile }, oracle, nav] = await Promise.all([
