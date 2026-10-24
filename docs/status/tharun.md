@@ -4,6 +4,16 @@ Updated after each phase. Newest phase first in Done.
 
 ## Done
 
+### Transparent Resource Pricing & Akash Lifecycle Manager (2026-10-24)
+- **Transparent Hardware Resource Pricing Index**:
+  - Modeled component-level hardware pricing across GPU acceleration, vCPU processing, system RAM, and NVMe SSD storage in `packages/shared/src/constants.ts` and `types.ts`.
+  - Added `GET /pricing/resources` in `services/pricing` and `apps/api` returning indexed component costs for GPU-A (AWS EC2 `g4dn.xlarge`: $0.526/hr) and GPU-B (Akash dCloud: $0.160/hr, 69.6% savings).
+  - Enriched `GET /gpus` and `GET /gpus/:id` in `apps/api` with full resource breakdowns for each hardware component.
+  - Built `ResourcePricingBreakdown.tsx` and updated `MarketTable.tsx`, `MarketContent.tsx`, and `GpuDetailContent.tsx` on the web frontend. The Market table now displays hardware spec badges (`1x T4 16GB`, `4 vCPU`, `16 GB RAM`, `100/125 GB NVMe`) and a transparent component pricing table.
+- **Akash Deployment & Lifecycle CLI (`akash_manager.py`)**:
+  - Authored `infra/akash/akash_manager.py` with actions: `screen` (audit online providers), `rent` / `deploy` (open GPU lease via `akt deploy`), `status` (query active lease and provider gateway), `kill` / `close` (close lease to stop spend immediately and save funds), and `pricing` (compare indexed resource costs).
+  - Tested provider screening matching audited provider `akash1hgulk6aekakqzc0v6wukrd3dy9n90f5gkl4ezk` (`eu-southwest`).
+
 ### Akash CLI & Instant Workload Switch Engine (2026-10-24)
 - **Akash Network CLI (`akt`) Integration**:
   - Installed and verified `akt` 1.0.4 on macOS (`/opt/homebrew/bin/akt`) configured with context `console` (`--deploy-via console`).

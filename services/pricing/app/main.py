@@ -127,6 +127,11 @@ def get_nav(
     )
 
 
+@app.get("/pricing/resources")
+def pricing_resources() -> dict:
+    return pricing.resources_breakdown()
+
+
 @app.post("/dividends/propose", dependencies=[Depends(internal_key)])
 def dividends_propose(req: DividendRequest) -> dict:
     body, flags = pricing.dividend_numbers(

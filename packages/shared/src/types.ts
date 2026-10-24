@@ -2,7 +2,7 @@
 // Keep this file, docs/CONTRACTS.md, and contracts/*.json in sync.
 // Money is always a decimal string (<=6 decimals) or XRP drops string, never a float.
 
-import type { GpuId } from "./constants";
+import type { GpuId, GpuResourceBreakdown } from "./constants";
 
 export type AccountName =
   | "TDX_ISSUER"
@@ -312,6 +312,8 @@ export interface ApiGpuSummary {
   utilizationPct: DecimalString;
   impliedYieldPct: DecimalString;
   holdersCount: number;
+  resources?: GpuResourceBreakdown;
+  monteCarlo?: any;
 }
 
 export interface ApiGpuDetail extends ApiGpuSummary {

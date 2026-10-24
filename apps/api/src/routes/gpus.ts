@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { GPUS, type GpuId } from "@moonshift/shared";
+import { GPUS, RESOURCE_BREAKDOWN, type GpuId } from "@moonshift/shared";
 import * as xrpl from "../adapters/xrplAdapter.js";
 import * as compute from "../adapters/computeClient.js";
 import * as pricing from "../adapters/pricingClient.js";
@@ -30,8 +30,13 @@ async function buildSummary(gpuId: GpuId) {
     impliedYieldPct: nav.implied_yield_pct,
     holdersCount: holders.length,
     monteCarlo: (computeState as any)?.monte_carlo,
+    resources: RESOURCE_BREAKDOWN[gpuId],
   };
 }
+
+gpusRouter.get("/pricing/resources", async (_req, res) => {
+  res.json(RESOURCE_BREAKDOWN);
+});
 
 gpusRouter.get("/monte-carlo/status", async (_req, res) => {
   try {

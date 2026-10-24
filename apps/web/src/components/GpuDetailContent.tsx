@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import clsx from "clsx";
+import { RESOURCE_BREAKDOWN, type GpuId } from "@moonshift/shared";
 import { useLiveGpu, useApiUnreachable, useNow } from "@/lib/liveData";
 import { gpuView } from "@/lib/gpuView";
 import { fmt } from "@/lib/format";
@@ -116,6 +117,43 @@ export function GpuDetailContent({ id }: { id: string }) {
             windowStart={v.windowStart}
           />
         </div>
+
+        {RESOURCE_BREAKDOWN[gpu.id as GpuId] && (
+          <div style={{ marginTop: 40, padding: 24, background: "var(--surface)", borderRadius: 16, boxShadow: "0 0 0 1px var(--rule)" }}>
+            <h3 style={{ fontSize: 18, marginBottom: 8, fontWeight: 600 }}>Hardware Resource Breakdown &amp; Indexing</h3>
+            <p style={{ fontSize: 13, color: "var(--ink2)", marginBottom: 16 }}>
+              Provider: <b>{RESOURCE_BREAKDOWN[gpu.id as GpuId].provider}</b> &middot; Instance: <b>{RESOURCE_BREAKDOWN[gpu.id as GpuId].instanceType}</b> &middot; Region: <b>{RESOURCE_BREAKDOWN[gpu.id as GpuId].region}</b>
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
+              <div style={{ padding: 12, background: "var(--tint)", borderRadius: 8 }}>
+                <span style={{ fontSize: 12, color: "var(--ink3)" }}>GPU Compute</span>
+                <div style={{ fontWeight: 600, fontSize: 14, marginTop: 4 }}>{RESOURCE_BREAKDOWN[gpu.id as GpuId].components.gpu.spec}</div>
+                <div style={{ fontSize: 12, color: "var(--ink2)", marginTop: 2, fontFamily: "var(--mono)" }}>${RESOURCE_BREAKDOWN[gpu.id as GpuId].components.gpu.hourlyUsd}/hr</div>
+              </div>
+              <div style={{ padding: 12, background: "var(--tint)", borderRadius: 8 }}>
+                <span style={{ fontSize: 12, color: "var(--ink3)" }}>vCPU Compute</span>
+                <div style={{ fontWeight: 600, fontSize: 14, marginTop: 4 }}>{RESOURCE_BREAKDOWN[gpu.id as GpuId].components.cpu.spec}</div>
+                <div style={{ fontSize: 12, color: "var(--ink2)", marginTop: 2, fontFamily: "var(--mono)" }}>${RESOURCE_BREAKDOWN[gpu.id as GpuId].components.cpu.hourlyUsd}/hr</div>
+              </div>
+              <div style={{ padding: 12, background: "var(--tint)", borderRadius: 8 }}>
+                <span style={{ fontSize: 12, color: "var(--ink3)" }}>System Memory (RAM)</span>
+                <div style={{ fontWeight: 600, fontSize: 14, marginTop: 4 }}>{RESOURCE_BREAKDOWN[gpu.id as GpuId].components.ram.spec}</div>
+                <div style={{ fontSize: 12, color: "var(--ink2)", marginTop: 2, fontFamily: "var(--mono)" }}>${RESOURCE_BREAKDOWN[gpu.id as GpuId].components.ram.hourlyUsd}/hr</div>
+              </div>
+              <div style={{ padding: 12, background: "var(--tint)", borderRadius: 8 }}>
+                <span style={{ fontSize: 12, color: "var(--ink3)" }}>NVMe Storage</span>
+                <div style={{ fontWeight: 600, fontSize: 14, marginTop: 4 }}>{RESOURCE_BREAKDOWN[gpu.id as GpuId].components.storage.spec}</div>
+                <div style={{ fontSize: 12, color: "var(--ink2)", marginTop: 2, fontFamily: "var(--mono)" }}>${RESOURCE_BREAKDOWN[gpu.id as GpuId].components.storage.hourlyUsd}/hr</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--rule)", flexWrap: "wrap", gap: 8 }}>
+              <span style={{ fontSize: 13, color: "var(--ink2)" }}>Total Composite Cost: <b style={{ color: "var(--ink)" }}>${RESOURCE_BREAKDOWN[gpu.id as GpuId].totalHourlyUsd} / hr</b> (${RESOURCE_BREAKDOWN[gpu.id as GpuId].monthlyUsd} / month)</span>
+              {RESOURCE_BREAKDOWN[gpu.id as GpuId].indexedSavingsVsAwsPct !== "0.0%" && (
+                <span style={{ fontSize: 13, color: "#2e7d32", fontWeight: 600 }}>{RESOURCE_BREAKDOWN[gpu.id as GpuId].indexedSavingsVsAwsPct} Cost Savings vs AWS Baseline</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );
