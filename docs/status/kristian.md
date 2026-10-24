@@ -8,10 +8,13 @@
 - Added the proposed keeper API routes to the bottom of `docs/CONTRACTS.md`.
 - Phase 1 checks: 2 service tests pass, all five contract examples parse as
   JSON, and `git diff --check` is clean.
+- Phase 2: implemented Decimal-based loan quotes, credit-grade pricing,
+  confidence and volatility adjustments, dividend coverage, estimated PD, and
+  expected loss. The quote example returns its documented response exactly.
+- Phase 2 checks: 7 service tests pass and Python compile checks pass.
 
 ## Next
 
-- Phase 2: implement deterministic quote calculations with Decimal money.
 - Phase 3: add the dry-run keeper and event stream.
 - Phase 4: add gated simulated stress scenarios.
 - Phase 5: add the seeded 30-day loan-book simulator.

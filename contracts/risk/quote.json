@@ -3,7 +3,7 @@
     "borrower": "rExampleBorrower",
     "gpuId": "gpu-a",
     "collateralShares": "100.000000",
-    "principal": "40.000000",
+    "principal": "0.010000",
     "termSeconds": 600,
     "creditProfile": {
       "address": "rExampleBorrower",
@@ -35,16 +35,16 @@
   },
   "response": {
     "decision": "approve",
-    "ltv": "0.400000",
-    "maxLtv": "0.500000",
-    "apr": "0.070800",
-    "marginCallLtv": "0.650000",
-    "liquidationLtv": "0.800000",
+    "ltv": "0.000100",
+    "maxLtv": "0.516048",
+    "apr": "0.090800",
+    "marginCallLtv": "0.666048",
+    "liquidationLtv": "0.816048",
     "termSeconds": 600,
     "paymentIntervalSeconds": 60,
-    "pd": "0.054800",
+    "pd": "0.053000",
     "expectedLoss": "0.000000",
-    "coverageRatio": "3.277750",
+    "coverageRatio": "6.729155",
     "reasons": []
   }
 }

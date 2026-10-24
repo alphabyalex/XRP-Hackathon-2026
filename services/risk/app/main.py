@@ -5,6 +5,8 @@ from __future__ import annotations
 from fastapi import FastAPI, Header, HTTPException
 
 from app.config import Settings
+from app.models import QuoteRequest
+from app.risk import calculate_quote
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -25,9 +27,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         }
 
     @app.post("/quote")
-    async def quote_stub(x_ms_internal_key: str | None = Header(default=None)) -> dict[str, str]:
+    async def quote(
+        request: QuoteRequest,
+        x_ms_internal_key: str | None = Header(default=None),
+    ) -> dict[str, object]:
         require_internal_key(x_ms_internal_key)
-        raise HTTPException(status_code=501, detail="loan quote model is not initialized")
+        return calculate_quote(request, settings)
 
     return app
 
