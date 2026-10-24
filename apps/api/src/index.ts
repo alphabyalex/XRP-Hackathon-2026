@@ -18,6 +18,7 @@ import { lendingRouter } from "./routes/lending.js";
 import { adminRouter } from "./routes/admin.js";
 import { internalRouter } from "./routes/internal.js";
 import { eventsRouter } from "./routes/events.js";
+import { routerInternal, routerPublic } from "./routes/router.js";
 import { requireAdminKey, requireInternalKey } from "./middleware/auth.js";
 import { sessionUser } from "./middleware/session.js";
 import { loadAccounts, refillPool } from "./users/accounts.js";
@@ -45,12 +46,14 @@ app.use(contractsRouter);
 app.use(inferenceRouter);
 app.use(lendingRouter);
 app.use(loansRouter);
+app.use(routerPublic); // order router (services/router)
 
 // admin (gated)
 app.use("/admin", requireAdminKey, adminRouter);
 
 // internal (gated)
 app.use("/internal", requireInternalKey, internalRouter);
+app.use("/internal", requireInternalKey, routerInternal);
 
 // live updates
 app.use(eventsRouter);

@@ -1,17 +1,18 @@
 "use client";
 import { useRef, useState } from "react";
-import { chat } from "@/lib/api";
 import { fmt } from "@/lib/format";
+import { chatRouted, MODES, type Mode, type Move } from "@/lib/routerApi";
+import { Segmented } from "./Segmented";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 
-// Ported from .try / #run / #out / #meta in moonshift_v2_source.html. Calls
-// the real POST /inference/chat. apps/api returns a full response (no
-// token stream), so "streaming" here is a client-side character reveal of
-// the real answer, same trick as the reference, no blinking cursor.
+// Ported from .try / #run / #out / #meta in moonshift_v2_source.html. Calls the OpenAI-compatible
+// POST /v1/chat/completions with a routing priority; the order router picks the GPU. The api returns
+// the full answer, so the reveal here is client-side.
 export function PlaygroundTry() {
   const [prompt, setPrompt] = useState("Explain VWAP in one line");
+  const [priority, setPriority] = useState<Mode>("balanced");
   const [out, setOut] = useState("");
-  const [meta, setMeta] = useState<{ gpu: string; tokens: number; charge: string; simulated: boolean } | null>(null);
+  const [meta, setMeta] = useState<{ gpus: string[]; tokens: number; price: string; moves: Move[] } | null>(null);
   const [running, setRunning] = useState(false);
   const rm = usePrefersReducedMotion();
   const runId = useRef(0);
@@ -23,15 +24,15 @@ export function PlaygroundTry() {
     setOut("");
     setMeta(null);
     try {
-      const res = await chat([{ role: "user", content: prompt }]);
+      const res = await chatRouted(prompt, priority);
       if (my !== runId.current) return;
       const text = res.choices[0]?.message.content ?? "";
       const finish = () => {
         setMeta({
-          gpu: res.x_ms.gpu_id.toUpperCase().replace("GPU-", "GPU-"),
-          tokens: res.x_ms.output_tokens,
-          charge: res.x_ms.charge,
-          simulated: res.x_ms.simulated,
+          gpus: res.x_ms.gpus,
+          tokens: res.usage.completion_tokens,
+          price: res.x_ms.price_usdc,
+          moves: res.x_ms.moves,
         });
         setRunning(false);
       };
@@ -67,6 +68,9 @@ export function PlaygroundTry() {
         </span>
       </div>
       <textarea id="prompt" rows={2} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+      <div style={{ marginTop: 12 }}>
+        <Segmented options={MODES} value={priority} onChange={setPriority} />
+      </div>
       <div className="row">
         <span />
         <button type="button" className="btn ink sm" disabled={running} onClick={run}>
@@ -80,15 +84,17 @@ export function PlaygroundTry() {
       {meta && (
         <div className="meta">
           <span>
-            Served by <b>{meta.gpu}</b>
+            Served by <b>{meta.gpus.join(", ")}</b>
           </span>
           <span>
             <b>{meta.tokens}</b> tokens
           </span>
           <span>
-            +{fmt(Number(meta.charge), 6)} USDC to holders
-            
+            <b>{fmt(Number(meta.price), 6)}</b> USDC
           </span>
+          {meta.moves.map((m) => (
+            <span key={m.at}>Moved to {m.toLabel}, resumed</span>
+          ))}
         </div>
       )}
     </div>

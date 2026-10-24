@@ -21,15 +21,155 @@
   quote, orders_create, order, order_events_sse, fleet, catalog, fleet_reclaim,
   aws_events. GET /catalog, GET /fleet, POST /fleet/{id}/reclaim. 21 tests.
 
+- Phase 2: collectors run as plain functions in-process (background task,
+  spot every 5 min, providers every 15, on-demand daily) or as the Lambda
+  router.lambdas.collect_handler on EventBridge Scheduler. Catalog store:
+  SQLite locally, DynamoDB ms-router-catalog (pk provider#region#instanceType,
+  sk capacityType) + S3 price history (<provider>/<date>/<time>-<source>.json)
+  on AWS. Provider keys from Secrets Manager moonshift/router/providers with
+  env fallback (values never logged, tested). Staleness: fresh up to
+  CATALOG_MAX_AGE (30 min), last good snapshot (degraded) up to 4x, then
+  excluded. boto3 adaptive retries, httpx backoff with jitter.
+  services/router/infra/template.yaml (SAM): collector Lambda + 3 ScheduleV2
+  schedules, DynamoDB catalog/orders/checkpoints (TTL), S3 price bucket,
+  3 tier SQS queues + DLQ, Step Functions order machine
+  (statemachine/order.asl.json: pay, SQS waitForTaskToken with heartbeats,
+  settle), EventBridge interruption rule -> SQS, forwarder Lambda, Secrets
+  Manager secret, least-privilege worker role for EC2 and IAM Roles Anywhere.
+  cfn-lint passes with no findings (tested). Live run of the public
+  collectors today: Azure 4 offers, Oracle 3, RunPod 6, Vast.ai 23, Spot
+  Advisor live. 31 tests.
+
+- Phase 3: router/optimizer.py. Per part: run time, earliest start that
+  clears booked windows (plus guard), interruption probability
+  1 - exp(-rate x hours), resume cost (resume latency + new worker start + lost
+  progress, never zero), cross-provider egress (checkpoint GB x egress price),
+  expected cost and ETA. Enumerates every split over up to 3 GPUs on a
+  12-step share grid (a single streamed reply is never split). Cheapest = min
+  cost s.t. deadline and budget; Fastest = min ETA s.t. budget; Balanced =
+  Pareto frontier, min-max normalized, closest to (0,0). POST /quote returns
+  all three plus alternativesConsidered, plansEvaluated, catalogAsOf and an
+  optional Bedrock "why" (number guard drops sentences with invented numbers).
+  All required tests pass (ordering over 40 random orders, booked window,
+  deadline, interruptible cheapest, stale/non-executable never chosen,
+  cheaper executable provider wins, egress flips the choice). 86 tests.
+  scripts/benchmark.py: 1,000 orders; Balanced costs 36.0 USDC vs 73.1 for
+  naive round-robin, p50 49 s vs 301 s, p99 1,801 s vs 5,699 s; under 500x
+  interruption stress round-robin restarts 10 jobs, every router mode 0.
+  Results in docs/ROUTER.md.
+
+- Phase 4: POST /orders (optimize, lease every GPU slot with a conditional
+  write: SQLite locally, DynamoDB ms-router-orders on AWS, so two orders can
+  never hold one slot), GET /orders, GET /orders/{id}, GET /orders/{id}/events
+  (SSE: quoted, paid, running, token, progress, checkpointed, moved,
+  completed, settled, failed). Orchestration (router/dispatch.py): local
+  in-process tier queues drained fastest first, or SQS (long poll, visibility
+  extended while running, delete on completion); ORCHESTRATOR=stepfunctions
+  starts one Standard execution per order and the worker reports with its
+  task token (heartbeats). Step Lambda router.lambdas.order_step_handler runs
+  pay, settle and release. Settlement (router/settle.py): MS_ORDER buyer ->
+  PROTOCOL_FEES (order treasury) for the quote; on completion MS_SETTLE to
+  TREASURY_GPU_A/B for work each GPU actually served (external capacity: the
+  margin to the pool, the provider's cost stays in the order treasury); MS_REFUND
+  of the rest. apps/api: new file src/routes/router.ts (public /router/*
+  proxy incl. SSE, POST /internal/router/pay signing with packages/xrpl wallets
+  and serialized per account, OpenAI-style POST /v1/chat/completions with
+  priority) plus 3 mount lines in src/index.ts. Rentals book compute's
+  /bookings for Moonshift GPUs (the HRA path), router bookings otherwise.
+  Found and fixed: reading an order over HTTP mid-run stripped fields the
+  settlement needed (regression test added). 97 tests; api typecheck clean.
+
+- Phase 5: resume, don't restart. services/compute/compute/resume.py (new
+  module) + two hooks in Tharun's files: one install() line in main.py and
+  GpuSupervisor.set_offline() (3 lines) in scheduler.py. resume.py streams
+  token-level SSE (POST /v1/resume/stream), checkpoints every N tokens and at
+  the signal, continues a reply on another GPU from prompt + partial answer
+  (vLLM continue_final_message; deterministic stream in compute's mock mode),
+  admits through the existing scheduler (runway and drain respected), stops
+  on POST /v1/resume/interrupt or when its GPU enters DRAINING (booking),
+  and polls EC2 IMDS spot/instance-action + rebalance, Azure Scheduled
+  Events Preempt and GCP preempted metadata behind opt-in flags. Router: one
+  reclaim(gpuId, warningSeconds, reason) for every trigger: manual reclaim,
+  booking drain monitor, POST /internal/aws-events (EventBridge Spot warning,
+  rebalance = checkpoint only, Capacity Block expiry, capacity reservation
+  interruption; both detail-type spellings), SQS consumer for the events
+  queue, forwarder Lambda, and reclaims reported by workers in the stream.
+  Moves keep the order's constraints, record segments, moves and per-GPU
+  usage (api /internal/usage at settlement). Tests: interrupted at exactly
+  60% resumes as one continuous reply, no token billed twice, restarts 0;
+  cross-provider move (Azure to another provider); documented spot warning
+  sample moves the job; rebalance checkpoints without moving; Capacity Block
+  expiry; booking drain; rental resume; plus an integration test against the
+  real compute service over HTTP. Router 107 tests, compute 17 (13 existing
+  + 4 new).
+
+- Phase 6: checkout UI. New files: src/lib/routerApi.ts, components
+  RouteOptions (Cheapest / Balanced / Fastest with real price and ETA from
+  /router/quote, Balanced selected by default), ComputeCheckout (duration +
+  options + Rent), OrderStatus (GPUs and provider, price, ETA, payment link,
+  live progress over SSE, "Moved to GPU-X, resumed" with the time),
+  AdminRouter + app/admin/router (fleet with Reclaim, orders, Bedrock why
+  when enabled, live prices across providers; not linked from the nav;
+  admin key kept in localStorage), router.css (brand tokens only). Edited:
+  TradePanel (the Book time tab is now Rent compute with the router checkout,
+  slot picking removed), MarketContent (Rent compute card), PlaygroundTry
+  (three priority buttons, calls /v1/chat/completions with priority),
+  CodeSample (extra_body priority). Web typecheck clean; /market,
+  /gpu/gpu-a, /playground and /admin/router render.
+  End to end through apps/api: quote, Balanced 30 min rental split across
+  Moonshift, AWS and Azure, settled; routed chat with priority. On real
+  devnet: order ord_953c69de paid
+  241C1E9C58E5C1FE673003E3F8EFD5F2124EC4943A9F793B4952E27D44DFFCD3,
+  reclaimed on Azure spot at token 15 and resumed on AWS spot (one reply,
+  0 restarts), settled per GPU
+  (CDCD85755FE7B4BB6A2AEB7D27A90466989CE0007886C92A1CC8B26471110EFB,
+  A7BA417BD9A48E14BE9C50372A46C33A3A6217C3A6613B01A2A1117F8105BDFA),
+  refund 7A11B3BE97C508A95D8941A308BA4C72713E60F4B028D491D6C4F3B6BC386BF2.
+
+- Phase 7: router/metrics.py (one JSON log line per quote, order, move and
+  settlement; CloudWatch custom metrics in Moonshift/Router when
+  CLOUDWATCH=1: Quotes, Orders, Moves, ResumeLatency, Predicted/Actual cost,
+  CostErrorPct). router/launch.py tags every launched instance and volume
+  moonshift:orderId (refuses without AWS_LAUNCH=1, IMDSv2 required). CloudWatch
+  agent config with nvidia_gpu metrics (infra/cloudwatch-agent.json).
+  Dockerfile for ECR. docs/ROUTER.md: metrics table, tags, CUR 2.0 join query,
+  ECR push commands. Tests with moto (CloudWatch metrics, tagged spot launch).
+  111 router tests.
+
+- Phase 8: npm run demo starts services/router on 7200 with its venv (mock
+  fleet, local backends, devnet settlement) and passes ROUTER_URL to the api;
+  requirements split into runtime (requirements.txt) and dev
+  (requirements-dev.txt). docs/DEMO.md: router click path and the devnet
+  run's hashes. docs/ROUTER.md: model, objectives, Pareto knee, providers,
+  AWS architecture, resume, settlement, observability, benchmark, SpotServe
+  citation. docs/CONTRACTS.md: AWS resource list and compute hooks for
+  Tharun, api/demo additions for Alexander.
+
 ## Next
-- Phase 2: price collection on AWS (scheduling, DynamoDB + S3 storage,
-  Secrets Manager, staleness, SAM template).
+- When AWS access is approved: deploy the SAM stack, set STATE_BACKEND,
+  QUEUE_BACKEND, ORCHESTRATOR and PRICE_SOURCES=all, and rerun the benchmark
+  with --from-store against recorded live prices.
+- Add Tharun's rented GPUs to config/fleet.live.json as they come online.
 
 ## Blockers
 - No AWS credentials on this machine (no AWS CLI either). All AWS adapters
   run in MOCK until AWS_PROFILE (or an EC2 role) is available.
 - GCP Billing Catalog needs an API key; Lambda needs an API key. Both go in
   Secrets Manager secret moonshift/router/providers (filled by a human).
+- Deploying the router stack needs a human with AWS credentials and
+  AWS_DEPLOY=1 approval (creates billable resources):
+  `sam build -t services/router/infra/template.yaml && sam deploy --stack-name ms-router --region us-east-2 --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --resolve-s3 --parameter-overrides RouterUrl=<public router URL>`.
+  Then fill secret moonshift/router/providers and set STATE_BACKEND=dynamodb,
+  PRICES_BUCKET (stack output) on the router.
+- For Tharun: the playground page shows "Simulated Paths" on the Monte Carlo
+  card (InstantSwitchCard), which breaks the no-"simulated" UI rule. Not my
+  file, so left as is.
+- apps/api needs Node 22.13+ (node:sqlite); on Node 22.12 run it with
+  NODE_OPTIONS=--experimental-sqlite. Local environment only.
+- Cost truth needs a human in the AWS Billing console: activate the cost
+  allocation tag moonshift:orderId and create a CUR 2.0 Data Export (Parquet,
+  resource IDs, Athena). Steps in docs/ROUTER.md. Pushing the router image to
+  ECR needs AWS_DEPLOY=1 approval.
 - No BRAND.md in the repo or on disk; UI follows packages/shared/src/brand.ts
   and apps/web/app/globals.css plus the prompt's rules.
 
@@ -62,6 +202,31 @@
   before the end; instances terminate 10 min later) and "EC2 Capacity
   Reservation Instance Interruption Warning". AWS's samples spell the key
   detail_type there; the receiver accepts detail_type and detail-type.
+- Order treasury = PROTOCOL_FEES (no ORDER_TREASURY account exists on
+  devnet). It is also the external-capacity treasury, so the provider-cost
+  share of external work is recorded but needs no transaction (an account
+  cannot pay itself). The buyer never pays more than the quote; if moves make
+  the served work dearer, settlement is scaled down and Moonshift absorbs it.
+- The pay route builds the Payment itself with packages/xrpl's exported
+  client and wallets (getClient, getAccountWallet, getAccountAddress) and the
+  same memo encoding as packages/xrpl, because payForInference can only pay a
+  GPU treasury and cannot carry MS_ORDER / MS_SETTLE / MS_REFUND or pay a
+  buyer back. packages/xrpl itself is unchanged. Payments are capped at
+  1,000 TDX, devnet/testnet only (networkName throws otherwise).
+- Leases expire (LEASE_SECONDS + planned ETA) so a crashed worker can never
+  hold a GPU forever; a move releases the old lease and takes a new one.
+- Balanced knee: both axes min-max normalized over the Pareto frontier,
+  pick the smallest Euclidean distance to (0, 0); ties by cost, then time,
+  then GPU ids. This guarantees Balanced lies between Cheapest and Fastest.
+- Without a deadline, Cheapest may wait in a queue or for a booked window
+  to clear (waiting is free); a deadline, Balanced and Fastest move the job.
+  That is why Cheapest's p99 in the benchmark is long: half the synthetic
+  orders have no deadline.
+- Resume target in the model: the cheapest other available GPU; egress is
+  charged only when that GPU is on another provider. Rental checkpoints are
+  2 GB (session snapshot), inference checkpoints 200 KB.
+- Benchmark load: arrivals every 150 s on average (about 40% utilization);
+  at 20 s the 6-GPU fleet was oversubscribed and every policy queued for hours.
 - A fleet entry whose catalog offer is missing or older than CATALOG_MAX_AGE
   stays listed but unavailable (OFFER_MISSING, STALE_PRICE); static-priced
   and Moonshift offers never go stale.

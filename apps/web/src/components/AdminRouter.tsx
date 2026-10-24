@@ -1,0 +1,202 @@
+"use client";
+import { useCallback, useEffect, useState } from "react";
+import { Button } from "./Button";
+import { useToast } from "./Toast";
+import { fmt } from "@/lib/format";
+import {
+  catalog,
+  fleet,
+  fmtTime,
+  listOrders,
+  providerName,
+  quote,
+  reclaim,
+  type CatalogOffer,
+  type FleetGpu,
+  type Order,
+} from "@/lib/routerApi";
+import "./router.css";
+
+const KEY_STORE = "ms-admin-key";
+
+function storedKey(): string {
+  try {
+    return localStorage.getItem(KEY_STORE) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+// Operator view: live prices across providers, the fleet with a reclaim control, recent orders.
+export function AdminRouter() {
+  const [offers, setOffers] = useState<CatalogOffer[]>([]);
+  const [gpus, setGpus] = useState<FleetGpu[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [why, setWhy] = useState<string | null>(null);
+  const [adminKey, setAdminKey] = useState("");
+  const toast = useToast();
+
+  const load = useCallback(() => {
+    catalog().then((c) => setOffers(c.offers)).catch(() => undefined);
+    fleet().then(setGpus).catch(() => undefined);
+    listOrders().then((o) => setOrders(o.orders)).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    setAdminKey(storedKey());
+    load();
+    quote({ kind: "rental", minutes: 30 }).then((q) => setWhy(q.why)).catch(() => undefined);
+    const t = setInterval(load, 3000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  async function doReclaim(id: string) {
+    try {
+      const r = await reclaim(id, adminKey);
+      toast(`Reclaimed ${id.toUpperCase()}`, `${r.affectedOrders.length} order(s) moving`);
+      load();
+    } catch (err) {
+      toast("Reclaim failed", (err as Error).message);
+    }
+  }
+
+  function saveKey(v: string) {
+    setAdminKey(v);
+    try {
+      localStorage.setItem(KEY_STORE, v);
+    } catch {
+      // storage unavailable; key lives for this page only
+    }
+  }
+
+  const byPrice = [...offers].sort((a, b) => a.pricePerGpuHourUsd - b.pricePerGpuHourUsd);
+
+  return (
+    <main className="s">
+      <div className="wrap adm">
+        <div className="shead">
+          <h2>Router</h2>
+        </div>
+
+        <div className="inp" style={{ maxWidth: 360 }}>
+          <input
+            type="password"
+            placeholder="Admin key"
+            value={adminKey}
+            onChange={(e) => saveKey(e.target.value)}
+            style={{ fontSize: 15 }}
+            aria-label="Admin key"
+          />
+        </div>
+
+        <h3>Fleet</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>GPU</th>
+              <th>Provider</th>
+              <th>Hardware</th>
+              <th>Capacity</th>
+              <th>USDC / h</th>
+              <th>Jobs</th>
+              <th>State</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {gpus.map((g) => (
+              <tr key={g.id}>
+                <td className="l">{g.label}</td>
+                <td className="l">{providerName(g.provider)}</td>
+                <td className="l">{g.hardware}</td>
+                <td className="l">{g.capacityType}</td>
+                <td>{fmt(Number(g.pricePerHourUsdc), 4)}</td>
+                <td>{g.state.activeJobs}</td>
+                <td className="l">{g.state.available ? "Available" : g.state.reason === "RECLAIMED" ? "Reclaimed" : "Unavailable"}</td>
+                <td>
+                  {(g.interruptible || g.provider === "moonshift") && g.state.available && (
+                    <Button variant="ghost" size="sm" onClick={() => doReclaim(g.id)}>
+                      Reclaim
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <h3>Orders</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Mode</th>
+              <th>Status</th>
+              <th>USDC</th>
+              <th>GPUs</th>
+              <th>Moves</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.map((o) => (
+              <tr key={o.orderId}>
+                <td>{o.orderId}</td>
+                <td className="l">{o.mode}</td>
+                <td className="l">{o.status}</td>
+                <td>{fmt(Number(o.priceUsdc), 4)}</td>
+                <td className="l">{[...new Set(o.segments.map((s) => s.label))].join(", ")}</td>
+                <td className="l">
+                  {o.moves.map((m) => `${m.toLabel} at ${fmtTime(m.at)}`).join(", ")}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {why && (
+          <>
+            <h3>Why</h3>
+            <p className="why">{why}</p>
+          </>
+        )}
+
+        <h3>Prices</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Provider</th>
+              <th>Region</th>
+              <th>Instance</th>
+              <th>GPU</th>
+              <th>Capacity</th>
+              <th>USD / GPU h</th>
+              <th>Availability</th>
+              <th>As of</th>
+            </tr>
+          </thead>
+          <tbody>
+            {byPrice.map((o) => (
+              <tr key={o.key}>
+                <td className="l">{providerName(o.provider)}</td>
+                <td className="l">{o.region}</td>
+                <td className="l">{o.instanceType}</td>
+                <td className="l">
+                  {o.gpuCount > 1 ? `${o.gpuCount}x ` : ""}
+                  {o.gpuModel}
+                </td>
+                <td className="l">{o.capacityType}</td>
+                <td>{fmt(o.pricePerGpuHourUsd, 4)}</td>
+                <td className="l">
+                  {o.availability.count !== null ? `${o.availability.count} ` : ""}
+                  {o.availability.status}
+                  {o.availability.score !== null ? ` (${o.availability.score}/10)` : ""}
+                </td>
+                <td>{fmtTime(o.asOf)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </main>
+  );
+}

@@ -48,8 +48,10 @@ class CollectContext:
         if self.boto_client is not None:
             return self.boto_client(service, region_name=region)
         import boto3  # imported lazily so mock mode never needs AWS
+        from botocore.config import Config
 
-        return boto3.client(service, region_name=region)
+        # Adaptive retries back off on RequestLimitExceeded / ThrottlingException (EC2 token buckets).
+        return boto3.client(service, region_name=region, config=Config(retries={"mode": "adaptive", "max_attempts": 8}))
 
     def record(self, source: str, body: Any) -> None:
         self.raw.append((source, body))

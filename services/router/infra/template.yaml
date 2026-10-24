@@ -1,0 +1,360 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Moonshift order router control plane (services/router). Price collection on EventBridge
+  Scheduler, catalog/orders/checkpoints in DynamoDB, price history in S3, SQS dispatch per
+  priority tier, one Step Functions execution per order, EC2 interruption events through
+  EventBridge, provider keys in Secrets Manager. Deploy only with AWS_DEPLOY=1 (see
+  docs/ROUTER.md); nothing here launches GPU instances.
+
+Parameters:
+  RouterUrl:
+    Type: String
+    Default: ""
+    Description: Public URL of the router service (for forwarding AWS interruption events). Empty disables forwarding.
+  WorkerTrustAnchorCertificate:
+    Type: String
+    Default: ""
+    Description: PEM of the CA that signs worker certificates for IAM Roles Anywhere. Empty skips the trust anchor.
+
+Conditions:
+  HasRouterUrl: !Not [!Equals [!Ref RouterUrl, ""]]
+  HasTrustAnchor: !Not [!Equals [!Ref WorkerTrustAnchorCertificate, ""]]
+
+Globals:
+  Function:
+    Runtime: python3.12
+    CodeUri: ../
+    Timeout: 120
+    MemorySize: 512
+    Architectures: [arm64]
+    Tags:
+      moonshift:component: router
+    Environment:
+      Variables:
+        STATE_BACKEND: dynamodb
+        PRICE_SOURCES: all
+        CATALOG_TABLE: !Ref CatalogTable
+        ORDERS_TABLE: !Ref OrdersTable
+        CHECKPOINTS_TABLE: !Ref CheckpointsTable
+        PRICES_BUCKET: !Ref PricesBucket
+        PROVIDER_SECRET_ID: !Ref ProviderSecret
+
+Resources:
+  # ---- State -----------------------------------------------------------------------------
+  CatalogTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ms-router-catalog
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: pk, AttributeType: S }
+        - { AttributeName: sk, AttributeType: S }
+      KeySchema:
+        - { AttributeName: pk, KeyType: HASH }
+        - { AttributeName: sk, KeyType: RANGE }
+      SSESpecification: { SSEEnabled: true }
+      Tags: [{ Key: moonshift:component, Value: router }]
+
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ms-router-orders
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: pk, AttributeType: S }
+        - { AttributeName: sk, AttributeType: S }
+      KeySchema:
+        - { AttributeName: pk, KeyType: HASH }
+        - { AttributeName: sk, KeyType: RANGE }
+      TimeToLiveSpecification: { AttributeName: expiresAt, Enabled: true }
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      SSESpecification: { SSEEnabled: true }
+      Tags: [{ Key: moonshift:component, Value: router }]
+
+  CheckpointsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ms-router-checkpoints
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: pk, AttributeType: S }
+      KeySchema:
+        - { AttributeName: pk, KeyType: HASH }
+      TimeToLiveSpecification: { AttributeName: expiresAt, Enabled: true }
+      SSESpecification: { SSEEnabled: true }
+      Tags: [{ Key: moonshift:component, Value: router }]
+
+  PricesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ms-router-prices-${AWS::AccountId}-${AWS::Region}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      LifecycleConfiguration:
+        Rules:
+          - { Id: expire-raw-prices, Status: Enabled, ExpirationInDays: 180 }
+          - { Id: expire-large-checkpoints, Status: Enabled, Prefix: checkpoints/, ExpirationInDays: 1 }
+      Tags: [{ Key: moonshift:component, Value: router }]
+
+  ProviderSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: moonshift/router/providers
+      Description: Provider API keys for the router (gcpApiKey, lambdaApiKey, runpodApiKey, vastApiKey). Filled in by a human.
+      SecretString: "{}"
+      Tags: [{ Key: moonshift:component, Value: router }]
+
+  # ---- Price collection --------------------------------------------------------------------
+  CollectorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ms-router-collector
+      Handler: router.lambdas.collect_handler
+      Description: Price collectors (same code the router runs in-process when local).
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:PutItem]
+              Resource: !GetAtt CatalogTable.Arn
+            - Effect: Allow
+              Action: [s3:PutObject]
+              Resource: !Sub ${PricesBucket.Arn}/*
+            - Effect: Allow
+              Action: [secretsmanager:GetSecretValue]
+              Resource: !Ref ProviderSecret
+            - Effect: Allow
+              Action:
+                - pricing:GetProducts
+                - ec2:DescribeSpotPriceHistory
+                - ec2:GetSpotPlacementScores
+                - ec2:DescribeInstanceTypeOfferings
+                - ec2:DescribeCapacityBlockOfferings
+              Resource: "*"
+      Events:
+        Spot:
+          Type: ScheduleV2
+          Properties:
+            Name: ms-router-collect-spot
+            ScheduleExpression: rate(5 minutes)
+            Input: '{"group": "spot"}'
+        Providers:
+          Type: ScheduleV2
+          Properties:
+            Name: ms-router-collect-providers
+            ScheduleExpression: rate(15 minutes)
+            Input: '{"group": "providers"}'
+        OnDemand:
+          Type: ScheduleV2
+          Properties:
+            Name: ms-router-collect-on-demand
+            ScheduleExpression: rate(1 day)
+            Input: '{"group": "on_demand"}'
+
+  # ---- Dispatch ------------------------------------------------------------------------------
+  DispatchDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ms-router-dispatch-dlq
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  FastestQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ms-router-fastest
+      VisibilityTimeout: 300
+      SqsManagedSseEnabled: true
+      RedrivePolicy: { deadLetterTargetArn: !GetAtt DispatchDeadLetterQueue.Arn, maxReceiveCount: 5 }
+
+  BalancedQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ms-router-balanced
+      VisibilityTimeout: 300
+      SqsManagedSseEnabled: true
+      RedrivePolicy: { deadLetterTargetArn: !GetAtt DispatchDeadLetterQueue.Arn, maxReceiveCount: 5 }
+
+  CheapestQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ms-router-cheapest
+      VisibilityTimeout: 300
+      SqsManagedSseEnabled: true
+      RedrivePolicy: { deadLetterTargetArn: !GetAtt DispatchDeadLetterQueue.Arn, maxReceiveCount: 5 }
+
+  # ---- Orders --------------------------------------------------------------------------------
+  OrderStepFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ms-router-order-step
+      Handler: router.lambdas.order_step_handler
+      Description: Pay, settle and release steps of an order (calls apps/api on devnet).
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem, dynamodb:DeleteItem, dynamodb:Query]
+              Resource: !GetAtt OrdersTable.Arn
+            - Effect: Allow
+              Action: [secretsmanager:GetSecretValue]
+              Resource: !Ref ProviderSecret
+
+  OrderStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: ms-router-order
+      Type: STANDARD
+      DefinitionUri: statemachine/order.asl.json
+      DefinitionSubstitutions:
+        OrderStepFunctionArn: !GetAtt OrderStepFunction.Arn
+      Policies:
+        - LambdaInvokePolicy: { FunctionName: !Ref OrderStepFunction }
+        - Statement:
+            - Effect: Allow
+              Action: [sqs:SendMessage]
+              Resource: [!GetAtt FastestQueue.Arn, !GetAtt BalancedQueue.Arn, !GetAtt CheapestQueue.Arn]
+      Tags:
+        moonshift:component: router
+
+  # ---- Interruption events --------------------------------------------------------------------
+  AwsEventsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ms-router-aws-events
+      VisibilityTimeout: 60
+      SqsManagedSseEnabled: true
+
+  AwsEventsQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues: [!Ref AwsEventsQueue]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: events.amazonaws.com }
+            Action: sqs:SendMessage
+            Resource: !GetAtt AwsEventsQueue.Arn
+            Condition:
+              ArnEquals: { aws:SourceArn: !GetAtt InterruptionRule.Arn }
+
+  InterruptionRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ms-router-interruptions
+      Description: Spot interruption warnings, rebalance recommendations and Capacity Block expiry for router workers.
+      EventPattern:
+        source: [aws.ec2]
+        detail-type:
+          - EC2 Spot Instance Interruption Warning
+          - EC2 Instance Rebalance Recommendation
+          - Capacity Block Expiration Warning
+          - EC2 Capacity Reservation Instance Interruption Warning
+      Targets:
+        - Arn: !GetAtt AwsEventsQueue.Arn
+          Id: ms-router-aws-events
+
+  AwsEventsForwarder:
+    Type: AWS::Serverless::Function
+    Condition: HasRouterUrl
+    Properties:
+      FunctionName: ms-router-aws-events-forwarder
+      Handler: router.lambdas.forward_aws_events
+      Description: Posts each interruption event to the router's POST /internal/aws-events.
+      Environment:
+        Variables:
+          ROUTER_URL: !Ref RouterUrl
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [secretsmanager:GetSecretValue]
+              Resource: !Ref ProviderSecret
+      Events:
+        Interruptions:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt AwsEventsQueue.Arn
+            BatchSize: 10
+
+  # ---- Workers on any provider ------------------------------------------------------------------
+  WorkerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ms-router-worker
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+          - Effect: Allow
+            Principal: { Service: rolesanywhere.amazonaws.com }
+            Action: [sts:AssumeRole, sts:TagSession, sts:SetSourceIdentity]
+      Policies:
+        - PolicyName: ms-router-worker
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [sqs:ReceiveMessage, sqs:DeleteMessage, sqs:ChangeMessageVisibility]
+                Resource: [!GetAtt FastestQueue.Arn, !GetAtt BalancedQueue.Arn, !GetAtt CheapestQueue.Arn]
+              - Effect: Allow
+                Action: [states:SendTaskSuccess, states:SendTaskFailure, states:SendTaskHeartbeat]
+                Resource: !Ref OrderStateMachine
+              - Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem]
+                Resource: !GetAtt CheckpointsTable.Arn
+              - Effect: Allow
+                Action: [s3:GetObject, s3:PutObject]
+                Resource: !Sub ${PricesBucket.Arn}/checkpoints/*
+              - Effect: Allow
+                Action: [cloudwatch:PutMetricData]
+                Resource: "*"
+                Condition:
+                  StringEquals: { cloudwatch:namespace: Moonshift/Router }
+      Tags: [{ Key: moonshift:component, Value: router }]
+
+  WorkerInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: ms-router-worker
+      Roles: [!Ref WorkerRole]
+
+  WorkerTrustAnchor:
+    Type: AWS::RolesAnywhere::TrustAnchor
+    Condition: HasTrustAnchor
+    Properties:
+      Name: ms-router-workers
+      Enabled: true
+      Source:
+        SourceType: CERTIFICATE_BUNDLE
+        SourceData:
+          X509CertificateData: !Ref WorkerTrustAnchorCertificate
+
+  WorkerRolesAnywhereProfile:
+    Type: AWS::RolesAnywhere::Profile
+    Condition: HasTrustAnchor
+    Properties:
+      Name: ms-router-workers
+      Enabled: true
+      RoleArns: [!GetAtt WorkerRole.Arn]
+      DurationSeconds: 3600
+
+Outputs:
+  CatalogTableName: { Value: !Ref CatalogTable }
+  OrdersTableName: { Value: !Ref OrdersTable }
+  CheckpointsTableName: { Value: !Ref CheckpointsTable }
+  PricesBucketName: { Value: !Ref PricesBucket }
+  ProviderSecretArn: { Value: !Ref ProviderSecret }
+  OrderStateMachineArn: { Value: !Ref OrderStateMachine }
+  FastestQueueUrl: { Value: !Ref FastestQueue }
+  BalancedQueueUrl: { Value: !Ref BalancedQueue }
+  CheapestQueueUrl: { Value: !Ref CheapestQueue }
+  AwsEventsQueueUrl: { Value: !Ref AwsEventsQueue }
+  WorkerRoleArn: { Value: !GetAtt WorkerRole.Arn }

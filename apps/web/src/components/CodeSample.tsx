@@ -13,8 +13,9 @@ r = client.chat.completions.create(
     model="Qwen/Qwen3-1.7B",
     messages=[{"role": "user",
                "content": "Explain VWAP in one line"}],
+    extra_body={"priority": "balanced"},  # cheapest | balanced | fastest
 )
-# served by whichever GPU is on its night shift`;
+# routed to the best GPU for that priority`;
 
 export function CodeSample() {
   const [label, setLabel] = useState("Copy");
@@ -46,9 +47,14 @@ export function CodeSample() {
         <span className="s">&quot;role&quot;</span>: <span className="s">&quot;user&quot;</span>,{"\n"}
         {"               "}
         <span className="s">&quot;content&quot;</span>: <span className="s">&quot;Explain VWAP in one line&quot;</span>
-        {"}"}],{"\n"})
+        {"}"}],{"\n"}
+        {"    "}extra_body={"{"}
+        <span className="s">&quot;priority&quot;</span>: <span className="s">&quot;balanced&quot;</span>
+        {"}"},{"  "}
+        <span className="c"># cheapest | balanced | fastest</span>
+        {"\n"})
         {"\n"}
-        <span className="c"># served by whichever GPU is on its night shift</span>
+        <span className="c"># routed to the best GPU for that priority</span>
       </pre>
     </div>
   );

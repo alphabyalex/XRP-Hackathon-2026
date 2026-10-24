@@ -1,0 +1,116 @@
+/* Order router checkout (RouteOptions, ComputeCheckout, OrderStatus, admin). Brand tokens only. */
+
+.ro {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 6px;
+}
+.ro button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  border: 0;
+  background: var(--tint);
+  border-radius: 12px;
+  padding: 14px 16px;
+  text-align: left;
+  color: var(--ink);
+  transition: box-shadow 0.2s, background 0.2s;
+}
+.ro button:hover:not(:disabled) {
+  background: var(--tint2);
+}
+.ro button.on {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+.ro button:disabled {
+  color: var(--ink3);
+  cursor: not-allowed;
+}
+.ro b {
+  font-size: 15px;
+  font-weight: 500;
+}
+.ro .ro-num {
+  display: flex;
+  gap: 14px;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+.ro .ro-eta {
+  color: var(--ink2);
+  min-width: 52px;
+  text-align: right;
+}
+
+.os {
+  display: grid;
+  gap: 2px;
+}
+.os .bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--tint);
+  overflow: hidden;
+  margin: 12px 0 6px;
+}
+.os .bar i {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  border-radius: 999px;
+  transition: width 0.4s var(--ease);
+}
+.os .moved {
+  font-size: 13.5px;
+  color: var(--ink);
+  padding: 4px 0;
+}
+.os .moved span {
+  color: var(--ink3);
+  font-family: var(--mono);
+  margin-left: 8px;
+}
+.os a {
+  color: var(--ink);
+  text-underline-offset: 3px;
+}
+
+.rent-card {
+  max-width: 460px;
+}
+
+.adm table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.adm th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--ink3);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--rule);
+}
+.adm td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--mono);
+  color: var(--ink);
+}
+.adm td.l {
+  font-family: var(--sans);
+}
+.adm h3 {
+  font-size: 18px;
+  margin: 48px 0 12px;
+}
+.adm .why {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink2);
+  max-width: 720px;
+}
