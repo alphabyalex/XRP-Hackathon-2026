@@ -88,3 +88,34 @@ def test_blend_thin_wallet_nudges_and_live_changes_show():
     assert blend(base, wallet(27), 28)["score"] == 65  # an outflow moves it down (65.1)
     # A long history moves it visibly: high confidence, score 90.
     assert blend(base, wallet(90, "high"), 90)["score"] == 87
+
+
+def test_large_outflow_to_a_new_counterparty_always_lowers_the_score():
+    """W gets 100 XRP, pays C1 5 XRP, then sends 60% of its balance to a brand-new C2.
+    The new counterparty, the extra transaction and the new balance point must not offset it."""
+    from datetime import timedelta
+
+    from credit import features as F
+    from credit import scoring
+    from tests.builders import DROPS, NOW, PEERS, h, history, iso
+    from tests.fakes import account_root, entry
+
+    w, funder, c1, c2 = PEERS[30], PEERS[31], PEERS[32], PEERS[33]
+
+    def pay(n, src, dst, xrp, before, after):
+        at = iso(NOW - timedelta(minutes=10 - n))
+        return entry(h(n, "W"), "Payment", src, at, 9000 + n, destination=dst, amount=str(xrp * DROPS),
+                     nodes=[account_root(w, before * DROPS, after * DROPS)])
+
+    base = [pay(1, funder, w, 100, 0, 100), pay(2, w, c1, 5, 100, 95)]
+    big = pay(3, w, c2, 57, 95, 38)
+    before = scoring.score(F.extract(history(base, address=w)))
+    after_f = F.extract(history(base + [big], address=w))
+    after = scoring.score(after_f)
+    assert after_f["largeOutflows"].value == 1
+    assert after_f["distinctCounterparties"].value == 2  # C2, paid in the large outflow, is not counted
+    assert after_f["txCount"].value == 2
+    assert after.raw_points < before.raw_points
+    # A second large outflow costs more again.
+    again = scoring.score(F.extract(history(base + [big, pay(4, w, c1, 30, 38, 8)], address=w)))
+    assert again.raw_points < after.raw_points

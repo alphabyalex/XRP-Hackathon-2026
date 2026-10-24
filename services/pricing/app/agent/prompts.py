@@ -27,6 +27,8 @@ Your job is to write a concise credit memo explaining the loan decision, collate
 Rules:
 - Write exactly 3 to 5 clear sentences.
 - You must use ONLY numbers present in the input JSON. Do not calculate, estimate, round to new values, or invent any number.
+- Values are already formatted with their units. Copy them exactly as written, for example "200.00 USDC", "9.50% APR", "40.00%", "1.18x", "14 days".
+- Refer to the borrower as "the borrower". Never print account addresses or raw fractions like 0.400000.
 - Mention borrower credit tier/score, collateral shares and GPU, principal and APR, initial LTV vs max LTV limit, and liquidation threshold.
 - Do not use em dashes. Never output the character "\u2014".
 - Respond with only a JSON object, no other text:
@@ -52,11 +54,9 @@ Rules:
 def credit_memo_user_message(credit_profile: dict, quote: dict, loan_request: dict) -> str:
     import json
 
-    payload = {
-        "credit_profile": credit_profile,
-        "quote": quote,
-        "loan_request": loan_request,
-    }
+    from app.agent.memo_format import present
+
+    payload = present(credit_profile, quote, loan_request)
     return f"Write a credit memo for this loan:\n{json.dumps(payload, sort_keys=True)}"
 
 

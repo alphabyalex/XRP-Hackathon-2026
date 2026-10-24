@@ -2,10 +2,10 @@
 // /borrow: credit profile, live risk quote, Bedrock memo, then a real XLS-66
 // loan on devnet with GPU shares escrowed. Loan health updates live.
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AgentText, CreditProfile, CreditStats, LoanQuoteApiResponse, PortfolioResponse, XlsLoanRecord } from "@moonshift/shared";
+import type { AgentText, CreditProfile, LoanQuoteApiResponse, PortfolioResponse, XlsLoanRecord } from "@moonshift/shared";
 import { getPortfolio } from "@/lib/api";
 import { fmt, shortHash, typedAmount } from "@/lib/format";
-import { borrowerProfile, creditStats, listLoans, maxPrincipal, openFromQuote, walletGet, type ConnectedWallet, payNext, payOff, pct, quoteLoan, quoteMemo, txUrl, useApiEvents } from "@/lib/lendingApi";
+import { borrowerProfile, listLoans, maxPrincipal, openFromQuote, walletGet, type ConnectedWallet, payNext, payOff, pct, quoteLoan, quoteMemo, txUrl, useApiEvents } from "@/lib/lendingApi";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
 import { HealthMeter, LoanTxs, StatusChip, StressControls, TxLink } from "./LendingBits";
@@ -21,6 +21,7 @@ const FACTOR_TEXT: Record<string, string> = {
   trustlines: "Trust lines",
   balanceStability: "Balance stability",
   largestOutflowRatio: "Largest outflow ratio",
+  largeOutflows: "Outflows over half the balance",
   msRepaysOnTime: "Moonshift repayments on time",
   msRepaysLate: "Moonshift repayments late",
   msMarginCalls: "Margin calls",
@@ -117,7 +118,6 @@ export function BorrowContent({
   const [alerts, setAlerts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
-  const [qn, setQn] = useState<CreditStats | null>(null);
   const [memo, setMemo] = useState<AgentText | null>(null);
   const [requote, setRequote] = useState(0);
   const toast = useToast();
@@ -260,13 +260,6 @@ export function BorrowContent({
     };
   }, [quote]);
 
-  // Live Quicknode counters from the credit service, next to the profile.
-  useEffect(() => {
-    const load = () => creditStats().then(setQn).catch(() => {});
-    load();
-    const t = setInterval(load, 15_000);
-    return () => clearInterval(t);
-  }, [quote]);
 
   useEffect(() => {
     void refresh();
@@ -404,15 +397,16 @@ export function BorrowContent({
                       c.role === "reference" ? (
                         <div key={c.part} className="ref">
                           <span>
-                            Mainnet history read through Quicknode · {shortHash(c.address)} · score {c.ownScore.score}
+                            Mainnet history · {shortHash(c.address)} · score {c.ownScore.score}
                           </span>
                         </div>
                       ) : (
                         <div key={c.part}>
                           <b>{c.part}</b>
                           <span>
-                            {c.source === "quicknode" ? `Read through Quicknode${c.network === "testnet" ? " (XRPL testnet)" : ""}` : `XRPL ${c.network}`} ·{" "}
+                            {c.network === "mainnet" ? "" : `XRPL ${c.network} · `}
                             {shortHash(c.address)}
+                            {c.weight !== undefined ? ` · weighted ${Math.round(c.weight * 100)}%` : ""}
                           </span>
                           {/* the wallet row above already says it for a connected wallet */}
                           {c.ownership && !c.ownership.verified && !wallet && <span className="unverified">Ownership not verified</span>}
@@ -435,13 +429,7 @@ export function BorrowContent({
                     ))}
                   </div>
                 )}
-                {qn && qn.dataSource === "live" && qn.quicknode.calls > 0 && (
-                  <p className="note qn">
-                    Read through Quicknode: {qn.quicknode.calls} calls, {fmt(qn.quicknode.creditsUsed, 0)} credits
-                    {qn.quicknode.p50LatencyMs ? `, p50 ${Math.round(qn.quicknode.p50LatencyMs)} ms` : ""}, {Math.round(qn.totals.cacheHitRate * 100)}% served from cache
-                  </p>
-                )}
-                {!credit.components?.length && <p className="note">Source: XRPL {credit.network}</p>}
+                {credit.components?.some((c) => c.source === "quicknode") && <p className="via">via Quicknode</p>}
               </>
             ) : (
               <p className="note">{"Reading your payment history..."}</p>
@@ -522,6 +510,7 @@ export function BorrowContent({
                 {memo ? (
                   <blockquote className="memo">
                     {memo.text.replace(/TDX/g, "USDC")}
+                    {!memo.fellBack && <span className="via">via Amazon Bedrock</span>}
                   </blockquote>
                 ) : (
                   <p className="memo-pending">Writing credit memo...</p>

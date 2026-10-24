@@ -1,6 +1,6 @@
 {
   "_note": "Moonshift credit scorecard. Classic points card: start at basePoints, each feature adds the points of the highest band whose min is <= the feature value, missing values score the missing band. Score is clamped to 0..100. Thin files are capped. Edit weights here, not in code. Bump version on any change.",
-  "version": "2026-10-24.2",
+  "version": "2026-10-24.3",
   "basePoints": 50,
   "grades": [
     {
@@ -245,6 +245,41 @@
           "min": 0.9,
           "points": -8,
           "reason": "ACCOUNT_DRAINED"
+        }
+      ]
+    },
+    "largeOutflows": {
+      "label": "Outflows over half the balance (the first one is priced by the largest outflow ratio)",
+      "bands": [
+        {
+          "min": 0,
+          "points": 0,
+          "reason": "NO_REPEATED_LARGE_OUTFLOWS"
+        },
+        {
+          "min": 2,
+          "points": -3,
+          "reason": "LARGE_OUTFLOWS_2"
+        },
+        {
+          "min": 3,
+          "points": -6,
+          "reason": "LARGE_OUTFLOWS_3"
+        },
+        {
+          "min": 4,
+          "points": -9,
+          "reason": "LARGE_OUTFLOWS_4"
+        },
+        {
+          "min": 5,
+          "points": -12,
+          "reason": "LARGE_OUTFLOWS_5"
+        },
+        {
+          "min": 6,
+          "points": -15,
+          "reason": "LARGE_OUTFLOWS_6_PLUS"
         }
       ]
     },
