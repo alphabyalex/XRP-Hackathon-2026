@@ -8,12 +8,12 @@ import {
   saveAccountsJson,
 } from "./wallets.js";
 
-export const GB_KYC_CREDENTIAL_TYPE = Buffer.from("GB_KYC", "utf8").toString("hex").toUpperCase();
+export const MS_KYC_CREDENTIAL_TYPE = Buffer.from("MS_KYC", "utf8").toString("hex").toUpperCase();
 
 export async function issueCredential(
   issuerName: "SHARE_ISSUER",
   subjectAddress: string,
-  credentialType = GB_KYC_CREDENTIAL_TYPE
+  credentialType = MS_KYC_CREDENTIAL_TYPE
 ): Promise<TxResult> {
   const issuerWallet = getAccountWallet(issuerName);
   const tx: CredentialCreate = {
@@ -28,7 +28,7 @@ export async function issueCredential(
 export async function acceptCredential(
   subjectName: "ALICE" | "BOB" | "CAROL" | "DEV",
   issuerAddress: string,
-  credentialType = GB_KYC_CREDENTIAL_TYPE
+  credentialType = MS_KYC_CREDENTIAL_TYPE
 ): Promise<TxResult> {
   const subjectWallet = getAccountWallet(subjectName);
   const tx: CredentialAccept = {
@@ -42,7 +42,7 @@ export async function acceptCredential(
 
 export async function createPermissionedDomain(
   issuerName: "SHARE_ISSUER",
-  credentialType = GB_KYC_CREDENTIAL_TYPE
+  credentialType = MS_KYC_CREDENTIAL_TYPE
 ): Promise<{ txResult: TxResult; domainId: string }> {
   const issuerWallet = getAccountWallet(issuerName);
   const tx: PermissionedDomainSet = {
@@ -82,9 +82,9 @@ export async function setupPermissionedShares(): Promise<{ domainId: string }> {
 
   for (const persona of personas) {
     const address = getAccountAddress(persona);
-    console.log(`Issuing GB_KYC to ${persona} (${address})...`);
+    console.log(`Issuing MS_KYC to ${persona} (${address})...`);
     await issueCredential("SHARE_ISSUER", address);
-    console.log(`${persona} accepting GB_KYC credential...`);
+    console.log(`${persona} accepting MS_KYC credential...`);
     await acceptCredential(persona, shareIssuerWallet.address);
   }
 

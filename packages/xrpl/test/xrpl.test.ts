@@ -14,7 +14,7 @@ import {
 } from "../src/errors.js";
 import { signChannelClaim, verifyChannelClaim } from "../src/paychan.js";
 import { TARGET_FEATURES } from "../src/features.js";
-import { GB_KYC_CREDENTIAL_TYPE } from "../src/permissioned.js";
+import { MS_KYC_CREDENTIAL_TYPE } from "../src/permissioned.js";
 
 async function runTests() {
   console.log("Running @moonshift/xrpl unit and integration test suite...\n");
@@ -85,8 +85,8 @@ async function runTests() {
 
   // 7. Credentials format
   console.log("\nTest 7: Credentials encoding");
-  assert.equal(GB_KYC_CREDENTIAL_TYPE, Buffer.from("GB_KYC").toString("hex").toUpperCase());
-  console.log("  Passed: GB_KYC hex encoding is valid");
+  assert.equal(MS_KYC_CREDENTIAL_TYPE, Buffer.from("MS_KYC").toString("hex").toUpperCase());
+  console.log("  Passed: MS_KYC hex encoding is valid");
 
   // 8. Money conversions
   console.log("\nTest 8: Drops and XRP string utilities");
