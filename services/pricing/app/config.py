@@ -17,6 +17,13 @@ D = Decimal
 SERVICE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = SERVICE_DIR / "data"
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(SERVICE_DIR.parent.parent / ".env")
+except ImportError:
+    pass
+
 
 def _env_bool(name: str) -> bool:
     return os.getenv(name, "0").strip().lower() in {"1", "true", "yes"}
