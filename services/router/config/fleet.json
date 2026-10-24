@@ -1,0 +1,59 @@
+{
+  "_note": "Mock fleet (FLEET_SOURCE=mock, the default): what the router can actually run on. Moonshift GPUs are defined inline at their own listed price (USDC per hour, no margin). External entries point at a catalog offer by key (provider#region#instanceType#capacityType), so price, speed and interruption risk always come from the latest collected catalog; their USDC price adds MOONSHIFT_MARGIN. endpoint empty = the worker runs in-process. computeGpuId set = booked windows are read from services/compute too. Live fleet: config/fleet.live.json with FLEET_SOURCE=live.",
+  "gpus": [
+    {
+      "id": "gpu-a1",
+      "label": "GPU-A1",
+      "moonshift": { "gpuModel": "T4", "hardware": "NVIDIA T4 16GB", "pricePerHourUsdc": "0.250000", "region": "us-east-2" },
+      "maxConcurrent": 2,
+      "moonshiftGpuId": "gpu-a",
+      "computeGpuId": "gpu-a",
+      "endpoint": ""
+    },
+    {
+      "id": "gpu-b1",
+      "label": "GPU-B1",
+      "moonshift": { "gpuModel": "T4", "hardware": "NVIDIA T4 16GB", "pricePerHourUsdc": "0.250000", "region": "us-east-2" },
+      "maxConcurrent": 2,
+      "moonshiftGpuId": "gpu-b",
+      "computeGpuId": "gpu-b",
+      "endpoint": ""
+    },
+    {
+      "id": "gpu-a2",
+      "label": "GPU-A2",
+      "offer": "aws#us-east-2#g4dn.xlarge#spot",
+      "maxConcurrent": 2,
+      "moonshiftGpuId": "gpu-a",
+      "computeGpuId": null,
+      "endpoint": ""
+    },
+    {
+      "id": "gpu-a3",
+      "label": "GPU-A3",
+      "offer": "azure#eastus#Standard_NC4as_T4_v3#spot",
+      "maxConcurrent": 2,
+      "moonshiftGpuId": "gpu-a",
+      "computeGpuId": null,
+      "endpoint": ""
+    },
+    {
+      "id": "gpu-b2",
+      "label": "GPU-B2",
+      "offer": "aws#us-east-2#g5.xlarge#on-demand",
+      "maxConcurrent": 2,
+      "moonshiftGpuId": "gpu-b",
+      "computeGpuId": null,
+      "endpoint": ""
+    },
+    {
+      "id": "gpu-b3",
+      "label": "GPU-B3",
+      "offer": "vast#US#1x RTX 4090#marketplace",
+      "maxConcurrent": 1,
+      "moonshiftGpuId": "gpu-b",
+      "computeGpuId": null,
+      "endpoint": ""
+    }
+  ]
+}

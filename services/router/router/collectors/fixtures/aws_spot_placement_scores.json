@@ -1,0 +1,21 @@
+{
+ "_source": "shape: ec2.GetSpotPlacementScores with SingleAvailabilityZone=false. Values illustrative until the live collector runs with credentials.",
+ "scores": {
+  "us-east-2": {
+   "g4dn.xlarge": 7,
+   "g5.xlarge": 3,
+   "g6.xlarge": 6
+  },
+  "us-east-1": {
+   "g4dn.xlarge": 8,
+   "g5.xlarge": 4,
+   "g6.xlarge": 5
+  }
+ },
+ "SpotPlacementScores": [
+  {
+   "Region": "us-east-2",
+   "Score": 7
+  }
+ ]
+}

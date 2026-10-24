@@ -1,0 +1,21 @@
+{
+  "_note": "How an offer's interruptionRatePerHour is estimated. AWS: the Spot Instance Advisor band (share of instances interrupted over the trailing 30 days) gives a monthly fraction f; the hourly rate is -ln(1 - f) / 720. That is blended with the Spot placement score (1 to 10) by a multiplier. Other spot capacity uses the provider default in providers.json; Vast.ai uses its host reliability2 as 1 - f. On-demand, reserved and Moonshift capacity are 0: their only interruptions are booked windows, which the optimizer schedules around exactly.",
+  "awsAdvisorBands": [
+    { "index": 0, "label": "<5%", "monthlyFraction": 0.025 },
+    { "index": 1, "label": "5-10%", "monthlyFraction": 0.075 },
+    { "index": 2, "label": "10-15%", "monthlyFraction": 0.125 },
+    { "index": 3, "label": "15-20%", "monthlyFraction": 0.175 },
+    { "index": 4, "label": ">20%", "monthlyFraction": 0.3 }
+  ],
+  "hoursPerMonth": 720,
+  "placementScoreMultiplier": [
+    { "minScore": 9, "multiplier": 0.5 },
+    { "minScore": 7, "multiplier": 0.8 },
+    { "minScore": 5, "multiplier": 1.0 },
+    { "minScore": 3, "multiplier": 1.6 },
+    { "minScore": 1, "multiplier": 3.0 }
+  ],
+  "unknownScoreMultiplier": 1.0,
+  "unknownBandMonthlyFraction": 0.175,
+  "nonInterruptibleCapacityTypes": ["on-demand", "reserved", "moonshift"]
+}

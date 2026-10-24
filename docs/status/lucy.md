@@ -9,9 +9,21 @@
   price list, Lambda, RunPod, Vast.ai) and their interruption warnings.
   docs/ROUTER_PROVIDERS.md. Real responses from the 5 sources that need no
   account saved as mock fixtures in services/router/router/collectors/fixtures.
+- Phase 1: services/router (Python 3.12, FastAPI, port 7200). Offer catalog
+  (router/catalog.py) with collectors for AWS (spot every 5 min: Spot price
+  history + placement score + Spot Advisor band; on-demand daily: Price List
+  + Capacity Blocks), Azure, GCP, Oracle, Lambda, RunPod, Vast.ai and a static
+  CoreWeave table. Mock catalog: 33 offers across 9 providers. Fleet
+  (config/fleet.json): 6 executable GPUs across Moonshift, AWS spot, AWS
+  on-demand, Azure spot and Vast.ai, mapped onto gpu-a and gpu-b. Live state:
+  active jobs and queue wait, reclaims, booked windows from compute's
+  calendar. Interruption model in config/interruption_model.json. Contracts:
+  quote, orders_create, order, order_events_sse, fleet, catalog, fleet_reclaim,
+  aws_events. GET /catalog, GET /fleet, POST /fleet/{id}/reclaim. 21 tests.
 
 ## Next
-- Phase 1: offer catalog, fleet, interruption model, contracts.
+- Phase 2: price collection on AWS (scheduling, DynamoDB + S3 storage,
+  Secrets Manager, staleness, SAM template).
 
 ## Blockers
 - No AWS credentials on this machine (no AWS CLI either). All AWS adapters
@@ -36,6 +48,23 @@
 - Google Cloud Spot notice is 0 s by default (not 30 s); GCP workers must be
   created with a 120 s preemption notice. Catalog default for GCP: 30 s.
 - RunPod is priced on-demand only (spot warning window not documented).
+- Moonshift GPUs are listed at 0.25 USDC per hour (their own price, no
+  margin), between spot T4s (about 0.17 to 0.20 with margin) and on-demand
+  clouds, so idle Moonshift capacity wins Balanced often and Cheapest only
+  when spot is scarce. MOONSHIFT_MARGIN = 15% on external capacity.
+- Tokens per second per GPU model: T4 = 40 (compute's planning figure), the
+  rest scaled by memory bandwidth (config/gpu_perf.json), estimates until
+  infra/benchmark.py runs on each card. A request runs on one GPU, so
+  multi-GPU instances do not add speed for one reply.
+- AWS interruption rate = -ln(1 - f) / 720 h from the Spot Advisor band
+  midpoint f, times a placement-score multiplier (0.5 at 9+, 3.0 at 1-2).
+- Capacity Block events verified: "Capacity Block Expiration Warning" (40 min
+  before the end; instances terminate 10 min later) and "EC2 Capacity
+  Reservation Instance Interruption Warning". AWS's samples spell the key
+  detail_type there; the receiver accepts detail_type and detail-type.
+- A fleet entry whose catalog offer is missing or older than CATALOG_MAX_AGE
+  stays listed but unavailable (OFFER_MISSING, STALE_PRICE); static-priced
+  and Moonshift offers never go stale.
 
 ---
 

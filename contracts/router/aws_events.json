@@ -1,0 +1,57 @@
+{
+  "endpoint": "POST /internal/aws-events",
+  "note": "Receiver for AWS interruption events. An EventBridge rule (infra/template.yaml) matches the three detail-types below from source aws.ec2 and delivers them to the SQS queue ms-router-aws-events; the router consumes that queue and posts each message here (or EventBridge can target an API destination directly). The body is the unmodified EventBridge event. instance-id is mapped to a fleet GPU through the worker's registration (fleet entry extra.instanceId or the worker's heartbeat). Effects are listed in detailTypes below. A Capacity Block event names a capacity reservation, mapped to the fleet GPUs running in it. Requires X-MS-Internal-Key when INTERNAL_API_KEY is set.",
+  "examples": {
+    "spotInterruption": {
+      "version": "0",
+      "id": "12345678-1234-1234-1234-123456789012",
+      "detail-type": "EC2 Spot Instance Interruption Warning",
+      "source": "aws.ec2",
+      "account": "123456789012",
+      "time": "2026-10-24T22:00:00Z",
+      "region": "us-east-2",
+      "resources": ["arn:aws:ec2:us-east-2a:instance/i-1234567890abcdef0"],
+      "detail": { "instance-id": "i-1234567890abcdef0", "instance-action": "terminate" }
+    },
+    "rebalanceRecommendation": {
+      "version": "0",
+      "id": "12345678-1234-1234-1234-123456789013",
+      "detail-type": "EC2 Instance Rebalance Recommendation",
+      "source": "aws.ec2",
+      "account": "123456789012",
+      "time": "2026-10-24T21:58:00Z",
+      "region": "us-east-2",
+      "resources": ["arn:aws:ec2:us-east-2:123456789012:instance/i-1234567890abcdef0"],
+      "detail": { "instance-id": "i-1234567890abcdef0" }
+    },
+    "capacityBlockExpirationWarning": {
+      "customer_event_id": "cr-12345678-approaching-expiry",
+      "detail_type": "Capacity Block Expiration Warning",
+      "source": "aws.ec2",
+      "account": "123456789012",
+      "time": "2026-10-24T21:20:00Z",
+      "resources": ["arn:aws:ec2:us-east-2:123456789012:capacity-reservation/cr-12345678"],
+      "detail": { "capacity-reservation-id": "cr-12345678", "end-date": "2026-10-24T22:00:00Z" }
+    },
+    "capacityReservationInterruption": {
+      "version": "0",
+      "id": "12345678-1234-1234-1234-123456789015",
+      "detail_type": "EC2 Capacity Reservation Instance Interruption Warning",
+      "source": "aws.ec2",
+      "account": "123456789012",
+      "time": "2026-10-24T21:30:00Z",
+      "region": "us-east-2",
+      "resources": ["arn:aws:ec2:us-east-2:123456789012:instance/i-0fedcba9876543210"],
+      "detail": { "instance-id": "i-0fedcba9876543210", "instance-action": "terminate", "instance-termination-time": "2026-10-24T21:30:00Z", "availability-zone-id": "use2-az1", "instance-lifecycle": "capacity-block" }
+    }
+  },
+  "detailTypes": {
+    "EC2 Spot Instance Interruption Warning": "reclaim, 120 s warning (docs: spot-instance-termination-notices)",
+    "EC2 Instance Rebalance Recommendation": "checkpoint only (docs: rebalance-recommendations)",
+    "Capacity Block Expiration Warning": "sent 40 minutes before the block ends; instances start terminating 10 minutes later: reclaim with a 600 s warning (docs: capacity-blocks-monitor)",
+    "EC2 Capacity Reservation Instance Interruption Warning": "reclaim now (docs: capacity-blocks-monitor)"
+  },
+  "keyNote": "AWS's Capacity Block samples spell the key detail_type; Spot samples use detail-type. The receiver accepts both.",
+  "response": { "ok": true, "action": "reclaim", "gpuId": "gpu-a2", "affectedOrders": ["ord_7a3f19c2"] },
+  "ignoredResponse": { "ok": true, "action": "ignored", "reason": "UNKNOWN_INSTANCE" }
+}

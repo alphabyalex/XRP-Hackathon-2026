@@ -1,0 +1,13 @@
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+pydantic==2.14.1
+httpx==0.28.1
+boto3==1.43.118
+python-dotenv==1.2.4
+# tests and checks
+moto[dynamodb,s3,sqs,stepfunctions,secretsmanager,events,cloudwatch,ec2]==5.2.4
+cfn-lint==1.58.0
+pytest==9.1.1
+pytest-asyncio==1.4.0
+mypy==2.4.0
+ruff==0.17.2

@@ -1,0 +1,89 @@
+{
+ "_source": "shape: ec2.DescribeSpotPriceHistory. Values: on-demand list price x (1 - Spot Advisor savings %) from aws_spot_advisor.json, +3% in the second AZ.",
+ "SpotPriceHistory": [
+  {
+   "AvailabilityZone": "us-east-2a",
+   "InstanceType": "g4dn.xlarge",
+   "ProductDescription": "Linux/UNIX",
+   "SpotPrice": "0.173580",
+   "Timestamp": "2026-10-24T21:55:00+00:00"
+  },
+  {
+   "AvailabilityZone": "us-east-2b",
+   "InstanceType": "g4dn.xlarge",
+   "ProductDescription": "Linux/UNIX",
+   "SpotPrice": "0.178787",
+   "Timestamp": "2026-10-24T21:55:00+00:00"
+  },
+  {
+   "AvailabilityZone": "us-east-2a",
+   "InstanceType": "g5.xlarge",
+   "ProductDescription": "Linux/UNIX",
+   "SpotPrice": "0.422520",
+   "Timestamp": "2026-10-24T21:55:00+00:00"
+  },
+  {
+   "AvailabilityZone": "us-east-2b",
+   "InstanceType": "g5.xlarge",
+   "ProductDescription": "Linux/UNIX",
+   "SpotPrice": "0.435196",
+   "Timestamp": "2026-10-24T21:55:00+00:00"
+  },
+  {
+   "AvailabilityZone": "us-east-2a",
+   "InstanceType": "g6.xlarge",
+   "ProductDescription": "Linux/UNIX",
+   "SpotPrice": "0.265584",
+   "Timestamp": "2026-10-24T21:55:00+00:00"
+  },
+  {
+   "AvailabilityZone": "us-east-2b",
+   "InstanceType": "g6.xlarge",
+   "ProductDescription": "Linux/UNIX",
+   "SpotPrice": "0.273552",
+   "Timestamp": "2026-10-24T21:55:00+00:00"
+  },
+  {
+   "AvailabilityZone": "us-east-1a",
+   "InstanceType": "g4dn.xlarge",
+   "ProductDescription": "Linux/UNIX",
+   "SpotPrice": "0.210400",
+   "Timestamp": "2026-10-24T21:55:00+00:00"
+  },
+  {
+   "AvailabilityZone": "us-east-1b",
+   "InstanceType": "g4dn.xlarge",
+   "ProductDescription": "Linux/UNIX",
+   "SpotPrice": "0.216712",
+   "Timestamp": "2026-10-24T21:55:00+00:00"
+  },
+  {
+   "AvailabilityZone": "us-east-1a",
+   "InstanceType": "g5.xlarge",
+   "ProductDescription": "Linux/UNIX",
+   "SpotPrice": "0.442640",
+   "Timestamp": "2026-10-24T21:55:00+00:00"
+  },
+  {
+   "AvailabilityZone": "us-east-1b",
+   "InstanceType": "g5.xlarge",
+   "ProductDescription": "Linux/UNIX",
+   "SpotPrice": "0.455919",
+   "Timestamp": "2026-10-24T21:55:00+00:00"
+  },
+  {
+   "AvailabilityZone": "us-east-1a",
+   "InstanceType": "g6.xlarge",
+   "ProductDescription": "Linux/UNIX",
+   "SpotPrice": "0.410448",
+   "Timestamp": "2026-10-24T21:55:00+00:00"
+  },
+  {
+   "AvailabilityZone": "us-east-1b",
+   "InstanceType": "g6.xlarge",
+   "ProductDescription": "Linux/UNIX",
+   "SpotPrice": "0.422761",
+   "Timestamp": "2026-10-24T21:55:00+00:00"
+  }
+ ]
+}

@@ -1,0 +1,60 @@
+{
+ "_source": "shape: GET /api/v1/instance-types (Lambda OpenAPI 1.10.0). Needs an API key; values illustrative.",
+ "data": {
+  "gpu_1x_a10": {
+   "instance_type": {
+    "name": "gpu_1x_a10",
+    "description": "1x A10 (24 GB PCIe)",
+    "gpu_description": "A10 (24 GB PCIe)",
+    "price_cents_per_hour": 75,
+    "specs": {
+     "vcpus": 30,
+     "memory_gib": 200,
+     "storage_gib": 1400,
+     "gpus": 1
+    }
+   },
+   "regions_with_capacity_available": [
+    {
+     "name": "us-east-1",
+     "description": "Virginia, USA"
+    }
+   ]
+  },
+  "gpu_1x_a100": {
+   "instance_type": {
+    "name": "gpu_1x_a100",
+    "description": "1x A100 (40 GB PCIe)",
+    "gpu_description": "A100 (40 GB PCIe)",
+    "price_cents_per_hour": 129,
+    "specs": {
+     "vcpus": 30,
+     "memory_gib": 200,
+     "storage_gib": 512,
+     "gpus": 1
+    }
+   },
+   "regions_with_capacity_available": []
+  },
+  "gpu_1x_h100_pcie": {
+   "instance_type": {
+    "name": "gpu_1x_h100_pcie",
+    "description": "1x H100 (80 GB PCIe)",
+    "gpu_description": "H100 (80 GB PCIe)",
+    "price_cents_per_hour": 249,
+    "specs": {
+     "vcpus": 26,
+     "memory_gib": 200,
+     "storage_gib": 1000,
+     "gpus": 1
+    }
+   },
+   "regions_with_capacity_available": [
+    {
+     "name": "us-west-1",
+     "description": "California, USA"
+    }
+   ]
+  }
+ }
+}
