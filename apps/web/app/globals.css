@@ -215,6 +215,50 @@ p {
   align-items: center;
   gap: 10px;
 }
+/* Header wallet pill and its menu */
+.wallet-pill {
+  white-space: nowrap;
+}
+.wallet-pill .mono {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.wallet-menu {
+  position: relative;
+}
+.wallet-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 180px;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), inset 0 0 0 1px var(--rule2);
+  display: none;
+  flex-direction: column;
+  z-index: 60;
+}
+.wallet-pop.open {
+  display: flex;
+}
+.wallet-pop > button,
+.wallet-pop > a {
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.wallet-pop > button:hover,
+.wallet-pop > a:hover {
+  background: var(--tint);
+}
 .theme-toggle {
   width: 36px;
   height: 36px;
@@ -1682,6 +1726,10 @@ a.txl:hover {
   font-size: 13px;
   color: var(--ink3);
   cursor: pointer;
+}
+.linkish.strong {
+  color: var(--ink);
+  font-weight: 500;
 }
 .linkish:hover:not(:disabled) {
   color: var(--ink);

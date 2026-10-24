@@ -10,6 +10,7 @@ import { Button } from "./Button";
 import { useToast } from "./Toast";
 import { HealthMeter, LoanTxs, StatusChip, StressControls, TxLink } from "./LendingBits";
 import { WalletConnect } from "./WalletConnect";
+import { useWallet } from "@/lib/wallet";
 import { ACCOUNT } from "@/lib/session";
 
 const FACTOR_TEXT: Record<string, string> = {
@@ -111,7 +112,16 @@ export function BorrowContent({
   const [max, setMax] = useState<MaxAmount | null>(initialMax);
   const [quote, setQuote] = useState<LoanQuoteApiResponse | null>(null);
   const [profile, setProfile] = useState<CreditProfile | null>(initialProfile);
-  const [wallet, setWallet] = useState<ConnectedWallet | null>(initialWallet);
+  // The site-wide wallet (header pill). Until the api answers, the server-rendered one stands in.
+  const site = useWallet();
+  const wallet = site.loaded ? site.wallet : (site.wallet ?? initialWallet);
+  const walletKey = wallet?.address ?? "";
+  const firstWallet = useRef(walletKey);
+  useEffect(() => {
+    if (walletKey === firstWallet.current) return;
+    firstWallet.current = walletKey;
+    setRequote((n) => n + 1); // new history: refetch the profile, the max and the quote
+  }, [walletKey]);
   const [activity, setActivity] = useState<Activity[]>([]);
   // The last live rescore: what moved, shown briefly on the card.
   const [live, setLive] = useState<{ at: number; scoreBefore: number; score: number; changes: FactorChange[] } | null>(null);
@@ -167,7 +177,7 @@ export function BorrowContent({
   useApiEvents(["credit"], (_type, data) => {
     if (data?.kind !== "PROFILE_CHANGED" || !profile || data.borrower !== profile.address) return;
     // Connected (or switched) from another tab or device: pick the wallet up too.
-    if (wallet?.address !== data.address) walletGet(ACCOUNT).then((r) => setWallet(r.wallet)).catch(() => {});
+    if (wallet?.address !== data.address) void site.refresh();
     const item = data.activity as Activity | undefined;
     // The new profile and what moved land together, so highlighted rows already show the new points.
     borrowerProfile(ACCOUNT)
@@ -354,14 +364,7 @@ export function BorrowContent({
                     <div className="muted">{credit.confidence} confidence</div>
                   </div>
                 </div>
-                <WalletConnect
-                  borrower={ACCOUNT}
-                  wallet={wallet}
-                  onChange={(w) => {
-                    setWallet(w);
-                    setRequote((n) => n + 1); // new history: refetch the profile, the max and the quote
-                  }}
-                />
+                <WalletConnect />
                 {live && live.changes.length > 0 && (
                   <p className="changes">
                     {live.score !== live.scoreBefore ? `Score ${live.scoreBefore} to ${live.score}. ` : "Updated just now. "}
@@ -409,7 +412,6 @@ export function BorrowContent({
                           <span>
                             {c.network === "mainnet" ? "" : `XRPL ${c.network} · `}
                             {shortHash(c.address)}
-                            {c.weight !== undefined ? ` · weighted ${Math.round(c.weight * 100)}%` : ""}
                           </span>
                           {/* the wallet row above already says it for a connected wallet */}
                           {c.ownership && !c.ownership.verified && !wallet && <span className="unverified">Ownership not verified</span>}

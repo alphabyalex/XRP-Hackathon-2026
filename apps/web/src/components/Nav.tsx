@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { MoonMark } from "./MoonMark";
-import { Button } from "./Button";
+import { WalletButton } from "./WalletButton";
 import { ThemeToggle } from "./ThemeToggle";
 
 const LINKS = [
@@ -45,9 +45,7 @@ export function Nav() {
         </nav>
         <div className="nav-end">
           <ThemeToggle />
-          <Button href="/market" size="sm" className="cta">
-            Open app
-          </Button>
+          <WalletButton />
         </div>
       </div>
     </header>
