@@ -1,0 +1,44 @@
+{
+ "_source": "https://console.vast.ai/api/v0/bundles/ (RTX 4090, fetched 2026-10-24)",
+ "offers": [
+  {
+   "id": 45473516,
+   "gpu_name": "RTX 4090",
+   "num_gpus": 1,
+   "gpu_ram": 49140,
+   "dph_total": 0.46863703703703696,
+   "reliability2": 0.9975199,
+   "geolocation": "Japan, JP",
+   "rentable": true,
+   "verification": "deverified",
+   "inet_down_cost": 0.005208333333333333,
+   "inet_up_cost": 0.00390625
+  },
+  {
+   "id": 55948346,
+   "gpu_name": "RTX 4090",
+   "num_gpus": 1,
+   "gpu_ram": 24564,
+   "dph_total": 0.4022222222222222,
+   "reliability2": 0.9852392,
+   "geolocation": "Texas, US",
+   "rentable": true,
+   "verification": "unverified",
+   "inet_down_cost": 0.0026041666666666665,
+   "inet_up_cost": 0.00390625
+  },
+  {
+   "id": 45473510,
+   "gpu_name": "RTX 4090",
+   "num_gpus": 2,
+   "gpu_ram": 49140,
+   "dph_total": 0.9353037037037036,
+   "reliability2": 0.9975199,
+   "geolocation": "Japan, JP",
+   "rentable": true,
+   "verification": "deverified",
+   "inet_down_cost": 0.005208333333333333,
+   "inet_up_cost": 0.00390625
+  }
+ ]
+}

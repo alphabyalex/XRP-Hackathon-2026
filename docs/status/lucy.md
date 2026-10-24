@@ -1,4 +1,45 @@
-# Lucy status (services/credit, Quicknode)
+# Lucy status
+
+# Order router (services/router, port 7200)
+
+## Done
+- Phase 0: verified every price and availability source (AWS Price List,
+  Spot price history, placement scores, instance type and Capacity Block
+  offerings, Spot Advisor, Azure Retail Prices, GCP Billing Catalog, Oracle
+  price list, Lambda, RunPod, Vast.ai) and their interruption warnings.
+  docs/ROUTER_PROVIDERS.md. Real responses from the 5 sources that need no
+  account saved as mock fixtures in services/router/router/collectors/fixtures.
+
+## Next
+- Phase 1: offer catalog, fleet, interruption model, contracts.
+
+## Blockers
+- No AWS credentials on this machine (no AWS CLI either). All AWS adapters
+  run in MOCK until AWS_PROFILE (or an EC2 role) is available.
+- GCP Billing Catalog needs an API key; Lambda needs an API key. Both go in
+  Secrets Manager secret moonshift/router/providers (filled by a human).
+- No BRAND.md in the repo or on disk; UI follows packages/shared/src/brand.ts
+  and apps/web/app/globals.css plus the prompt's rules.
+
+## Decisions
+- Prompt v2 (multi-provider, AWS control plane) replaced v1 before anything
+  was committed. Differences from v1: an offer catalog across AWS, Azure, GCP,
+  Oracle and marketplaces (not just a fixed fleet); price collectors as
+  Lambda-ready functions on EventBridge Scheduler with DynamoDB + S3; SAM
+  template in services/router/infra; DynamoDB leases, Step Functions per order,
+  SQS dispatch per tier, EventBridge interruption events; settlement changed
+  from "buyer pays each GPU" to "buyer pays the order treasury, router settles
+  each GPU for work actually served (MS_SETTLE) and refunds the rest";
+  checkpoints in DynamoDB (S3 over 350 KB); CloudWatch, cost tags, CUR join;
+  /admin/router shows the live catalog. Kept from v1: contracts/router drafts
+  and config/fleet.json, revised in Phase 1.
+- Google Cloud Spot notice is 0 s by default (not 30 s); GCP workers must be
+  created with a 120 s preemption notice. Catalog default for GCP: 30 s.
+- RunPod is priced on-demand only (spot warning window not documented).
+
+---
+
+# Credit service (services/credit, Quicknode)
 
 ## Done
 - Phase 0: verified Quicknode XRPL support from their docs, wrote docs/QUICKNODE.md.

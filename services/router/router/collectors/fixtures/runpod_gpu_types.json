@@ -1,0 +1,21 @@
+{
+ "_source": "https://api.runpod.io/graphql gpuTypes (fetched 2026-10-24)",
+ "data": {
+  "gpuTypes": [
+   {
+    "id": "NVIDIA GeForce RTX 4090",
+    "displayName": "RTX 4090",
+    "memoryInGb": 24,
+    "securePrice": 0.89,
+    "communityPrice": 0.34,
+    "secureSpotPrice": null,
+    "communitySpotPrice": null,
+    "lowestPrice": {
+     "minimumBidPrice": null,
+     "uninterruptablePrice": 0.34,
+     "stockStatus": "High"
+    }
+   }
+  ]
+ }
+}
