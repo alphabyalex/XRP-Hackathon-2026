@@ -1131,7 +1131,7 @@ input[type="range"]::-moz-range-thumb {
   max-width: 40em;
 }
 
-/* closing band — dark field, one action, then the footer continues on it */
+/* closing band, dark field, one action, then the footer continues on it */
 .enter {
   position: relative;
   z-index: 1;
