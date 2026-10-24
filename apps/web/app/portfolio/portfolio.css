@@ -1,0 +1,65 @@
+:root:has(.account-portfolio) {color-scheme:light;--bg:#fff;--surface:#fff;--tint:#f4f4f1;--tint2:#e8e8e4;--ink:#0d0d0e;--ink2:#55565b;--ink3:#8e8f94;--rule:#e6e6e3;--rule2:#d4d4d0;--accent-ink:#946800;--up:#0b8a4f;--down:#d6342a;--nav:rgba(255,255,255,.84);--card-shadow:0 1px 0 rgba(0,0,0,.04),0 30px 70px -32px rgba(13,13,14,.22),0 0 0 1px rgba(13,13,14,.06)}
+body:has(.account-portfolio) .theme-toggle {display:none}
+.account-portfolio {padding-top:148px;padding-bottom:88px;font-variant-numeric:lining-nums tabular-nums;min-width:0}
+.account-portfolio section {margin-top:60px;min-width:0}
+.account-portfolio h2 {font-size:22px;font-weight:500;letter-spacing:-.025em;margin:0 0 24px}
+.account-header {display:flex;justify-content:space-between;gap:24px;align-items:flex-start;padding-bottom:12px}
+.account-eyebrow {color:var(--ink2);font-size:14px;margin:0 0 20px}
+.account-header h1 {margin:0 0 28px;white-space:nowrap}
+.account-header h1 span {font-size:.46em;font-weight:400;letter-spacing:-.02em}
+.account-inline {display:flex;flex-wrap:wrap;gap:12px 36px;color:var(--ink2);font-size:14px}
+.account-inline b {font-weight:400;margin-left:8px}
+.account-address {color:var(--ink3);font-size:13px;padding-top:4px;white-space:nowrap}
+.account-income {color:var(--accent-ink)}
+.account-muted {color:var(--ink2);font-size:14px;margin:10px 0}
+.account-danger {color:var(--down)}
+.account-table-scroll {overflow:auto;max-width:100%;overscroll-behavior-x:contain}
+.account-table {width:100%;border-collapse:collapse;min-width:750px;font-size:14px}
+.account-table th {font-weight:400;color:var(--ink3);font-size:12px;padding:0 14px 14px}
+.account-table td {padding:22px 14px;border-top:1px solid var(--rule);text-align:right;white-space:nowrap}
+.account-table th {text-align:right}
+.account-table th:first-child,.account-table td:first-child {text-align:left;padding-left:0}
+.account-table th:last-child,.account-table td:last-child {padding-right:0}
+.account-gpu {display:flex;align-items:center;gap:12px}
+.account-table small {display:block;color:var(--ink3);font-size:12px;font-weight:400;margin-top:3px}
+.account-empty {display:flex;align-items:center;justify-content:space-between;gap:20px;border-top:1px solid var(--rule);padding:24px 0;color:var(--ink2);font-size:14px}
+.account-section-head {display:flex;align-items:flex-start;justify-content:space-between;gap:24px}
+.account-section-head .seg {min-width:140px;max-width:350px;margin-bottom:20px;grid-auto-columns:1fr}
+.account-earnings {display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:56px;align-items:center}
+.account-chart {min-width:0}
+.account-chart svg {width:100%;height:auto;overflow:visible;font-family:var(--sans)}
+.account-chart-legend {display:flex;gap:24px;font-size:12px;color:var(--ink2);margin-bottom:10px}
+.account-chart-legend span {display:flex;align-items:center;gap:8px}
+.account-chart-legend i {width:7px;height:7px;background:var(--ink);display:inline-block}
+.account-chart-legend span:last-child i {background:var(--accent)}
+.account-bar {transform:scaleY(0);transform-origin:0 207px;transition:transform .9s var(--ease)}
+.account-bars-visible .account-bar {transform:scaleY(1)}
+.account-tooltip {font-size:12px;color:var(--ink2);min-height:20px;margin-top:10px}
+.account-stats {margin:0;display:grid;gap:28px}
+.account-stats dt {font-size:13px;color:var(--ink2);margin-bottom:6px}
+.account-stats dd {margin:0;font-size:26px;letter-spacing:-.035em}
+.account-stats dd span {font-size:13px;letter-spacing:0}
+.account-loans {display:grid;gap:24px}
+.account-loan {background:var(--surface);border-radius:18px;box-shadow:var(--card-shadow);padding:30px}
+.account-loan-top {display:flex;justify-content:space-between;gap:40px}
+.account-loan h3 {font-size:14px;font-weight:400;margin:0 0 12px}
+.account-loan-number {font-size:32px;letter-spacing:-.03em;margin:0}
+.account-loan-number span {font-size:15px;letter-spacing:0}
+.account-margin {max-width:280px;align-self:center;display:flex;gap:18px;align-items:center;font-size:13px}
+.account-margin p {margin:0;color:var(--ink2)}
+.account-margin strong {display:inline;color:var(--ink);font-size:32px;letter-spacing:-.03em;font-weight:500}
+.account-margin>span {white-space:nowrap}
+.account-loan .meter .fill {background:var(--ink)!important}
+.account-loan:has(.account-danger) .meter .fill {background:var(--down)!important}
+.account-actions {display:flex;gap:12px;justify-content:flex-end;margin-top:28px}
+.account-activity {list-style:none;padding:0;margin:0 0 24px}
+.account-activity li {display:grid;grid-template-columns:160px minmax(130px,1fr) minmax(100px,1fr) 130px;gap:20px;align-items:center;border-top:1px solid var(--rule);padding:20px 0;font-size:14px}
+.account-activity time,.account-hash {color:var(--ink3);font-size:12px}
+.account-amount,.account-hash {text-align:right}
+.account-error {display:flex;gap:20px;align-items:center;color:var(--ink2);margin-top:20px;font-size:14px}
+.account-skeleton {height:16px;width:65%;background:var(--tint);border-radius:4px}
+.account-total {height:68px;width:420px;max-width:100%;margin-bottom:28px}
+.account-table-skeleton {height:120px;width:100%}
+.account-chart-skeleton {height:240px;width:100%}
+@media(max-width:700px){.account-portfolio {padding-top:112px;padding-bottom:56px}.account-header {display:block}.account-header h1 {font-size:44px}.account-address {margin-top:24px}.account-inline {gap:12px 24px}.account-inline span:last-child {flex-basis:100%}.account-portfolio section {margin-top:42px}.account-earnings {grid-template-columns:minmax(0,1fr);gap:24px}.account-stats {gap:20px}.account-stats>div {display:flex;justify-content:space-between;align-items:baseline;gap:16px}.account-stats dd {font-size:22px}.account-loan {padding:22px 18px}.account-loan-top {display:block}.account-margin {margin-top:24px;max-width:none;justify-content:space-between}.account-loan .meter-l {font-size:10px}.account-activity li {grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px 12px}.account-activity time {grid-column:1;grid-row:1}.account-activity li>span:nth-child(2) {grid-column:1;grid-row:2}.account-amount {grid-column:2;grid-row:2;font-size:13px}.account-hash {grid-column:2;grid-row:1}.account-tooltip {font-size:10px}.account-section-head {gap:12px}.account-section-head .seg {min-width:110px}.account-section-head .seg button {font-size:12px;padding:7px}.account-empty {align-items:center}}
+@media(prefers-reduced-motion:reduce){.account-bar {transform:scaleY(1);transition:none}}

@@ -14,8 +14,8 @@ export function Segmented<T extends string>({
 }) {
   const idx = options.findIndex((o) => o.value === value);
   return (
-    <div className={clsx("seg", idx === 1 && "r")}>
-      <span className="thumb" />
+    <div className="seg" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+      <span className="thumb" style={{ width: `calc((100% - 6px) / ${options.length})`, transform: `translateX(${Math.max(0, idx) * 100}%)` }} />
       {options.map((o) => (
         <button key={o.value} type="button" className={clsx(o.value === value && "on")} onClick={() => onChange(o.value)}>
           {o.label}
