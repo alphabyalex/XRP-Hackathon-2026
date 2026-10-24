@@ -1,0 +1,41 @@
+{
+  "request": {
+    "creditProfile": {
+      "address": "rKMSqox5vjUBczHHaRK6ETQuFoKN7bWBEY",
+      "network": "testnet",
+      "score": 74,
+      "grade": "B",
+      "confidence": "high",
+      "features": {
+        "accountAgeDays": { "value": 1412, "points": 10 },
+        "txCount": { "value": 640, "points": 5 },
+        "repaymentCount": { "value": 8 }
+      },
+      "reasons": ["ACCOUNT_AGE_3Y_PLUS", "TX_COUNT_200_PLUS"]
+    },
+    "quote": {
+      "decision": "approve",
+      "ltv": "0.350000",
+      "maxLtv": "0.500000",
+      "apr": "0.085000",
+      "marginCallLtv": "0.650000",
+      "liquidationLtv": "0.800000",
+      "termSeconds": 600,
+      "pd": "0.024000",
+      "reasons": []
+    },
+    "loanRequest": {
+      "borrower": "rKMSqox5vjUBczHHaRK6ETQuFoKN7bWBEY",
+      "gpuId": "gpu-a",
+      "collateralShares": "100.000000",
+      "principal": "35.000000",
+      "termSeconds": 600
+    }
+  },
+  "response": {
+    "memo": "Borrower rKMSqox5vjUBczHHaRK6ETQuFoKN7bWBEY holds Grade B credit with a score of 74 based on 640 verified on-chain transactions over 1412 days. The requested loan of 35.000000 TDX is backed by 100.000000 shares of GPU A at an initial LTV of 35%, safely below the maximum 50% threshold. The loan carries an APR of 8.5% for a term of 600 seconds with an estimated default probability of 2.4%. Liquidation occurs if the LTV reaches 80%.",
+    "modelId": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "latencyMs": 850,
+    "fellBack": false
+  }
+}

@@ -9,7 +9,7 @@ from typing import Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app import config as C
 from app import pricing
@@ -151,6 +151,18 @@ def loans_quote(req: LoanRequest) -> dict:
     return {**body, "risk_flags": flags}
 
 
+class CreditMemoRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    credit_profile: dict = Field(default_factory=dict, alias="creditProfile")
+    quote: dict = Field(default_factory=dict)
+    loan_request: dict = Field(default_factory=dict, alias="loanRequest")
+
+
+class RiskAlertRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    event: dict = Field(default_factory=dict)
+
+
 @app.post("/agent/explain", dependencies=[Depends(internal_key)])
 def agent_explain(req: ExplainRequest) -> dict:
     flags = [f for f in req.data.get("risk_flags", []) if isinstance(f, str)]
@@ -158,3 +170,30 @@ def agent_explain(req: ExplainRequest) -> dict:
     ex = bedrock.explain(req.context, data, flags)
     return {"text": ex.text, "risk_flags": ex.risk_flags, "source": ex.source,
             "model_id": ex.model_id, "latency_ms": ex.latency_ms}
+
+
+@app.post("/agent/credit-memo", dependencies=[Depends(internal_key)])
+def agent_credit_memo(req: CreditMemoRequest) -> dict:
+    res = bedrock.generate_credit_memo(
+        credit_profile=req.credit_profile,
+        quote=req.quote,
+        loan_request=req.loan_request,
+    )
+    return {
+        "memo": res.memo,
+        "modelId": res.model_id or C.BEDROCK_MODEL_ID,
+        "latencyMs": res.latency_ms,
+        "fellBack": res.fell_back,
+    }
+
+
+@app.post("/agent/risk-alert", dependencies=[Depends(internal_key)])
+def agent_risk_alert(req_body: dict) -> dict:
+    event_data = req_body.get("event") if isinstance(req_body.get("event"), dict) else req_body
+    res = bedrock.generate_risk_alert(event_data)
+    return {
+        "alert": res.alert,
+        "modelId": res.model_id or C.BEDROCK_MODEL_ID,
+        "latencyMs": res.latency_ms,
+        "fellBack": res.fell_back,
+    }

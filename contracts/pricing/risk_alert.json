@@ -1,0 +1,20 @@
+{
+  "request": {
+    "type": "margin_call",
+    "loanId": "loan-demo-001",
+    "borrower": "rKMSqox5vjUBczHHaRK6ETQuFoKN7bWBEY",
+    "gpuId": "gpu-a",
+    "ltv": "0.710000",
+    "thresholdLtv": "0.700000",
+    "liquidationLtv": "0.850000",
+    "outstandingBalance": "35.500000",
+    "collateralValue": "50.000000",
+    "reason": "MARGIN_CALL_THRESHOLD_CROSSED"
+  },
+  "response": {
+    "alert": "A margin call has been issued for loan loan-demo-001. The current loan-to-value ratio has risen to 71%, exceeding the margin call threshold of 70%. Please deposit additional collateral or pay down principal against your outstanding balance of 35.500000 TDX to prevent liquidation at 85% LTV.",
+    "modelId": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "latencyMs": 720,
+    "fellBack": false
+  }
+}
