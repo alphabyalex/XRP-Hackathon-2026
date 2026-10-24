@@ -1,0 +1,22 @@
+# secrets (keep the template tracked)
+.env
+.env.local
+.env.*
+!.env.example
+
+# dependencies and build output
+node_modules/
+.next/
+dist/
+*.tsbuildinfo
+
+# local SQLite db (apps/api) and its WAL files
+*.db
+*.db-shm
+*.db-wal
+
+# python
+__pycache__/
+.venv/
+
+*.log

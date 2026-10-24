@@ -1,0 +1,15 @@
+{
+  "endpoint": "POST /contracts/redeem",
+  "request": { "holder": "ALICE", "gpuId": "gpu-a", "qty": "1", "slotStart": "2026-10-24T18:05:00Z" },
+  "response": {
+    "redemptionId": "redemption_abc123",
+    "bookingId": "booking_abc123",
+    "slotStart": "2026-10-24T18:05:00Z",
+    "slotEnd": "2026-10-24T18:10:00Z"
+  },
+  "error_example": {
+    "status": 409,
+    "body": { "error": { "code": "SLOT_TAKEN", "message": "gpu-a 18:05 is already booked" } },
+    "note": "Book first with a short hold, then burn on-ledger. Do not burn if the booking fails."
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "endpoint": "POST /internal/usage (compute -> apps/api, header X-GB-Internal-Key)",
+  "request": {
+    "request_id": "req_abc123",
+    "gpu_id": "gpu-a",
+    "buyer": "ALICE",
+    "booking_id": null,
+    "input_tokens": 8,
+    "output_tokens": 5,
+    "charge": "0.001234",
+    "started_at": "2026-10-24T18:00:00.000Z",
+    "finished_at": "2026-10-24T18:00:01.200Z"
+  },
+  "note": "booking_id set and charge \"0\" when the request used a booked slot, since the contract already paid."
+}

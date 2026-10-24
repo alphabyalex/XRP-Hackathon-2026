@@ -1,0 +1,15 @@
+{
+  "_note": "Placeholder. Populated by Tharun's setupNetwork() in packages/xrpl. Addresses are public, safe to commit. Never put seeds here.",
+  "TDX_ISSUER": { "address": "" },
+  "SHARE_ISSUER": { "address": "" },
+  "CONTRACT_ISSUER": { "address": "" },
+  "TREASURY_GPU_A": { "address": "" },
+  "TREASURY_GPU_B": { "address": "" },
+  "PROTOCOL_FEES": { "address": "" },
+  "LENDING_POOL": { "address": "" },
+  "ORACLE": { "address": "" },
+  "ALICE": { "address": "" },
+  "BOB": { "address": "" },
+  "CAROL": { "address": "" },
+  "DEV": { "address": "" }
+}

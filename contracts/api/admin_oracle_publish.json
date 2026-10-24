@@ -1,0 +1,11 @@
+{
+  "endpoint": "POST /admin/oracle/publish",
+  "headers": { "X-GB-Admin-Key": "<ADMIN_KEY>" },
+  "request": { "gpuId": "gpu-a" },
+  "response": {
+    "hash": "ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF12345678",
+    "result": "tesSUCCESS",
+    "validated": true,
+    "explorerUrl": "https://testnet.xrpl.org/transactions/ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF12345678"
+  }
+}

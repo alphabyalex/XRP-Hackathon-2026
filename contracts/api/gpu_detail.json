@@ -1,0 +1,43 @@
+{
+  "endpoint": "GET /gpus/:id",
+  "response": {
+    "id": "gpu-a",
+    "label": "GPU A",
+    "hw": "NVIDIA T4 16GB (AWS g4dn.xlarge)",
+    "model": "Qwen/Qwen3-1.7B",
+    "state": "READY",
+    "simulated": false,
+    "sharePrice": "1.050000",
+    "navPerShare": "1.045000",
+    "revenue24h": "48.200000",
+    "utilizationPct": "18.20",
+    "impliedYieldPct": "12.40",
+    "holdersCount": 3,
+    "calendar": [
+      { "start": "2026-10-24T18:00:00Z", "end": "2026-10-24T18:05:00Z", "kind": "INFERENCE", "ref": null }
+    ],
+    "recentRequests": [
+      {
+        "request_id": "req_abc123",
+        "gpu_id": "gpu-a",
+        "buyer": "ALICE",
+        "booking_id": null,
+        "input_tokens": 8,
+        "output_tokens": 5,
+        "charge": "0.001234",
+        "started_at": "2026-10-24T18:00:00.000Z",
+        "finished_at": "2026-10-24T18:00:01.200Z"
+      }
+    ],
+    "holders": [
+      { "account": "ALICE_ADDRESS", "shares": "300" },
+      { "account": "BOB_ADDRESS", "shares": "200" }
+    ],
+    "oracle": {
+      "navPerShare": "1.045000",
+      "gpuHourPrice": "4.950000",
+      "utilizationPct": "18.20",
+      "publishedAt": "2026-10-24T17:55:00Z"
+    }
+  }
+}

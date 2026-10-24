@@ -1,0 +1,8 @@
+{
+  "endpoint": "GET /gpus/{id}/calendar?from=&to=",
+  "response": [
+    { "start": "2026-10-24T18:00:00Z", "end": "2026-10-24T18:05:00Z", "kind": "INFERENCE", "ref": null },
+    { "start": "2026-10-24T18:05:00Z", "end": "2026-10-24T18:10:00Z", "kind": "BOOKED", "ref": "redemption_abc123" },
+    { "start": "2026-10-24T18:10:00Z", "end": "2026-10-24T18:15:00Z", "kind": "HOLD", "ref": "booking_hold_xyz" }
+  ]
+}

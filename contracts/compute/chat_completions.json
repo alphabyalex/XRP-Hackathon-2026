@@ -1,0 +1,36 @@
+{
+  "endpoint": "POST /v1/chat/completions",
+  "headers": { "X-GB-Buyer": "ALICE", "X-GB-Booking": "optional, redemption id for a booked slot" },
+  "request": {
+    "model": "Qwen/Qwen3-1.7B",
+    "messages": [{ "role": "user", "content": "Say hello in one sentence." }],
+    "stream": false
+  },
+  "response": {
+    "id": "chatcmpl-abc123",
+    "object": "chat.completion",
+    "created": 1761072000,
+    "model": "Qwen/Qwen3-1.7B",
+    "choices": [
+      {
+        "index": 0,
+        "message": { "role": "assistant", "content": "Hello there!" },
+        "finish_reason": "stop"
+      }
+    ],
+    "x_gb": {
+      "request_id": "req_abc123",
+      "gpu_id": "gpu-a",
+      "model": "Qwen/Qwen3-1.7B",
+      "input_tokens": 8,
+      "output_tokens": 5,
+      "charge": "0.001234",
+      "routed_reason": "lowest utilization READY gpu",
+      "simulated": false
+    }
+  },
+  "error_example": {
+    "status": 409,
+    "body": { "error": { "code": "GPU_BOOKED", "message": "gpu-a is booked until 2026-10-24T18:05:00Z" } }
+  }
+}

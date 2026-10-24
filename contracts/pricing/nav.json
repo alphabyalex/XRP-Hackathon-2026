@@ -1,0 +1,12 @@
+{
+  "endpoint": "GET /nav?gpu_id=gpu-a",
+  "response": {
+    "nav_per_share": "1.045000",
+    "treasury_cash": "320.500000",
+    "pv_future_net": "724.500000",
+    "utilization_assumption": "35.00",
+    "trailing_revenue_24h": "48.200000",
+    "implied_yield_pct": "12.40",
+    "inputs": { "sharesTotal": 1000, "hostingFeeBps": 1500 }
+  }
+}

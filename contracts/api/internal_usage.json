@@ -1,0 +1,17 @@
+{
+  "endpoint": "POST /internal/usage",
+  "headers": { "X-GB-Internal-Key": "<INTERNAL_API_KEY>" },
+  "note": "Called by services/compute after each inference request. Same shape as contracts/compute/usage_event.json.",
+  "request": {
+    "request_id": "req_abc123",
+    "gpu_id": "gpu-a",
+    "buyer": "ALICE",
+    "booking_id": null,
+    "input_tokens": 8,
+    "output_tokens": 5,
+    "charge": "0.001234",
+    "started_at": "2026-10-24T18:00:00.000Z",
+    "finished_at": "2026-10-24T18:00:01.200Z"
+  },
+  "response": { "ok": true }
+}

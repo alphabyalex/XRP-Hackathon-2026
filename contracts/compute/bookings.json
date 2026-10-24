@@ -1,0 +1,12 @@
+{
+  "endpoint": "POST /bookings (internal, called by apps/api)",
+  "request": {
+    "gpu_id": "gpu-a",
+    "slot_start": "2026-10-24T18:05:00Z",
+    "slots": 1,
+    "redemption_id": "redemption_abc123",
+    "holder": "ALICE"
+  },
+  "response": { "booking_id": "booking_abc123" },
+  "error_example": { "status": 409, "body": { "error": { "code": "SLOT_TAKEN", "message": "gpu-a 18:05 is already booked" } } }
+}

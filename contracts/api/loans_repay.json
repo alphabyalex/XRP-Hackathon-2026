@@ -1,0 +1,16 @@
+{
+  "endpoint": "POST /loans/:id/repay",
+  "request": {},
+  "response": {
+    "id": "loan_abc123",
+    "borrower": "ALICE",
+    "gpuId": "gpu-a",
+    "collateralShares": "100",
+    "principal": "52.250000",
+    "dueAt": "2026-10-24T18:15:00Z",
+    "status": "repaid",
+    "escrowTx": "ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF12345678",
+    "disburseTx": "123456ABCDEF7890123456ABCDEF7890123456ABCDEF7890123456ABCDEF78",
+    "settleTx": "7890123456ABCDEF7890123456ABCDEF7890123456ABCDEF7890123456ABCD"
+  }
+}

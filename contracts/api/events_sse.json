@@ -1,0 +1,11 @@
+{
+  "endpoint": "GET /events (Server-Sent Events)",
+  "note": "Each line is an SSE event: event: <type>\\ndata: <json>\\n\\n",
+  "examples": [
+    { "type": "usage", "data": { "request_id": "req_abc123", "gpu_id": "gpu-a", "charge": "0.001234" } },
+    { "type": "tx", "data": { "hash": "ABCDEF...", "kind": "buyShares", "account": "ALICE" } },
+    { "type": "calendar", "data": { "gpu_id": "gpu-a", "start": "2026-10-24T18:05:00Z", "end": "2026-10-24T18:10:00Z", "kind": "BOOKED" } },
+    { "type": "dividend", "data": { "id": "div_abc123", "status": "paid" } },
+    { "type": "loan", "data": { "id": "loan_abc123", "status": "repaid" } }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "endpoint": "POST /loans/quote",
+  "request": { "gpu_id": "gpu-a", "shares": "100" },
+  "response": {
+    "collateral_value": "104.500000",
+    "max_principal": "52.250000",
+    "apr_bps": 1000,
+    "liquidation_value": "67.925000",
+    "term_minutes": 10
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "endpoint": "POST /dividends/propose",
+  "request": {
+    "gpu_id": "gpu-a",
+    "period_start": "2026-10-24T00:00:00Z",
+    "period_end": "2026-10-24T18:00:00Z",
+    "gross_revenue": "48.200000",
+    "holders": [
+      { "account": "ALICE_ADDRESS", "shares": "300" },
+      { "account": "BOB_ADDRESS", "shares": "200" }
+    ]
+  },
+  "response": {
+    "hosting_fee": "7.230000",
+    "reserve": "2.048500",
+    "distributable": "38.921500",
+    "payouts": [
+      { "account": "ALICE_ADDRESS", "amount": "23.352900" },
+      { "account": "BOB_ADDRESS", "amount": "15.568600" }
+    ],
+    "dust": "0.000000",
+    "explanation": "Mock explanation text, pending Bedrock agent (owner Lucy).",
+    "risk_flags": []
+  }
+}

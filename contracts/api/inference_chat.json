@@ -1,0 +1,26 @@
+{
+  "endpoint": "POST /inference/chat",
+  "note": "Proxies to services/compute POST /v1/chat/completions with buyer DEV or the selected persona.",
+  "request": {
+    "buyer": "DEV",
+    "bookingId": null,
+    "messages": [{ "role": "user", "content": "Say hello in one sentence." }]
+  },
+  "response": {
+    "id": "chatcmpl-abc123",
+    "object": "chat.completion",
+    "created": 1761072000,
+    "model": "Qwen/Qwen3-1.7B",
+    "choices": [{ "index": 0, "message": { "role": "assistant", "content": "Hello there!" }, "finish_reason": "stop" }],
+    "x_gb": {
+      "request_id": "req_abc123",
+      "gpu_id": "gpu-a",
+      "model": "Qwen/Qwen3-1.7B",
+      "input_tokens": 8,
+      "output_tokens": 5,
+      "charge": "0.001234",
+      "routed_reason": "lowest utilization READY gpu",
+      "simulated": false
+    }
+  }
+}

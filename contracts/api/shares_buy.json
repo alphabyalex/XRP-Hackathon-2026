@@ -1,0 +1,10 @@
+{
+  "endpoint": "POST /shares/buy",
+  "request": { "buyer": "ALICE", "gpuId": "gpu-a", "qty": "50" },
+  "response": {
+    "hash": "ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF12345678",
+    "result": "tesSUCCESS",
+    "validated": true,
+    "explorerUrl": "https://testnet.xrpl.org/transactions/ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF12345678"
+  }
+}

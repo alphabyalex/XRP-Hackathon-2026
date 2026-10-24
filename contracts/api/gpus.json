@@ -1,0 +1,19 @@
+{
+  "endpoint": "GET /gpus",
+  "response": [
+    {
+      "id": "gpu-a",
+      "label": "GPU A",
+      "hw": "NVIDIA T4 16GB (AWS g4dn.xlarge)",
+      "model": "Qwen/Qwen3-1.7B",
+      "state": "READY",
+      "simulated": false,
+      "sharePrice": "1.050000",
+      "navPerShare": "1.045000",
+      "revenue24h": "48.200000",
+      "utilizationPct": "18.20",
+      "impliedYieldPct": "12.40",
+      "holdersCount": 3
+    }
+  ]
+}

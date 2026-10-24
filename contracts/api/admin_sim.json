@@ -1,0 +1,6 @@
+{
+  "endpoints": ["POST /admin/sim/start", "POST /admin/sim/stop"],
+  "headers": { "X-GB-Admin-Key": "<ADMIN_KEY>" },
+  "request": {},
+  "response": { "ok": true, "simRunning": true }
+}

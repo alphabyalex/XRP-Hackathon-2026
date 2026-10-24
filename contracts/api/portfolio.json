@@ -1,0 +1,24 @@
+{
+  "endpoint": "GET /portfolio/:account",
+  "response": {
+    "account": "ALICE",
+    "tdxBalance": "450.000000",
+    "shares": [{ "gpuId": "gpu-a", "qty": "300" }],
+    "contracts": [{ "gpuId": "gpu-a", "qty": "2" }],
+    "dividendsReceived": "23.352900",
+    "loans": [
+      {
+        "id": "loan_abc123",
+        "borrower": "ALICE",
+        "gpuId": "gpu-a",
+        "collateralShares": "100",
+        "principal": "52.250000",
+        "dueAt": "2026-10-24T18:15:00Z",
+        "status": "open",
+        "escrowTx": "ABCDEF1234567890",
+        "disburseTx": "123456ABCDEF7890",
+        "settleTx": null
+      }
+    ]
+  }
+}

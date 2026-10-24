@@ -1,0 +1,11 @@
+{
+  "endpoint": "GET /price/contract?gpu_id=gpu-a&slot_start=2026-10-24T18:05:00Z",
+  "response": {
+    "price_per_slot": "0.410000",
+    "slot_minutes": 5,
+    "reference_hourly_usd": "4.95",
+    "components": { "hourly_usd": "4.95", "margin_bps": 1500, "fee_bps": 100 },
+    "valid_until": "2026-10-24T18:01:00Z",
+    "sources": ["mock reference rate, pending real pricing model"]
+  }
+}

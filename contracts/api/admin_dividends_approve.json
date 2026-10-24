@@ -1,0 +1,13 @@
+{
+  "endpoint": "POST /admin/dividends/:id/approve",
+  "headers": { "X-GB-Admin-Key": "<ADMIN_KEY>" },
+  "request": {},
+  "response": {
+    "id": "div_abc123",
+    "status": "paid",
+    "payouts": [
+      { "account": "ALICE_ADDRESS", "amount": "23.352900", "txHash": "ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF12345678" },
+      { "account": "BOB_ADDRESS", "amount": "15.568600", "txHash": "ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF12345678" }
+    ]
+  }
+}

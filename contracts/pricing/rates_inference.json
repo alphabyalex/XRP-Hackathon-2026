@@ -1,0 +1,11 @@
+{
+  "endpoint": "GET /rates/inference?gpu_id=gpu-a",
+  "response": {
+    "input_per_mtok": "0.050000",
+    "output_per_mtok": "0.150000",
+    "base_fee": "0.000100",
+    "currency": "TDX",
+    "valid_until": "2026-10-24T18:01:00Z",
+    "inputs": { "reference_hourly_usd": "4.95", "model": "Qwen/Qwen3-1.7B" }
+  }
+}

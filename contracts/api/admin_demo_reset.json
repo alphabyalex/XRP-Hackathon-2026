@@ -1,0 +1,6 @@
+{
+  "endpoint": "POST /admin/demo/reset",
+  "headers": { "X-GB-Admin-Key": "<ADMIN_KEY>" },
+  "request": {},
+  "response": { "ok": true, "message": "Demo state reset: SQLite tables cleared, simulator stopped." }
+}

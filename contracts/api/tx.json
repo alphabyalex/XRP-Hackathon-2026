@@ -1,0 +1,13 @@
+{
+  "endpoint": "GET /tx",
+  "response": [
+    {
+      "hash": "ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF12345678",
+      "kind": "buyShares",
+      "account": "ALICE",
+      "summary": "Alice bought 50 GPA shares",
+      "explorerUrl": "https://testnet.xrpl.org/transactions/ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF12345678",
+      "createdAt": "2026-10-24T17:50:00Z"
+    }
+  ]
+}

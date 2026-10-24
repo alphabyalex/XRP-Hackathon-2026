@@ -1,0 +1,22 @@
+{
+  "endpoint": "POST /admin/dividends/propose",
+  "headers": { "X-GB-Admin-Key": "<ADMIN_KEY>" },
+  "request": { "gpuId": "gpu-a" },
+  "response": {
+    "id": "div_abc123",
+    "gpuId": "gpu-a",
+    "periodStart": "2026-10-24T00:00:00Z",
+    "periodEnd": "2026-10-24T18:00:00Z",
+    "grossRevenue": "48.200000",
+    "hostingFee": "7.230000",
+    "reserve": "2.048500",
+    "distributable": "38.921500",
+    "status": "proposed",
+    "explanation": "GPU A earned 48.20 TDX over the period, mostly from idle-time inference...",
+    "createdAt": "2026-10-24T18:00:30Z",
+    "payouts": [
+      { "account": "ALICE_ADDRESS", "amount": "23.352900" },
+      { "account": "BOB_ADDRESS", "amount": "15.568600" }
+    ]
+  }
+}
