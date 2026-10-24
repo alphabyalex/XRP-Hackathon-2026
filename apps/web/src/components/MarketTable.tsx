@@ -60,25 +60,6 @@ export function MarketTable({ views }: { views: GpuView[] }) {
             </tr>
           );
         })}
-        <tr className="soon">
-          <td>
-            <div className="gname">
-              <svg width={40} height={40} viewBox="0 0 100 100" aria-hidden="true">
-                <circle cx={50} cy={50} r={43} fill="none" stroke="var(--rule2)" strokeWidth={2} strokeDasharray="5 5" />
-              </svg>
-              <div>
-                <b>L4 &middot; 24 GB</b>
-                <span>us-east-1</span>
-              </div>
-            </div>
-          </td>
-          <td>Listing in November</td>
-          <td />
-          <td />
-          <td />
-          <td />
-          <td />
-        </tr>
       </tbody>
     </table>
   );

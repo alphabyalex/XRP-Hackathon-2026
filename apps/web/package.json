@@ -12,7 +12,6 @@
   "dependencies": {
     "@moonshift/shared": "*",
     "@next/env": "^15.5.28",
-    "@next/swc-win32-x64-msvc": "^15.5.28",
     "@swc/helpers": "^0.5.15",
     "clsx": "^2.1.1",
     "next": "^15.0.3",

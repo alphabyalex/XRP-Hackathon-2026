@@ -6,7 +6,8 @@ import { Button } from "./Button";
 import { fmt, txToastLine } from "@/lib/format";
 import { hm, timeAt } from "@/lib/schedule";
 import { perSharePerNight, mockSlotPrice } from "@/lib/economics";
-import { buyShares, bookSlots } from "@/lib/api";
+import { buyShares, bookSlots, redeemSlots } from "@/lib/api";
+import { useRefreshLive } from "@/lib/liveData";
 import { useToast } from "./Toast";
 import { ACCOUNT } from "@/lib/session";
 
@@ -35,6 +36,7 @@ export function TradePanel({
   const [qty, setQty] = useState(10);
   const [busy, setBusy] = useState(false);
   const toast = useToast();
+  const refreshLive = useRefreshLive();
 
   const pricePerSlot = mockSlotPrice(revenue24h);
   const pickable: PickableSlot[] = [];
@@ -54,9 +56,22 @@ export function TradePanel({
     if (!sel.size || busy) return;
     setBusy(true);
     try {
+      // Buy the slot tokens, then redeem each run of back-to-back slots so the
+      // GPU's calendar actually shows the time as booked.
       const tx = await bookSlots(ACCOUNT, gpuId, String(sel.size));
+      const picked = Array.from(sel).sort((a, b) => a - b);
+      const runs: { start: number; len: number }[] = [];
+      for (const i of picked) {
+        const last = runs[runs.length - 1];
+        if (last && last.start + last.len === i) last.len++;
+        else runs.push({ start: i, len: 1 });
+      }
+      for (const r of runs) {
+        await redeemSlots(ACCOUNT, gpuId, String(r.len), timeAt(windowStart, r.start).toISOString());
+      }
       toast(`Booked ${sel.size * 5} minutes on ${gpuLabel}`, txToastLine(`${sel.size} HRA · ${fmt(pricePerSlot * sel.size, 4)} USDC`, tx.hash));
       setSel(new Set());
+      refreshLive();
       onTraded?.();
     } catch (err) {
       toast("Booking failed", (err as Error).message);
@@ -71,6 +86,7 @@ export function TradePanel({
     try {
       const tx = await buyShares(ACCOUNT, gpuId, String(qty));
       toast(`Bought ${qty} ${gpuLabel.replace("GPU-", "GP")}`, txToastLine(`${fmt(qty * sharePrice, 2)} USDC · OfferCreate`, tx.hash));
+      refreshLive();
       onTraded?.();
     } catch (err) {
       toast("Purchase failed", (err as Error).message);

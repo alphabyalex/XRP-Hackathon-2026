@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { Wallet, ECDSA } from "xrpl";
+import { Wallet } from "xrpl";
+import type { ECDSA } from "xrpl";
 import type { AccountName, AccountsFile } from "@moonshift/shared";
 import dotenv from "dotenv";
 
@@ -45,7 +46,9 @@ if (fs.existsSync(ENV_FILE_PATH)) {
 }
 
 export function getSigningAlgorithm(seed: string): ECDSA {
-  return seed.startsWith("sEd") ? ECDSA.ed25519 : ECDSA.secp256k1;
+  // String values, not the ECDSA enum: xrpl is CommonJS and its ECDSA export is not
+  // visible to Node ESM named imports, which crashed the api at startup.
+  return (seed.startsWith("sEd") ? "ed25519" : "ecdsa-secp256k1") as ECDSA;
 }
 
 export function loadWalletFromSeed(seed: string): Wallet {

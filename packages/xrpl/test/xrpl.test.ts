@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
-import { ECDSA, BatchFlags, xrpToDrops, dropsToXrp } from "xrpl";
+import { BatchFlags, xrpToDrops, dropsToXrp } from "xrpl";
 import {
   getSigningAlgorithm,
   getSeedEnvKey,
@@ -21,8 +21,8 @@ async function runTests() {
 
   // 1. Wallet algorithm selection (Guard against secp256k1 derivation bug)
   console.log("Test 1: Wallet algorithm selection guard");
-  assert.equal(getSigningAlgorithm("sEdVjYjgktToeRESyijEd4Mt1tvp1UB"), ECDSA.ed25519);
-  assert.equal(getSigningAlgorithm("sn3nxiW7v8KXzPzAKNcubZiWC9MqG"), ECDSA.secp256k1);
+  assert.equal(getSigningAlgorithm("sEdVjYjgktToeRESyijEd4Mt1tvp1UB"), "ed25519");
+  assert.equal(getSigningAlgorithm("sn3nxiW7v8KXzPzAKNcubZiWC9MqG"), "ecdsa-secp256k1");
   console.log("  Passed: sEd prefix correctly selects ed25519, standard seed selects secp256k1");
 
   // 2. Account names and environment keys

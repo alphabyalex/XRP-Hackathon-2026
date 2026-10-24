@@ -281,9 +281,11 @@ export async function openLoan(p: OpenLoanParams): Promise<OpenLoanResult> {
   const qty = Number(p.collateralShares);
   const held = getBal(shares, p.borrower);
   const escrowTx = mockTx(held < qty ? "tecINSUFFICIENT_FUNDS" : "tesSUCCESS");
-  if (held >= qty) {
-    shares.set(p.borrower, held - qty); // lock as escrow collateral
+  if (held < qty) {
+    // Same as the real ledger: no collateral escrowed, so no money goes out.
+    return { loanId: "", escrowTx, disburseTx: escrowTx };
   }
+  shares.set(p.borrower, held - qty); // lock as escrow collateral
   const principal = Number(p.principal);
   tdxBalances.set(p.borrower, (tdxBalances.get(p.borrower) ?? 0) + principal);
   tdxBalances.set("LENDING_POOL", (tdxBalances.get("LENDING_POOL") ?? 0) - principal);
