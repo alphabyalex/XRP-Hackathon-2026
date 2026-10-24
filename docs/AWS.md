@@ -193,8 +193,29 @@ To eliminate hallucination risk in credit decisions:
 
 | Endpoint | Input Payload | Bedrock Model | Output |
 | :--- | :--- | :--- | :--- |
-| `POST /agent/credit-memo` | Credit profile, risk quote, loan request | Anthropic Claude Haiku (`us-east-2`) | 3-5 sentence credit memo detailing credit tier, collateral backing, and terms |
-| `POST /agent/risk-alert` | Margin call / liquidation context | Anthropic Claude Haiku (`us-east-2`) | Clear, actionable risk notification for borrower |
+| `POST /agent/credit-memo` | Credit profile, risk quote, loan request | Claude Haiku 4.5, `global.anthropic.claude-haiku-4-5-20251001-v1:0` (`us-east-2`) | 3-5 sentence credit memo detailing credit tier, collateral backing, and terms |
+| `POST /agent/risk-alert` | Margin call / liquidation context | Claude Haiku 4.5, same profile | Clear, actionable risk notification for borrower |
+
+### Live run (2026-10-24, Alexander's AWS account)
+
+- **Model:** `global.anthropic.claude-haiku-4-5-20251001-v1:0` (global cross-region inference profile), region `us-east-2`, authenticated with a Bedrock API key (`AWS_BEARER_TOKEN_BEDROCK`, read by boto3 1.43, never printed or committed).
+- **Process:** the pricing service runs on port 6100 locally (`npm run demo`). Port 6000 is refused by Node's fetch, so the api could not reach it there.
+- **Results:** every call below came back `fellBack: false`, so each memo is Bedrock's own text and passed the number guard.
+
+| Call | Latency |
+|---|---|
+| `POST /agent/credit-memo` (cold, first call) | 6,577 ms |
+| `POST /agent/credit-memo` via `/loans/quote` (warm) | 2,562 to 4,000 ms over 6 calls |
+| `POST /agent/risk-alert` | 1,922 ms |
+
+- **Currency fix:** the api passes `currency: "USDC"` in `loanRequest`. Without it the model once called the principal "XRP".
+- **On screen:** /borrow labels the memo "Credit memo by Amazon Bedrock" when `fellBack` is false, and "Credit memo" when the deterministic template is served.
+
+Sample credit memo (live, 2735 ms, verbatim):
+> "Borrower rH3knFR2mWm2MrbWBnCkFC2oth8ZJfB6Pr receives approval with credit grade C and score 56, reflecting prior liquidation and margin call history offset by strong account age of 5037 days and 2000 transactions. The loan provides 150.000000 USDC principal at 14.64% APR, secured by 100.000000 collateral shares in gpu-a with initial LTV of 0.300000 against a maximum LTV limit of 0.363452. Liquidation occurs at LTV threshold 0.663452, with margin call trigger at 0.513452, providing substantial cushion above the initial position."
+
+Sample risk alert (live, 1,922 ms, verbatim, contract input `contracts/pricing/risk_alert.json`):
+> "Your loan LTV has reached 0.710000, exceeding the margin call threshold of 0.700000. You must immediately deposit additional collateral or repay part of your 35.500000 outstanding balance to avoid liquidation. If your LTV reaches the liquidation threshold of 0.850000, your collateral will be automatically liquidated."
 
 ### Real Bedrock Sample Output
 

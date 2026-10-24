@@ -133,7 +133,8 @@ export async function buildQuote(req: LoanQuoteApiRequest): Promise<LoanQuoteApi
   const memo = await pricing.creditMemo({
     creditProfile: { address, network: profile.network, score: profile.score, grade: profile.grade, confidence: profile.confidence, features: profile.features, reasons: profile.reasons },
     quote,
-    loanRequest: { borrower: address, gpuId: gpu.id, collateralShares: riskReq.collateralShares, principal: riskReq.principal, termSeconds },
+    // currency is explicit so the model never guesses XRP for the principal.
+    loanRequest: { borrower: address, gpuId: gpu.id, collateralShares: riskReq.collateralShares, principal: riskReq.principal, currency: "USDC", termSeconds },
   });
 
   const quoteId = randomUUID();
