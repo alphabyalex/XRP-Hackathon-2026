@@ -25,6 +25,9 @@ os.environ.update(
         "AWS_SECRET_ACCESS_KEY": "testing",
         "AWS_DEFAULT_REGION": "us-east-2",
         "AWS_PROFILE": "",
+        "ENGINE_TIME_SCALE": "2000",
+        "RENTAL_TICK_SECONDS": "0.001",
+        "RENTAL_TIME_SCALE": "60000",
     }
 )
 os.environ.pop("AWS_PROFILE", None)

@@ -58,8 +58,29 @@
   interruption stress round-robin restarts 10 jobs, every router mode 0.
   Results in docs/ROUTER.md.
 
+- Phase 4: POST /orders (optimize, lease every GPU slot with a conditional
+  write: SQLite locally, DynamoDB ms-router-orders on AWS, so two orders can
+  never hold one slot), GET /orders, GET /orders/{id}, GET /orders/{id}/events
+  (SSE: quoted, paid, running, token, progress, checkpointed, moved,
+  completed, settled, failed). Orchestration (router/dispatch.py): local
+  in-process tier queues drained fastest first, or SQS (long poll, visibility
+  extended while running, delete on completion); ORCHESTRATOR=stepfunctions
+  starts one Standard execution per order and the worker reports with its
+  task token (heartbeats). Step Lambda router.lambdas.order_step_handler runs
+  pay, settle and release. Settlement (router/settle.py): MS_ORDER buyer ->
+  PROTOCOL_FEES (order treasury) for the quote; on completion MS_SETTLE to
+  TREASURY_GPU_A/B for work each GPU actually served (external capacity: the
+  margin to the pool, the provider's cost stays in the order treasury); MS_REFUND
+  of the rest. apps/api: new file src/routes/router.ts (public /router/*
+  proxy incl. SSE, POST /internal/router/pay signing with packages/xrpl wallets
+  and serialized per account, OpenAI-style POST /v1/chat/completions with
+  priority) plus 3 mount lines in src/index.ts. Rentals book compute's
+  /bookings for Moonshift GPUs (the HRA path), router bookings otherwise.
+  Found and fixed: reading an order over HTTP mid-run stripped fields the
+  settlement needed (regression test added). 97 tests; api typecheck clean.
+
 ## Next
-- Phase 4: orders, leases, orchestration, SQS dispatch, devnet settlement.
+- Phase 5: resume, don't restart (compute resume.py, triggers, AWS events).
 
 ## Blockers
 - No AWS credentials on this machine (no AWS CLI either). All AWS adapters
@@ -103,6 +124,19 @@
   before the end; instances terminate 10 min later) and "EC2 Capacity
   Reservation Instance Interruption Warning". AWS's samples spell the key
   detail_type there; the receiver accepts detail_type and detail-type.
+- Order treasury = PROTOCOL_FEES (no ORDER_TREASURY account exists on
+  devnet). It is also the external-capacity treasury, so the provider-cost
+  share of external work is recorded but needs no transaction (an account
+  cannot pay itself). The buyer never pays more than the quote; if moves make
+  the served work dearer, settlement is scaled down and Moonshift absorbs it.
+- The pay route builds the Payment itself with packages/xrpl's exported
+  client and wallets (getClient, getAccountWallet, getAccountAddress) and the
+  same memo encoding as packages/xrpl, because payForInference can only pay a
+  GPU treasury and cannot carry MS_ORDER / MS_SETTLE / MS_REFUND or pay a
+  buyer back. packages/xrpl itself is unchanged. Payments are capped at
+  1,000 TDX, devnet/testnet only (networkName throws otherwise).
+- Leases expire (LEASE_SECONDS + planned ETA) so a crashed worker can never
+  hold a GPU forever; a move releases the old lease and takes a new one.
 - Balanced knee: both axes min-max normalized over the Pareto frontier,
   pick the smallest Euclidean distance to (0, 0); ties by cost, then time,
   then GPU ids. This guarantees Balanced lies between Cheapest and Fastest.

@@ -17,3 +17,25 @@ def collect_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any
     group = str(event.get("group", "providers"))
     offers, errors = collect_group(group, DynamoCatalogStore())
     return {"group": group, "offers": len(offers), "errors": errors}
+
+
+def order_step_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]:
+    """Step Functions task: {"step": "pay" | "settle" | "release", "orderId": ...}. Pointers only."""
+    import asyncio
+
+    from router.orders import Orders
+    from router.service import Service
+    from router.state import DynamoState
+
+    orders = Orders(Service(), DynamoState())
+    step, order_id = str(event["step"]), str(event["orderId"])
+    if step == "pay":
+        order = asyncio.run(orders.pay(order_id))
+    elif step == "settle":
+        order = asyncio.run(orders.settle(order_id))
+    elif step == "release":
+        asyncio.run(orders.release(order_id))
+        order = orders.get(order_id) or {}
+    else:
+        raise ValueError(f"unknown step {step}")
+    return {"ok": True, "orderId": order_id, "status": order.get("status")}

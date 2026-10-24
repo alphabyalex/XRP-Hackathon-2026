@@ -102,8 +102,11 @@ LEASE_SECONDS = 120.0
 CALENDAR_CACHE_SECONDS = 10.0
 DEFAULT_RECLAIM_DURATION_SECONDS = 300.0
 PROGRESS_EVERY_TOKENS = 20
+RENTAL_TICK_SECONDS = float(_env("RENTAL_TICK_SECONDS", "1.0"))
 SSE_PING_SECONDS = 15.0
 RENTAL_TIME_SCALE = float(_env("RENTAL_TIME_SCALE", "60"))  # in-process rentals: 1 rented minute per second
+# In-process generation speed multiplier (1 = the GPU's real tokensPerSec; tests speed it up).
+ENGINE_TIME_SCALE = float(_env("ENGINE_TIME_SCALE", "1"))
 
 
 @cache
