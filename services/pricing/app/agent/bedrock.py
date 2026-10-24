@@ -42,6 +42,7 @@ class CreditMemo:
     model_id: str | None
     latency_ms: int
     fell_back: bool
+    outcome: str = "ok"  # ok | timeout | unverified_numbers | invalid_json | error:<Type>
 
 
 @dataclass(frozen=True)
@@ -144,8 +145,10 @@ def generate_credit_memo(credit_profile: dict, quote: dict, loan_request: dict) 
             model_id=C.BEDROCK_MODEL_ID,
             latency_ms=latency,
             fell_back=True,
+            outcome=outcome,
         )
 
+    outcome = "mock"
     if C.MOCK:
         return fallback_result()
 
@@ -161,8 +164,10 @@ def generate_credit_memo(credit_profile: dict, quote: dict, loan_request: dict) 
             return fallback_result()
 
         # Number guard: reject if any number is not in inputs
-        if guardrails.has_unverified_numbers(parsed_text, allowed):
+        bad = guardrails.unknown_numbers(parsed_text, allowed)
+        if bad:
             outcome = "unverified_numbers"
+            log.warning("credit_memo number guard rejected numbers: %s", ", ".join(bad[:8]))
             return fallback_result()
 
         latency = int((time.monotonic() - started) * 1000)

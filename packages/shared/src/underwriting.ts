@@ -203,6 +203,7 @@ export interface AgentText {
   latencyMs: number;
   fellBack: boolean; // true = deterministic fallback, not Bedrock
   source: DataSource;
+  outcome?: string; // pricing's reason: ok | timeout | unverified_numbers | invalid_json | error:<Type>
 }
 
 // --- api routes ------------------------------------------------------------
