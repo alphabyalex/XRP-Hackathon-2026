@@ -3,6 +3,7 @@
 .env.local
 .env.*
 !.env.example
+contracts/active_loans.json
 
 # dependencies and build output
 node_modules/
