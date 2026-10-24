@@ -35,6 +35,12 @@ from this folder with `py -m pytest -q`.
 - `GET /vault/health` returns the stretch vault summary. Until the API provides
   live vault data, this endpoint labels its configured demo assumptions as
   simulated.
+- `GET /vault/round-apy?round=1&assets=10000&lentOut=150&weightedApr=0.086667`
+  returns current and target round yields. `roundSeconds` optionally supplies
+  the actual lending duration (default 14 days). Target yield is an estimate.
+- `GET /scenarios?preset=demo` lists two POST payloads for `/scenarios/run`:
+  `{"preset":"demo","step":1}` then `{"preset":"demo","step":2}`.
+  Optionally include `loanId` to select the same active GPU-A loan explicitly.
 
 ## Configuration
 
@@ -120,6 +126,13 @@ fractions, so `0.500000` means 50 percent.
 
 ## Keeper and scenario assumptions
 
+The demo preset calculates prices from the selected GPU-A loan's actual
+thresholds. Step 1 targets margin-call LTV plus 1% of the gap to liquidation.
+Step 2 targets 126% of liquidation LTV, crossing the existing emergency rule
+so the second click liquidates in simulation without bypassing cure policy.
+GPU-B prices are untouched. These are temporary, dry-run keeper overrides;
+no oracle or ledger transactions are submitted. The normal scenario gate applies.
+
 The keeper reads open loans and current oracle history from the API. A loan is
 `HEALTHY` below 90 percent of its margin-call threshold, `WATCH` from there up
 to the threshold, `MARGIN_CALL` at or above the margin-call threshold, and
@@ -156,4 +169,35 @@ Expected loss uses each loan's PD and the same 10 percent collateral recovery
 haircut as loan quotes. Cover ratio is configured cover divided by expected
 loss; it is `UNBOUNDED` when expected loss is zero. These portfolio summaries
 are simulated until live vault fields are added to the API contract.
+
+## Round yield formulas
+
+`realizedApy = weightedApr * lentOut / assets` describes annualized interest
+from loans open now. It is a simple annualized yield, not historical cash
+received or compounded APY. `weightedApr` is a fraction, not percentage points.
+For closed rounds, partial deployment makes this number look artificially low.
+The target estimate uses an explicit 80% utilization assumption:
+
+```
+bookExpectedLoss = sum(outstanding * PD * max(0, 1 - 0.90 * collateral / outstanding))
+lossRate = bookExpectedLoss / bookOutstanding
+expectedLoss = assets * 0.80 * lossRate
+targetApy = weightedApr * 0.80 - expectedLoss / assets * 31,536,000 / roundSeconds
+```
+
+`expectedLoss` is projected USDC loss over the round at target exposure;
+`bookExpectedLoss` is the current book's USDC loss. Both use estimated loan PD
+as round-period default probabilities. Loss is annualized over the same period
+as the lending income. Negative net estimates remain visible. First-loss cover
+is not credited. Until round membership is available in the internal loan feed,
+the whole open book supplies the loss-rate proxy (`lossBasis=all-open-loans`);
+`round` identifies the supplied vault inputs, not an upstream book filter.
+An empty book uses zero loss and reports `lossBasis=empty-book`, which is lack
+of evidence rather than a claim of zero risk. `simulated` follows the source
+loan data and mock setting, and `targetApyLabel` always says `estimate`.
+
+At assets 10,000, lent out 150, and weighted APR 8.6667%, the mock book has
+zero modeled LGD, realized yield is 0.1300%, target estimate is 6.9334%, and
+expected loss is 0 USDC. Actual defaults, utilization, fees, and share prices
+can change the return.
 

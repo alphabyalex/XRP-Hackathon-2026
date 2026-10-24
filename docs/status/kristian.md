@@ -91,15 +91,51 @@
   rounding. Python compile check passes. API typecheck could not run because
   this environment has no Node/npm or installed workspace dependencies.
 
+## Round 2, job 3: round yield and demo preset
+
+- Job 2 committed and pushed as `3c33148`.
+- Added authenticated `GET /vault/round-apy` with input validation, current
+  annualized yield, explicit 80% target utilization, target estimate label,
+  and projected expected loss from the open loan book. Loss is scaled to target
+  exposure and annualized over the round duration. README documents the whole
+  book proxy, empty book behavior, and simple annualization convention.
+- Added `contracts/risk/round_apy.json` and Alex's `/lend` display request at
+  the bottom of CONTRACTS. UI wiring is assigned to Alex by this request.
+- Example: `round=1&assets=10000&lentOut=150&weightedApr=0.086667` returns:
+
+```json
+{
+  "round": 1,
+  "realizedApy": "0.001300",
+  "targetApy": "0.069334",
+  "targetApyLabel": "estimate",
+  "targetUtilization": "0.800000",
+  "expectedLoss": "0.000000",
+  "bookExpectedLoss": "0.000000",
+  "lossRate": "0.000000",
+  "lossBasis": "all-open-loans",
+  "roundSeconds": 1209600,
+  "simulated": true
+}
+```
+
+- Stretch: `/scenarios?preset=demo` exposes two single-call steps, each sent to
+  `/scenarios/run`. GPU-A prices are computed from live loan thresholds; step 1
+  crosses margin call, step 2 crosses the existing emergency liquidation rule.
+  GPU-B is untouched and all actions remain simulated under the existing gate.
+- Checks: 39 risk tests pass, including loss scaling/annualization, negative
+  target yield, empty book, invalid inputs, auth, and both demo steps. Funding
+  tool's 3 tests also pass. Python compile, contract JSON, and diff checks pass.
+
 ## Next
 
-- Round 2 jobs are authorized for a commit and push after each job.
+- Round 2 implementation complete. Alex can wire the documented APY estimate
+  into `/lend` and merge `kristian`.
 
 ## Blockers
 
-- The API does not yet expose the internal loan and oracle-history routes
-  requested in `docs/CONTRACTS.md`. The keeper will use a deterministic mock
-  provider until those routes are available.
+- The merged API now provides the internal loan and oracle-history routes.
+  Enable live keeper reads through process environment settings when deployed.
 - No live first-loss-cover or vault-deposit feed is currently defined. Vault
   health will report configured demo assumptions as simulated.
 

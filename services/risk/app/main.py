@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+from decimal import Decimal
+from typing import Annotated
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.config import Settings
@@ -15,10 +17,10 @@ from app.events import EventLog
 from app.keeper import Keeper
 from app.models import QuoteRequest
 from app.risk import calculate_quote
-from app.models import ScenarioRequest
-from app.scenarios import ScenarioDisabled, run_scenario
+from app.models import ScenarioRequest, DemoScenarioRequest
+from app.scenarios import ScenarioDisabled, run_scenario, run_demo
 from app.risk import rate_curve
-from app.vault import vault_health
+from app.vault import vault_health, round_apy
 
 
 def create_app(
@@ -94,14 +96,28 @@ def create_app(
 
     @app.post("/scenarios/run")
     async def scenarios_run(
-        request: ScenarioRequest,
+        request: ScenarioRequest | DemoScenarioRequest,
         x_ms_internal_key: str | None = Header(default=None),
     ) -> dict[str, object]:
         require_internal_key(x_ms_internal_key)
         try:
+            if isinstance(request, DemoScenarioRequest):
+                return await run_demo(request, settings, data_client, keeper, event_log)
             return await run_scenario(request, settings, data_client, keeper, event_log)
         except ScenarioDisabled as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from None
+
+    @app.get("/scenarios")
+    async def scenario_presets(
+        preset: str = "demo", x_ms_internal_key: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        require_internal_key(x_ms_internal_key)
+        if preset != "demo":
+            raise HTTPException(status_code=404, detail="unknown preset")
+        return {"preset": "demo", "gpuId": "gpu-a", "simulated": True, "steps": [
+            {"endpoint": "POST /scenarios/run", "request": {"preset": "demo", "step": 1}, "label": "Cross margin call"},
+            {"endpoint": "POST /scenarios/run", "request": {"preset": "demo", "step": 2}, "label": "Cross emergency liquidation"},
+        ]}
 
     @app.get("/book/stats")
     async def book_stats(
@@ -122,6 +138,20 @@ def create_app(
     async def get_vault_health(x_ms_internal_key: str | None = Header(default=None)) -> dict[str, object]:
         require_internal_key(x_ms_internal_key)
         return await vault_health(settings, data_client)
+
+    @app.get("/vault/round-apy")
+    async def get_round_apy(
+        round_id: Annotated[int, Query(alias="round", ge=0)],
+        assets: Annotated[Decimal, Query(gt=0, allow_inf_nan=False)],
+        lentOut: Annotated[Decimal, Query(ge=0, allow_inf_nan=False)],
+        weightedApr: Annotated[Decimal, Query(ge=0, le=1, allow_inf_nan=False)],
+        roundSeconds: Annotated[int, Query(ge=1)] = 14 * 86400,
+        x_ms_internal_key: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        require_internal_key(x_ms_internal_key)
+        if lentOut > assets:
+            raise HTTPException(status_code=422, detail="lentOut cannot exceed assets")
+        return await round_apy(settings, data_client, round_id, assets, lentOut, weightedApr, roundSeconds)
 
     return app
 

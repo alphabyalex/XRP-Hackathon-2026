@@ -25,13 +25,15 @@ async def run_scenario(
     data: RiskDataClient,
     keeper: Keeper,
     events: EventLog,
+    *,
+    only_gpu: str | None = None,
 ) -> dict[str, Any]:
     if not settings.mock and not settings.demo_shock_enabled:
         raise ScenarioDisabled("stress scenarios require MOCK=1 or DEMO_SHOCK_ENABLED=1")
 
     price_factor = max(D("0.01"), D(1) + request.gpu_price_shock_pct / D(100))
     loans = await data.list_open_loans()
-    multipliers = {loan.gpu_id: price_factor for loan in loans}
+    multipliers = {loan.gpu_id: price_factor for loan in loans if only_gpu is None or loan.gpu_id == only_gpu}
     keeper.apply_demo_shock(multipliers)
 
     total_loss = D(0)
@@ -40,7 +42,7 @@ async def run_scenario(
         if loan.status.lower() not in {"open", "active", "margin_call"}:
             continue
         price = await data.current_price(loan.gpu_id)
-        stressed_collateral = loan.collateral_shares * price * price_factor
+        stressed_collateral = loan.collateral_shares * price * multipliers.get(loan.gpu_id, D(1))
         if loan.outstanding_balance > 0:
             recovery = min(D(1), stressed_collateral * D("0.90") / loan.outstanding_balance)
             loss_given_default = D(1) - recovery
@@ -91,4 +93,32 @@ async def run_scenario(
         vaultLoss=result["vaultLoss"],
         simulated=True,
     )
+    return result
+
+
+async def run_demo(request, settings, data, keeper, events):
+    from fastapi import HTTPException
+    if not settings.mock and not settings.demo_shock_enabled:
+        raise ScenarioDisabled("stress scenarios require MOCK=1 or DEMO_SHOCK_ENABLED=1")
+    loans = [loan for loan in await data.list_open_loans()
+             if loan.gpu_id == "gpu-a" and loan.status.lower() in {"open", "active", "margin_call"}
+             and loan.outstanding_balance > 0
+             and (request.loan_id is None or loan.loan_id == request.loan_id)]
+    if not loans:
+        raise HTTPException(status_code=409, detail="no active GPU-A loan for demo")
+    loan = loans[0]
+    price = await data.current_price(loan.gpu_id)
+    # Step 1 barely crosses margin; step 2 hits the existing emergency rule,
+    # so the demo does not bypass the keeper's normal cure-window policy.
+    target_ltv = (loan.margin_call_ltv + (loan.liquidation_ltv - loan.margin_call_ltv) * D("0.01")
+                  if request.step == 1 else loan.liquidation_ltv * D("1.26"))
+    target_price = loan.outstanding_balance / loan.collateral_shares / target_ltv
+    if target_price >= price:
+        raise HTTPException(status_code=409, detail="loan already beyond demo threshold")
+    shock = (target_price / price - D(1)) * D(100)
+    result = await run_scenario(ScenarioRequest.model_validate({
+        "gpuPriceShockPct": shock, "utilizationShockPct": 0, "defaultRateMultiplier": 1,
+    }), settings, data, keeper, events, only_gpu="gpu-a")
+    result.update(preset="demo", step=request.step, targetLoanId=loan.loan_id,
+                  gpuPriceShockPct=ratio6(shock), priceAfter=money6(target_price))
     return result

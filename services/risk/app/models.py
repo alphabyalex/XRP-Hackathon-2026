@@ -78,6 +78,12 @@ class ScenarioRequest(ContractModel):
     default_rate_multiplier: Decimal = Field(alias="defaultRateMultiplier", gt=Decimal("0"), le=Decimal("10"))
 
 
+class DemoScenarioRequest(ContractModel):
+    preset: Literal["demo"]
+    step: Literal[1, 2]
+    loan_id: str | None = Field(default=None, alias="loanId")
+
+
 class OpenLoan(ContractModel):
     loan_id: str = Field(alias="loanId", min_length=1)
     borrower: str = Field(min_length=1)
