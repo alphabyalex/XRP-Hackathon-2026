@@ -22,13 +22,65 @@ export const GPUS = [
   {
     id: "gpu-b",
     label: "GPU B",
-    hw: "NVIDIA T4 16GB (AWS g4dn.xlarge)",
+    hw: "NVIDIA T4 16GB (Akash dCloud via akt)",
     model: "Qwen/Qwen3-1.7B",
     shareCode: "GPB",
     contractCode: "HRB",
     sharesTotal: 1000,
   },
 ] as const;
+
+export interface ResourceComponent {
+  label: string;
+  spec: string;
+  hourlyUsd: string;
+}
+
+export interface GpuResourceBreakdown {
+  provider: string;
+  instanceType: string;
+  region: string;
+  components: {
+    gpu: ResourceComponent;
+    cpu: ResourceComponent;
+    ram: ResourceComponent;
+    storage: ResourceComponent;
+  };
+  totalHourlyUsd: string;
+  monthlyUsd: string;
+  indexedSavingsVsAwsPct?: string;
+}
+
+export const RESOURCE_BREAKDOWN: Record<GpuId, GpuResourceBreakdown> = {
+  "gpu-a": {
+    provider: "AWS EC2",
+    instanceType: "g4dn.xlarge",
+    region: "us-east-2",
+    components: {
+      gpu: { label: "GPU Compute", spec: "1x NVIDIA T4 16GB VRAM", hourlyUsd: "0.360000" },
+      cpu: { label: "vCPU Compute", spec: "4 vCPUs (Intel Cascade Lake)", hourlyUsd: "0.080000" },
+      ram: { label: "System Memory", spec: "16 GiB System RAM", hourlyUsd: "0.046000" },
+      storage: { label: "NVMe Storage", spec: "125 GB NVMe SSD", hourlyUsd: "0.040000" },
+    },
+    totalHourlyUsd: "0.526000",
+    monthlyUsd: "378.72",
+    indexedSavingsVsAwsPct: "0.0%",
+  },
+  "gpu-b": {
+    provider: "Akash Network (akt CLI)",
+    instanceType: "dCloud SDL (Audited Provider)",
+    region: "Decentralized Cloud",
+    components: {
+      gpu: { label: "GPU Compute", spec: "1x NVIDIA T4 16GB VRAM", hourlyUsd: "0.110000" },
+      cpu: { label: "vCPU Compute", spec: "4 vCPUs (AMD EPYC / Intel)", hourlyUsd: "0.024000" },
+      ram: { label: "System Memory", spec: "16 GiB System RAM", hourlyUsd: "0.014000" },
+      storage: { label: "NVMe Storage", spec: "100 GB NVMe SSD", hourlyUsd: "0.012000" },
+    },
+    totalHourlyUsd: "0.160000",
+    monthlyUsd: "115.20",
+    indexedSavingsVsAwsPct: "69.6%",
+  },
+};
 
 export type GpuId = (typeof GPUS)[number]["id"];
 

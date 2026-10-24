@@ -287,3 +287,36 @@ def loan_numbers(
         "shares": str(shares),
     }
     return body, flags
+
+
+def resources_breakdown() -> dict[str, dict]:
+    return {
+        "gpu-a": {
+            "provider": "AWS EC2",
+            "instance_type": "g4dn.xlarge",
+            "region": "us-east-2",
+            "components": {
+                "gpu": {"label": "GPU Compute", "spec": "1x NVIDIA T4 16GB VRAM", "hourly_usd": "0.360000"},
+                "cpu": {"label": "vCPU Compute", "spec": "4 vCPUs (Intel Cascade Lake)", "hourly_usd": "0.080000"},
+                "ram": {"label": "System Memory", "spec": "16 GiB System RAM", "hourly_usd": "0.046000"},
+                "storage": {"label": "NVMe Storage", "spec": "125 GB NVMe SSD", "hourly_usd": "0.040000"},
+            },
+            "total_hourly_usd": "0.526000",
+            "monthly_usd": "378.72",
+            "indexed_savings_vs_aws_pct": "0.0%",
+        },
+        "gpu-b": {
+            "provider": "Akash Network (akt CLI)",
+            "instance_type": "dCloud SDL (Audited Provider)",
+            "region": "Decentralized Cloud",
+            "components": {
+                "gpu": {"label": "GPU Compute", "spec": "1x NVIDIA T4 16GB VRAM", "hourly_usd": "0.110000"},
+                "cpu": {"label": "vCPU Compute", "spec": "4 vCPUs (AMD EPYC / Intel)", "hourly_usd": "0.024000"},
+                "ram": {"label": "System Memory", "spec": "16 GiB System RAM", "hourly_usd": "0.014000"},
+                "storage": {"label": "NVMe Storage", "spec": "100 GB NVMe SSD", "hourly_usd": "0.012000"},
+            },
+            "total_hourly_usd": "0.160000",
+            "monthly_usd": "115.20",
+            "indexed_savings_vs_aws_pct": "69.6%",
+        },
+    }

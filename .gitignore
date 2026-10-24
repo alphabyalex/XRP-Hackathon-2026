@@ -19,5 +19,6 @@ dist/
 # python
 __pycache__/
 .venv/
+infra/akash/.active_deployment.json
 
 *.log
