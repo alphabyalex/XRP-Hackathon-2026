@@ -1,0 +1,21 @@
+{
+  "request": {"method": "GET", "path": "/loans/health"},
+  "response": {
+    "checkedAt": "2026-10-24T12:00:00Z",
+    "loans": [
+      {
+        "loanId": "loan-demo-001",
+        "gpuId": "gpu-a",
+        "state": "HEALTHY",
+        "ltv": "0.500000",
+        "marginCallLtv": "0.700000",
+        "liquidationLtv": "0.850000",
+        "outstandingBalance": "25.000000",
+        "collateralValue": "50.000000",
+        "simulated": true
+      }
+    ],
+    "simulated": true
+  }
+}
+

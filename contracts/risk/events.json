@@ -1,0 +1,18 @@
+{
+  "request": {"method": "GET", "path": "/events"},
+  "response": {
+    "contentType": "text/event-stream",
+    "event": "risk",
+    "data": {
+      "id": "event-001",
+      "type": "margin_call",
+      "occurredAt": "2026-10-24T12:00:00Z",
+      "loanId": "loan-demo-001",
+      "ltv": "0.710000",
+      "marginCallLtv": "0.700000",
+      "reason": "MARGIN_CALL_THRESHOLD_CROSSED",
+      "simulated": true
+    }
+  }
+}
+

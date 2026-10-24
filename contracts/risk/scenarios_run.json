@@ -1,0 +1,25 @@
+{
+  "request": {
+    "gpuPriceShockPct": -25,
+    "utilizationShockPct": -10,
+    "defaultRateMultiplier": 1.5
+  },
+  "response": {
+    "loans": [
+      {
+        "loanId": "loan-demo-001",
+        "ltv": "0.666667",
+        "state": "MARGIN_CALL",
+        "simulated": true
+      }
+    ],
+    "marginCalls": 1,
+    "liquidations": 0,
+    "vaultLoss": "12.500000",
+    "firstLossCoverAbsorbed": "12.500000",
+    "lenderApyBefore": "0.070000",
+    "lenderApyAfter": "0.045000",
+    "simulated": true
+  }
+}
+

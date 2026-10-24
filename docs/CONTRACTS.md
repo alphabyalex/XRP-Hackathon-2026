@@ -189,3 +189,31 @@ Will NOT claim: that the blockchain proves the computation happened; that we
 are integrated with OpenRouter or Liquid Inference (roadmap only); that
 shares or dividends are real money; that we are first or only. Simulated
 traffic and any simulated GPU are always labeled SIMULATED in the UI and API.
+
+---
+
+## Requests from Kristian's Risk Desk
+
+The Risk Desk service owns loan quote calculations, monitoring decisions,
+scenario analysis, and repeatable loan-book statistics. Its HTTP examples are
+in `contracts/risk/`; it listens on port 7000 and uses `X-MS-Internal-Key` for
+service-to-service calls.
+
+The keeper needs these API routes from Alex. Every route uses
+`X-MS-Internal-Key`:
+
+- `GET /internal/loans` returns open loan IDs, borrower, GPU ID, collateral
+  shares, outstanding balance, APR, quote margin-call and liquidation LTV
+  thresholds, and any existing margin-call timestamp. Amounts are decimal
+  strings with six places.
+- `POST /internal/loans/{id}/margin-call` records an idempotent margin call
+  with the observed LTV, threshold, timestamp, and reason.
+- `POST /internal/loans/{id}/liquidate` records an idempotent liquidation
+  request with the observed LTV and reason. The API and XRPL adapter own any
+  ledger transaction.
+- `GET /internal/oracle/{gpuId}/history?from=&to=` returns timestamped
+  per-share oracle prices as decimal strings.
+
+The loan records returned to the keeper must retain the margin-call and
+liquidation thresholds from the accepted risk quote. The Risk Desk does not
+submit XRPL transactions itself.
