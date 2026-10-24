@@ -26,6 +26,21 @@ export {
   LedgerRejected,
 } from "./errors.js";
 
+// Export SHOULD / COULD extensions (B5, B6)
+export {
+  issueCredential,
+  acceptCredential,
+  createPermissionedDomain,
+  setupPermissionedShares,
+} from "./permissioned.js";
+
+export {
+  createPaymentChannel,
+  signChannelClaim,
+  verifyChannelClaim,
+  claimPaymentChannel,
+} from "./paychan.js";
+
 // Export utilities
 export { checkFeatures } from "./features.js";
 export { getClient, disconnectClient } from "./client.js";

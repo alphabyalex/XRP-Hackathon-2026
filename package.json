@@ -10,6 +10,7 @@
     "dev": "concurrently -n web,api -c blue,green \"npm run dev -w apps/web\" \"npm run dev -w apps/api\"",
     "lint": "npm run lint -w apps/web",
     "typecheck": "npm run typecheck -w apps/web && npm run typecheck -w apps/api && npm run typecheck -w packages/shared && npm run typecheck -w packages/xrpl",
+    "test:xrpl": "npm run test -w packages/xrpl",
     "xrpl:features": "npm run features -w packages/xrpl",
     "xrpl:setup": "npm run setup -w packages/xrpl",
     "xrpl:smoke": "npm run smoke -w packages/xrpl"
