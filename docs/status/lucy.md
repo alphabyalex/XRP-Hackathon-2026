@@ -44,8 +44,13 @@
   public testnet. POST /monitor/simulate for rehearsals, labeled simulated.
   Requests for Alex and Kristian added at the bottom of docs/CONTRACTS.md.
 
+- Phase 6: every live profile carries `portfolio` ("borrowers in this grade
+  defaulted X% (simulated)") from risk GET /book/stats?grade= (2 s timeout,
+  60 s cache), falling back to a mock table labeled `source: "mock"`.
+  Expected risk shape in contracts/credit/risk_book_stats.json.
+
 ## Next
-- Phase 6: portfolio context from risk GET /book/stats (mocked until risk is up).
+- Phase 7: docs for the judges (docs/QUICKNODE.md, README with scorecard table).
 
 ## Blockers
 - Streams needs a human in the Quicknode dashboard: create the Stream, paste

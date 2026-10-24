@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 from credit import config as C
 from credit import features as F
-from credit import mock, profile, streams, ws
+from credit import mock, portfolio, profile, streams, ws
 from credit.errors import CreditError
 from credit.events import bus
 from credit.link import linker
@@ -77,6 +77,7 @@ async def build_profile(network: str, address: str, refresh: bool = False) -> di
             raise CreditError(404, "ACCOUNT_NOT_FOUND", f"{address} does not exist on {network}") from None
         except UpstreamError as e:
             raise CreditError(502, "UPSTREAM_ERROR", str(e)) from None
+        body["portfolio"] = await portfolio.context(body["grade"])
     if network == "mainnet":
         body["ownership"] = linker().ownership(address)
     if C.MOCK:
