@@ -18,7 +18,8 @@ import type {
 } from "@moonshift/shared";
 
 const MOCK = process.env.MOCK_PRICING !== "0";
-const PRICING_URL = process.env.PRICING_URL ?? "http://localhost:6000";
+// Not 6000: that port is on the fetch "bad ports" list (X11), so Node refuses it.
+const PRICING_URL = process.env.PRICING_URL ?? "http://localhost:6100";
 // Every pricing route checks this header when INTERNAL_API_KEY is set.
 const AUTH = { "X-MS-Internal-Key": process.env.INTERNAL_API_KEY ?? "" };
 const JSON_AUTH = { "Content-Type": "application/json", ...AUTH };

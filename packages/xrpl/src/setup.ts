@@ -17,6 +17,7 @@ import {
   saveAccountsJson,
   appendOrUpdateEnvSeeds,
   loadWalletFromSeed,
+  getAccountAddress,
 } from "./wallets.js";
 import { publishOracle } from "./oracle.js";
 import { createRound, pruneRounds } from "./lending.js";
@@ -419,4 +420,64 @@ export async function ensureLendingRounds(): Promise<void> {
       log: (m) => console.log(`  ${m}`),
     });
   }
+}
+
+// Replace an account with a fresh faucet-funded wallet on the active network
+// (devnet demo resets: a clean borrower history every pitch). The new seed is
+// written to .env by appendOrUpdateEnvSeeds and never printed; the public
+// address goes to contracts/accounts.<network>.json. Run setupNetwork after
+// this so the new account gets its trust lines and tokens.
+export async function rotateAccount(name: AccountName): Promise<{ address: string }> {
+  if (networkName() === "testnet") throw new Error("rotateAccount is for devnet demo resets only");
+  const client = await getClient();
+  const { wallet } = await client.fundWallet();
+  if (!wallet.seed) throw new Error("faucet returned no seed");
+  appendOrUpdateEnvSeeds({ [name]: wallet.seed });
+  const file = loadAccountsJson();
+  file[name] = { address: wallet.address };
+  const { _note: _n, ...rest } = file as any;
+  saveAccountsJson(rest);
+  return { address: wallet.address };
+}
+
+// Demo resets: seized collateral piles up with the broker and the treasury's
+// sell offer runs dry. Send the broker's shares back to the GPU treasury and
+// list whatever the treasury holds but does not have on offer, at `price`.
+export async function restockShares(gpuId: "gpu-a" | "gpu-b", price = "5.000000"): Promise<{ returned: string; listed: string }> {
+  const gpu = GPUS.find((g) => g.id === gpuId)!;
+  const client = await getClient();
+  const shareIssuer = getAccountAddress("SHARE_ISSUER");
+  const tdxIssuer = getAccountAddress("TDX_ISSUER");
+  const treasury = getAccountWallet(gpuId === "gpu-a" ? "TREASURY_GPU_A" : "TREASURY_GPU_B");
+  const broker = getAccountWallet("LENDING_POOL");
+  const balanceOf = async (address: string) => {
+    const res = await client.request({ command: "account_lines", account: address, ledger_index: "validated" });
+    const line = res.result.lines.find((l) => l.currency === gpu.shareCode && l.account === shareIssuer);
+    return Number(line?.balance ?? 0);
+  };
+
+  const held = await balanceOf(broker.address);
+  if (held > 0) {
+    await submitTx(broker, {
+      TransactionType: "Payment",
+      Account: broker.address,
+      Destination: treasury.address,
+      Amount: { currency: gpu.shareCode, issuer: shareIssuer, value: held.toFixed(6) },
+    } as Payment);
+  }
+
+  const offers = await client.request({ command: "account_offers", account: treasury.address, ledger_index: "validated" });
+  const offered = (offers.result.offers ?? [])
+    .filter((o) => typeof o.taker_gets === "object" && o.taker_gets.currency === gpu.shareCode)
+    .reduce((s, o) => s + Number((o.taker_gets as any).value), 0);
+  const free = (await balanceOf(treasury.address)) - offered;
+  if (free > 0.000001) {
+    await submitTx(treasury, {
+      TransactionType: "OfferCreate",
+      Account: treasury.address,
+      TakerGets: { currency: gpu.shareCode, issuer: shareIssuer, value: free.toFixed(6) },
+      TakerPays: { currency: "TDX", issuer: tdxIssuer, value: (free * Number(price)).toFixed(6) },
+    } as OfferCreate);
+  }
+  return { returned: held.toFixed(6), listed: Math.max(0, free).toFixed(6) };
 }

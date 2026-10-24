@@ -1,6 +1,7 @@
 // npm run demo: start everything for the judges' demo in one command.
 //   web :3000, api :4000 (NETWORK=devnet, real XLS-65/66 transactions),
-//   pricing :6000, risk :7000, credit :7100 (Python 3.11+, one venv each).
+//   pricing :6100, risk :7000, credit :7100, compute :5000 (Python 3.11+, one venv each).
+//   Pricing is not on 6000: Node's fetch refuses that port (X11 bad-ports list).
 // If Python 3.11+ is missing, the Python services are skipped and the api
 // uses its built-in mocks for them (labeled simulated), so the demo still
 // runs end to end. Compute stays mocked unless COMPUTE_URL answers.
@@ -117,7 +118,7 @@ const py = args.has("--no-python") ? null : findPython();
 const services = [
   // env: each service's own live settings for the demo.
   // pricing: Bedrock when AWS credentials exist, otherwise its labeled fallback.
-  { name: "pricing", dir: "services/pricing", module: "app.main:app", port: 6000, flag: "MOCK_PRICING", env: { MOCK: "0" } },
+  { name: "pricing", dir: "services/pricing", module: "app.main:app", port: 6100, flag: "MOCK_PRICING", env: { MOCK: "0" } },
   // risk: live quotes and scenarios against our /internal routes; its keeper stays in
   // dry run so the api's keeper is the single actor on the ledger.
   { name: "risk", dir: "services/risk", module: "app.main:app", port: 7000, flag: "MOCK_RISK", env: { MOCK: "0", KEEPER_DRY_RUN: "1", DEMO_SHOCK_ENABLED: "1" } },
@@ -134,7 +135,7 @@ const apiEnv = {
   NETWORK: mockXrpl ? baseEnv.NETWORK ?? "testnet" : "devnet",
   MOCK_XRPL: mockXrpl ? "1" : "0",
   MOCK_COMPUTE: baseEnv.MOCK_COMPUTE ?? "1",
-  PRICING_URL: baseEnv.PRICING_URL || "http://localhost:6000",
+  PRICING_URL: baseEnv.PRICING_URL || "http://localhost:6100",
   RISK_URL: baseEnv.RISK_URL || "http://localhost:7000",
   CREDIT_URL: baseEnv.CREDIT_URL || "http://localhost:7100",
   COMPUTE_URL: baseEnv.COMPUTE_URL || "http://localhost:5000",
@@ -157,6 +158,8 @@ if (py) {
       continue;
     }
     apiEnv[s.flag] = "0"; // api calls it, and falls back to its mock if it dies
+    // We started it here, so point the api at this local copy (a .env URL may name an old port).
+    apiEnv[`${s.name.toUpperCase()}_URL`] = `http://localhost:${s.port}`;
     start(s.name, vpy, ["-m", "uvicorn", s.module, "--host", "127.0.0.1", "--port", String(s.port)], {
       cwd: dir,
       env: { ...baseEnv, API_URL: "http://localhost:4000", PYTHONUNBUFFERED: "1", ...(s.env ?? {}) },

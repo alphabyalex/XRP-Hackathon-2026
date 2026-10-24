@@ -44,7 +44,8 @@ export const LOAN = {
   liquidationLtvBps: 6500,
 }; // placeholders
 
-export const PORTS = { web: 3000, api: 4000, compute: 5000, pricing: 6000 } as const;
+// pricing is 6100, not 6000: fetch() refuses port 6000 (X11, on the WHATWG bad-ports list).
+export const PORTS = { web: 3000, api: 4000, compute: 5000, pricing: 6100, risk: 7000, credit: 7100 } as const;
 
 // Explorer link for the active NETWORK (devnet or testnet).
 export function explorerUrl(hash: string): string {

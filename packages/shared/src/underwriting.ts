@@ -1,6 +1,6 @@
 // Shapes for the underwriting services and the api routes built on them.
 // Sources of truth: contracts/credit (Lucy, :7100), contracts/risk
-// (Kristian, :7000), contracts/pricing (Tharun, :6000), contracts/api.
+// (Kristian, :7000), contracts/pricing (Tharun, :6100), contracts/api.
 // Money is a 6-decimal string; ratios (ltv, apr, pd) are decimal fractions.
 
 import type { DecimalString, IsoDateTime } from "./types";

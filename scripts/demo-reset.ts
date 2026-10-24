@@ -5,7 +5,9 @@
 // 2. Closes leftover open loans (pays them off, collateral released) so the
 //    vault starts at 0% utilization.
 // 3. Restores both GPU oracle prices to the opening NAV.
-// 4. Makes sure ALICE holds GPU-A shares to pledge.
+// 4. Gives ALICE a fresh devnet account (clean Moonshift credit history for
+//    the pitch; skip with --keep-borrower) and makes sure she holds GPU-A
+//    shares to pledge.
 // 5. Clears the api's loan, quote and keeper tables (stop the api first if
 //    you want a fully clean SSE stream; it is safe either way).
 // Prints addresses and tx hashes only, never seeds.
@@ -53,7 +55,14 @@ async function main() {
     console.log(`  ${gpuId} NAV ${OPENING_NAV} ${tx.hash}`);
   }
 
-  console.log("4/5 borrower collateral...");
+  console.log("4/5 borrower...");
+  if (!process.argv.includes("--keep-borrower")) {
+    const { address } = await x.rotateAccount("ALICE");
+    console.log(`  fresh ALICE ${address} (new devnet account, clean Moonshift history)`);
+    await x.setupNetwork(); // trust lines and 10000 TDX for the new account
+  }
+  const stock = await x.restockShares("gpu-a", OPENING_NAV);
+  console.log(`  GPU-A shares: ${stock.returned} returned from the broker, ${stock.listed} re-listed by the treasury`);
   const gpa = Number((await x.getBalances("ALICE")).tokens["GPA"] ?? 0);
   if (gpa < ALICE_MIN_GPA) {
     const tx = await x.buyShares({ buyer: "ALICE", gpuId: "gpu-a", qty: String(ALICE_MIN_GPA - gpa), maxPricePerShare: "5.100000" });

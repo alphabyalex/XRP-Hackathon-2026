@@ -66,7 +66,7 @@ export {
   findRound,
   roundPhase,
 } from "./lending.js";
-export { ensureLendingRounds } from "./setup.js";
+export { ensureLendingRounds, rotateAccount, restockShares } from "./setup.js";
 
 // XLS-66 loans with GPU-share collateral (devnet)
 export {

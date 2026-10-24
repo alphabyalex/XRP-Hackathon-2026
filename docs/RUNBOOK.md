@@ -23,7 +23,7 @@ py -3.12 -m venv .venv            # macOS/Linux: python3.12 -m venv .venv
 | web | apps/web | Next.js | 3000 | Alex |
 | api | apps/api | Express | 4000 | Alex |
 | compute | services/compute | `compute.main:app` | 5000 | Tharun (EC2) |
-| pricing + Bedrock memo | services/pricing | `app.main:app` | 6000 | Tharun |
+| pricing + Bedrock memo | services/pricing | `app.main:app` | 6100 (not 6000: Node's fetch refuses that port) | Tharun |
 | risk desk + keeper | services/risk | `app.main:app` | 7000 | Kristian |
 | credit (Quicknode) | services/credit | `credit.main:app` | 7100 | Lucy |
 

@@ -332,6 +332,8 @@ All routes below are live on `alex`. Every internal route requires `X-MS-Interna
 - `GracePeriod = 60`.
 - The term is capped to the vault round's redemption date minus 3 h, because LoanSet is rejected with `tecNO_PERMISSION` if the loan would mature after the round redeems.
 
+**Request to Tharun (services/pricing): run locally on port 6100, not 6000.** Node's `fetch` (undici) refuses port 6000 because it is on the WHATWG bad-ports list (X11), so every api call to `localhost:6000` failed with `bad port` and fell back to the mock memo. `npm run demo` now starts pricing on 6100 and points the api there. Your EC2 port can stay as is if it is behind a different URL.
+
 **Request to Tharun (services/pricing): 80/15/5 is now of gross.**
 - `packages/shared` and the api mock now take the 5% reserve from **gross** revenue, so holders get exactly 80% (was 80.75%).
 - Please match it in `services/pricing` `dividends.py`: `reserve = gross * 0.05`, `distributable = gross - hosting_fee - reserve`.
