@@ -1,0 +1,7 @@
+fastapi==0.115.12
+httpx==0.28.1
+pydantic==2.11.0
+uvicorn[standard]==0.34.0
+
+# Development and contract tests
+pytest==8.3.5
