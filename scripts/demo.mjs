@@ -33,8 +33,16 @@ function loadEnv() {
 }
 
 function findPython() {
+  // Per-user installs (winget --scope user) live under %LOCALAPPDATA% and may
+  // not be on PATH in an already-open terminal, so check there first.
+  const local = isWin
+    ? ["Python313", "Python312", "Python311"]
+        .map((v) => path.join(process.env.LOCALAPPDATA ?? "", "Programs", "Python", v, "python.exe"))
+        .filter((f) => fs.existsSync(f))
+        .map((f) => [f, []])
+    : [];
   const candidates = isWin
-    ? [["py", ["-3.13"]], ["py", ["-3.12"]], ["py", ["-3.11"]], ["python", []], ["python3", []]]
+    ? [...local, ["py", ["-3.13"]], ["py", ["-3.12"]], ["py", ["-3.11"]], ["python", []], ["python3", []]]
     : [["python3.13", []], ["python3.12", []], ["python3.11", []], ["python3", []], ["python", []]];
   for (const [cmd, pre] of candidates) {
     const r = spawnSync(cmd, [...pre, "-c", "import sys; print(sys.version_info[0], sys.version_info[1])"], { encoding: "utf8" });
@@ -67,7 +75,7 @@ function ensureVenv(py, dir, name) {
   return vpy;
 }
 
-const colors = { web: 34, api: 32, pricing: 35, risk: 33, credit: 36, demo: 37 };
+const colors = { web: 34, api: 32, pricing: 35, risk: 33, credit: 36, compute: 31, demo: 37 };
 function log(name, line) {
   const c = colors[name] ?? 37;
   process.stdout.write(`\x1b[${c}m[${name.padEnd(7)}]\x1b[0m ${line}\n`);
@@ -107,9 +115,18 @@ if (!baseEnv.INTERNAL_API_KEY) baseEnv.INTERNAL_API_KEY = "moonshift-local-demo-
 const mockXrpl = args.has("--mock-xrpl");
 const py = args.has("--no-python") ? null : findPython();
 const services = [
-  { name: "pricing", dir: "services/pricing", module: "app.main:app", port: 6000, flag: "MOCK_PRICING" },
-  { name: "risk", dir: "services/risk", module: "app.main:app", port: 7000, flag: "MOCK_RISK" },
-  { name: "credit", dir: "services/credit", module: "credit.main:app", port: 7100, flag: "MOCK_CREDIT" },
+  // env: each service's own live settings for the demo.
+  // pricing: Bedrock when AWS credentials exist, otherwise its labeled fallback.
+  { name: "pricing", dir: "services/pricing", module: "app.main:app", port: 6000, flag: "MOCK_PRICING", env: { MOCK: "0" } },
+  // risk: live quotes and scenarios against our /internal routes; its keeper stays in
+  // dry run so the api's keeper is the single actor on the ledger.
+  { name: "risk", dir: "services/risk", module: "app.main:app", port: 7000, flag: "MOCK_RISK", env: { MOCK: "0", KEEPER_DRY_RUN: "1", DEMO_SHOCK_ENABLED: "1" } },
+  // credit: live reads through Quicknode (mainnet read-only, testnet) and the public devnet
+  // node; WebSocket monitoring (Streams needs a public webhook URL we do not have).
+  { name: "credit", dir: "services/credit", module: "credit.main:app", port: 7100, flag: "MOCK_CREDIT", env: { MOCK: "0", MONITOR_MODE: "websocket" } },
+  // Local compute in its own MOCK mode (simulated GPU) unless COMPUTE_URL
+  // points at the EC2 box, in which case the api talks to that instead.
+  { name: "compute", dir: "services/compute", module: "compute.main:app", port: 5000, flag: "MOCK_COMPUTE", skipIfRemote: "COMPUTE_URL", env: { MOCK: "1" } },
 ];
 
 const apiEnv = {
@@ -120,11 +137,18 @@ const apiEnv = {
   PRICING_URL: baseEnv.PRICING_URL || "http://localhost:6000",
   RISK_URL: baseEnv.RISK_URL || "http://localhost:7000",
   CREDIT_URL: baseEnv.CREDIT_URL || "http://localhost:7100",
+  COMPUTE_URL: baseEnv.COMPUTE_URL || "http://localhost:5000",
 };
 
 if (py) {
-  log("demo", `Python ${py.version} found; starting pricing, risk, credit`);
+  log("demo", `Python ${py.version} found; starting pricing, risk, credit, compute`);
   for (const s of services) {
+    const remote = s.skipIfRemote && baseEnv[s.skipIfRemote] && !/localhost|127\.0\.0\.1/.test(baseEnv[s.skipIfRemote]);
+    if (remote) {
+      log("demo", `${s.name}: using ${s.skipIfRemote} (remote), not starting a local copy`);
+      apiEnv[s.flag] = "0";
+      continue;
+    }
     const dir = path.join(ROOT, s.dir);
     const vpy = ensureVenv(py, dir, s.name);
     if (!vpy) {
@@ -135,7 +159,7 @@ if (py) {
     apiEnv[s.flag] = "0"; // api calls it, and falls back to its mock if it dies
     start(s.name, vpy, ["-m", "uvicorn", s.module, "--host", "127.0.0.1", "--port", String(s.port)], {
       cwd: dir,
-      env: { ...baseEnv, API_URL: "http://localhost:4000", PYTHONUNBUFFERED: "1" },
+      env: { ...baseEnv, API_URL: "http://localhost:4000", PYTHONUNBUFFERED: "1", ...(s.env ?? {}) },
     });
   }
 } else {
