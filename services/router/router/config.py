@@ -79,6 +79,7 @@ AWS_EVENTS_QUEUE_URL = _env("AWS_EVENTS_QUEUE_URL", "")
 # ---- Catalog ----------------------------------------------------------------------------
 
 CATALOG_MAX_AGE_SECONDS = int(_env("CATALOG_MAX_AGE", "1800"))
+LAST_GOOD_FACTOR = 4  # stale offers stay usable (degraded) up to 4x CATALOG_MAX_AGE
 COLLECT_INTERVALS = {"spot": 300, "providers": 900, "on_demand": 86400}
 HTTP_TIMEOUT_SECONDS = float(_env("HTTP_TIMEOUT_SECONDS", "10"))
 

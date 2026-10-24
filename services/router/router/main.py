@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -12,9 +13,11 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from router import config as C
+from router import scheduler
 from router.catalog import iso, now_utc
 from router.errors import RouterError
 from router.service import service
+from router.store import catalog_store
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 # Provider keys travel in headers and some query strings; keep client libraries quiet.
@@ -25,7 +28,9 @@ log = logging.getLogger("router")
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    service.collect()
+    store = catalog_store()
+    await scheduler.initial_load(service, store)
+    collector_task = asyncio.create_task(scheduler.run_forever(service, store))
     log.info(
         "router up: fleet=%s state=%s queue=%s orchestrator=%s offers=%d gpus=%d",
         C.FLEET_SOURCE,
@@ -36,6 +41,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         len(service.entries),
     )
     yield
+    collector_task.cancel()
 
 
 app = FastAPI(title="Moonshift router", version="0.1.0", lifespan=lifespan)

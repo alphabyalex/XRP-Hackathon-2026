@@ -21,15 +21,39 @@
   quote, orders_create, order, order_events_sse, fleet, catalog, fleet_reclaim,
   aws_events. GET /catalog, GET /fleet, POST /fleet/{id}/reclaim. 21 tests.
 
+- Phase 2: collectors run as plain functions in-process (background task,
+  spot every 5 min, providers every 15, on-demand daily) or as the Lambda
+  router.lambdas.collect_handler on EventBridge Scheduler. Catalog store:
+  SQLite locally, DynamoDB ms-router-catalog (pk provider#region#instanceType,
+  sk capacityType) + S3 price history (<provider>/<date>/<time>-<source>.json)
+  on AWS. Provider keys from Secrets Manager moonshift/router/providers with
+  env fallback (values never logged, tested). Staleness: fresh up to
+  CATALOG_MAX_AGE (30 min), last good snapshot (degraded) up to 4x, then
+  excluded. boto3 adaptive retries, httpx backoff with jitter.
+  services/router/infra/template.yaml (SAM): collector Lambda + 3 ScheduleV2
+  schedules, DynamoDB catalog/orders/checkpoints (TTL), S3 price bucket,
+  3 tier SQS queues + DLQ, Step Functions order machine
+  (statemachine/order.asl.json: pay, SQS waitForTaskToken with heartbeats,
+  settle), EventBridge interruption rule -> SQS, forwarder Lambda, Secrets
+  Manager secret, least-privilege worker role for EC2 and IAM Roles Anywhere.
+  cfn-lint passes with no findings (tested). Live run of the public
+  collectors today: Azure 4 offers, Oracle 3, RunPod 6, Vast.ai 23, Spot
+  Advisor live. 31 tests.
+
 ## Next
-- Phase 2: price collection on AWS (scheduling, DynamoDB + S3 storage,
-  Secrets Manager, staleness, SAM template).
+- Phase 3: optimizer (cost, ETA, interruption and egress model, three
+  modes, Pareto knee), benchmark.
 
 ## Blockers
 - No AWS credentials on this machine (no AWS CLI either). All AWS adapters
   run in MOCK until AWS_PROFILE (or an EC2 role) is available.
 - GCP Billing Catalog needs an API key; Lambda needs an API key. Both go in
   Secrets Manager secret moonshift/router/providers (filled by a human).
+- Deploying the router stack needs a human with AWS credentials and
+  AWS_DEPLOY=1 approval (creates billable resources):
+  `sam build -t services/router/infra/template.yaml && sam deploy --stack-name ms-router --region us-east-2 --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --resolve-s3 --parameter-overrides RouterUrl=<public router URL>`.
+  Then fill secret moonshift/router/providers and set STATE_BACKEND=dynamodb,
+  PRICES_BUCKET (stack output) on the router.
 - No BRAND.md in the repo or on disk; UI follows packages/shared/src/brand.ts
   and apps/web/app/globals.css plus the prompt's rules.
 

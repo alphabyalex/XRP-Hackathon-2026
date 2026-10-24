@@ -64,6 +64,7 @@ class GpuView:
     offerKey: str  # noqa: N815
     asOf: str  # noqa: N815
     reason: str | None = None
+    degraded: bool = False  # last good snapshot: price older than CATALOG_MAX_AGE but within the fallback
 
 
 def _expand(s: str) -> str:
@@ -208,7 +209,11 @@ class FleetState:
         else:
             ends = sorted(jobs.values())
             wait = max(0.0, (ends[len(jobs) - e.maxConcurrent] - now).total_seconds())
-        fresh = e.offer.priceSource == "static" or e.offer.age_seconds(now) <= C.CATALOG_MAX_AGE_SECONDS
+        # Fresh: within CATALOG_MAX_AGE. Last good snapshot: up to 4x that, still usable but degraded
+        # (availability treated as unknown, the optimizer adds risk). Older: excluded.
+        age = 0.0 if e.offer.priceSource == "static" or e.offer.provider == "moonshift" else e.offer.age_seconds(now)
+        fresh = age <= C.CATALOG_MAX_AGE_SECONDS
+        degraded = not fresh and age <= C.CATALOG_MAX_AGE_SECONDS * C.LAST_GOOD_FACTOR
         reason = None
         if not e.offerFound:
             reason = "OFFER_MISSING"
@@ -218,7 +223,7 @@ class FleetState:
             reason = "OFFLINE"
         elif e.offer.availability.status == "none":
             reason = "NO_CAPACITY"
-        elif not fresh:
+        elif not fresh and not degraded:
             reason = "STALE_PRICE"
         windows = tuple(
             ((s - now).total_seconds(), (en - now).total_seconds()) for s, en, _ in self.windows(e) if en > now
@@ -248,6 +253,7 @@ class FleetState:
             offerKey=e.offer.key,
             asOf=e.offer.asOf,
             reason=reason,
+            degraded=degraded,
         )
 
     def describe(self, e: FleetEntry, now: datetime) -> dict[str, Any]:
