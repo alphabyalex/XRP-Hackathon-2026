@@ -235,6 +235,12 @@ export async function openLendingLoan(p: OpenLendingLoanParams): Promise<OpenLen
   const interval = Math.max(60, Math.floor(p.paymentIntervalSeconds));
   const total = Math.max(1, Math.ceil(p.termSeconds / interval));
   const nonce = newNonce();
+  const maturity = Date.now() + (total * interval + grace) * 1000;
+  if (maturity >= new Date(round.redemptionDate).getTime()) {
+    throw new Error(
+      `LOAN_TERM_PAST_REDEMPTION: the loan would mature after round ${round.round} redeems (${round.redemptionDate}); shorten the term`
+    );
+  }
 
   // 1. Collateral. CancelAfter sits well past maturity + grace.
   const lock = await lockCollateral({

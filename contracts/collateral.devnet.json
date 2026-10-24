@@ -56,6 +56,20 @@
       "owner": "rPScK1uuXC9szrSg2qqkzMYqXGvK6Q2hYT",
       "escrowSequence": 6383409,
       "nonce": "FC1A6FBD2C73F777CA725861"
+    },
+    "835A4B21FDCF94CD1B5A28A876E9A142D5E873374DC7D8D8B6CE72C76AD1D74F": {
+      "gpuId": "gpu-a",
+      "shares": "100.000000",
+      "owner": "rPScK1uuXC9szrSg2qqkzMYqXGvK6Q2hYT",
+      "escrowSequence": 6383412,
+      "nonce": "28EC03651A2B3D8ECDD58897"
+    },
+    "658A6A20C56E3EED95250E226C96386B8776A8E81F337EAE93BD552402EFEE61": {
+      "gpuId": "gpu-a",
+      "shares": "100.000000",
+      "owner": "rPScK1uuXC9szrSg2qqkzMYqXGvK6Q2hYT",
+      "escrowSequence": 6383413,
+      "nonce": "48086F1B8638C3488DBB7790"
     }
   }
 }

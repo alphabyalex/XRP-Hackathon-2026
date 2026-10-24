@@ -13,7 +13,10 @@
     "test:xrpl": "npm run test -w packages/xrpl",
     "xrpl:features": "npm run features -w packages/xrpl",
     "xrpl:setup": "npm run setup -w packages/xrpl",
-    "xrpl:smoke": "npm run smoke -w packages/xrpl"
+    "xrpl:smoke": "npm run smoke -w packages/xrpl",
+    "demo": "node scripts/demo.mjs",
+    "demo:mock": "node scripts/demo.mjs --mock-xrpl",
+    "demo:reset": "tsx scripts/demo-reset.ts"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

@@ -209,13 +209,14 @@ export async function bookStats(grade?: string): Promise<{ stats: BookStats; sou
   }
 }
 
-// True when the real risk keeper is expected to drive margin calls. When it
-// is not (mock or unreachable), the api's built-in keeper does it.
+// True when the real risk keeper is actually acting on loans. Its /health
+// reports mock and keeperDryRun; in either mode it only logs, so the api's
+// built-in keeper does the work.
 export async function liveKeeperAvailable(): Promise<boolean> {
   if (mockFlag("MOCK_RISK")) return false;
   try {
-    await serviceJson("risk", `${RISK_URL()}/health`, { timeoutMs: 2000 });
-    return true;
+    const h = await serviceJson<{ ok: boolean; mock?: boolean; keeperDryRun?: boolean }>("risk", `${RISK_URL()}/health`, { timeoutMs: 2000 });
+    return Boolean(h.ok) && !h.mock && !h.keeperDryRun;
   } catch {
     return false;
   }
