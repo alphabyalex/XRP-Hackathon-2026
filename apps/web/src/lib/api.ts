@@ -74,6 +74,14 @@ export const chat = (messages: { role: "user"; content: string }[], buyer = "DEV
     body: JSON.stringify({ buyer, messages }),
   });
 
+export const getMonteCarloStatus = () => apiFetch<Record<string, any>>("/monte-carlo/status");
+
+export const triggerSwitchDemo = (gpuId: string = "gpu-a", prompt?: string) =>
+  apiFetch<any>(`/monte-carlo/switch-demo?gpu_id=${gpuId}`, {
+    method: "POST",
+    body: JSON.stringify({ prompt }),
+  });
+
 export function eventsUrl(): string {
   return `${API_BASE}/events`;
 }

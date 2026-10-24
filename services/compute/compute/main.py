@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
+import time
 
 from fastapi import FastAPI, Header, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from .config import Settings
-from .models import BookingRequest, ChatCompletionRequest, ComputeError
+from .models import BookingRequest, ChatCompletionRequest, ChatMessage, ComputeError
 from .pricing import RateClient
 from .providers import MockProvider, VllmProvider
 from .router import ComputeRouter, sse_events
@@ -67,6 +68,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI):
         await scheduler.load()
         yield
+        await scheduler.close()
 
     app = FastAPI(title="Moonshift Compute", version="0.1.0", lifespan=lifespan)
     app.state.settings = settings
@@ -140,6 +142,62 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if chat.stream:
             return StreamingResponse(sse_events(result), media_type="text/event-stream")
         return JSONResponse(result.body)
+
+    @app.get("/monte-carlo/status")
+    async def monte_carlo_status() -> dict[str, object]:
+        return {gpu_id: worker.monte_carlo.metrics() for gpu_id, worker in scheduler.workers.items()}
+
+    @app.post("/monte-carlo/switch-demo")
+    async def monte_carlo_switch_demo(
+        gpu_id: str = Query(default="gpu-a"),
+        prompt: str = Query(default="Calculate Black-Scholes delta for XRP call"),
+    ) -> dict[str, object]:
+        worker = scheduler.worker(gpu_id)
+        pre_metrics = worker.monte_carlo.metrics()
+
+        # Measure preemption yield time
+        switch_latency_ms = await worker.monte_carlo.preempt(f"DEMO_INSTANT_SWITCH_{gpu_id}")
+
+        # Serve resident LLM inference
+        provider = providers[gpu_id]
+        inf_start = time.perf_counter()
+        completion = await provider.complete(
+            messages=[ChatMessage(role="user", content=prompt)],
+            model=worker.model,
+            max_tokens=64,
+            temperature=None,
+        )
+        inf_latency_ms = round((time.perf_counter() - inf_start) * 1000.0, 2)
+
+        # Resume background Monte Carlo loop
+        res_start = time.perf_counter()
+        await worker.monte_carlo.resume()
+        res_latency_ms = round((time.perf_counter() - res_start) * 1000.0, 2)
+
+        post_metrics = worker.monte_carlo.metrics()
+        return {
+            "demo": "INSTANT_GPU_WORKLOAD_SWITCH",
+            "gpu_id": gpu_id,
+            "resident_model": worker.monte_carlo.resident_model,
+            "switch_transition": {
+                "initial_workload": "MONTE_CARLO_RISK_SIMULATION",
+                "preemption_latency_ms": switch_latency_ms,
+                "switched_to": "LLM_INFERENCE",
+                "inference_completion": completion.content,
+                "tokens_generated": completion.output_tokens,
+                "inference_latency_ms": inf_latency_ms,
+                "restoration_latency_ms": res_latency_ms,
+                "final_workload": "MONTE_CARLO_RISK_SIMULATION",
+                "total_preempt_and_resume_overhead_ms": round(switch_latency_ms + res_latency_ms, 2),
+                "idle_waste_seconds": 0.0,
+            },
+            "monte_carlo_telemetry": {
+                "paths_before_switch": pre_metrics["risk_simulation"]["paths_simulated"],
+                "paths_after_resume": post_metrics["risk_simulation"]["paths_simulated"],
+                "paths_per_second": post_metrics["risk_simulation"]["throughput_paths_per_sec"],
+                "value_at_risk_99": post_metrics["risk_simulation"]["value_at_risk_99"],
+            },
+        }
 
     return app
 

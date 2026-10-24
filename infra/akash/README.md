@@ -58,7 +58,40 @@ The deployment specification in `infra/akash/deploy.yaml` defines a container ru
 
 ```bash
 # Deploy with the akt CLI configured for console-api:
-akt deployment create infra/akash/deploy.yaml
+akt deploy infra/akash/deploy.yaml
 ```
 
 The deployed endpoint can then be linked into Moonshift Compute by pointing `GPU_B_VLLM_URL` or `VLLM_URL` to the Akash provider ingress hostname.
+
+---
+
+## 4. Akash CLI (akt) Commands & Secure Key Storage
+
+The `akt` CLI is installed on this machine (`/opt/homebrew/bin/akt`) and configured with context `console` (`--deploy-via console`).
+
+### Essential CLI Commands
+
+```bash
+# Query network-wide GPU availability and pricing (no API key required):
+akt console gpu
+
+# Browse online decentralized providers:
+akt console provider list
+
+# Run the automated Moonshift Akash integration script:
+python3 infra/akash/akash_cli.py
+
+# Deploy a workload using an SDL specification:
+akt deploy infra/akash/deploy.yaml
+```
+
+### Security & Secret Isolation Rules
+
+1. **Private Keys & API Keys**:
+   - Never commit `AKASH_API_KEY`, seeds, or AWS bearer tokens to git.
+   - The `.env` file is gitignored. Always verify with `git status`.
+2. **Mac Keychain & Environment Variables**:
+   - Akash Console API keys can be passed via `export AKT_CONSOLE_API_KEY="..."` or stored in `.env`.
+   - On macOS, `akt context` uses the native OS keychain for local keyrings.
+3. **Automated Audit**:
+   - `infra/akash/akash_cli.py` masks all secret strings during stdout and never exposes unmasked tokens.

@@ -1,5 +1,6 @@
 import { CodeSample } from "@/components/CodeSample";
 import { PlaygroundTry } from "@/components/PlaygroundTry";
+import { InstantSwitchCard } from "@/components/InstantSwitchCard";
 
 export default function PlaygroundPage() {
   return (
@@ -13,6 +14,7 @@ export default function PlaygroundPage() {
           <CodeSample />
           <PlaygroundTry />
         </div>
+        <InstantSwitchCard />
       </div>
     </main>
   );

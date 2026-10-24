@@ -13,6 +13,7 @@ from typing import Literal
 
 from .config import Settings
 from .models import BookingRequest, ComputeError
+from .monte_carlo import MonteCarloRiskEngine
 
 
 GpuState = Literal["READY", "SERVING", "DRAINING", "BOOKED", "OFFLINE"]
@@ -137,6 +138,17 @@ class GpuSupervisor:
         self._history: list[dict[str, object]] = []
         self._offline = False
 
+        total_vram = 80.0 if "b" in gpu_id.lower() else 16.0
+        model_vram = 28.5 if "b" in gpu_id.lower() else 3.5
+        resident = "Qwen/Qwen2.5-32B-Instruct" if "b" in gpu_id.lower() else self.model
+        self.monte_carlo = MonteCarloRiskEngine(
+            gpu_id=gpu_id,
+            resident_model=resident,
+            total_vram_gb=total_vram,
+            model_vram_gb=model_vram,
+            target_paths_per_sec=500_000.0 if "b" in gpu_id.lower() else 250_000.0,
+        )
+
     async def load_snapshot(self) -> None:
         """Restore future bookings after a service restart.
 
@@ -227,6 +239,7 @@ class GpuSupervisor:
                 predicted_end=now + timedelta(seconds=runtime_seconds),
                 booking_id=None,
             )
+            await self.monte_carlo.preempt(f"PUBLIC_INFERENCE_{request_id}")
 
     async def admit_booked(self, request_id: str, redemption_id: str, holder: str, runtime_seconds: float) -> str:
         async with self._lock:
@@ -248,6 +261,7 @@ class GpuSupervisor:
                 predicted_end=now + timedelta(seconds=runtime_seconds),
                 booking_id=booking.booking_id,
             )
+            await self.monte_carlo.preempt(f"BOOKED_INFERENCE_{booking.booking_id}")
             return booking.booking_id
 
     async def matching_active_booking(self, redemption_id: str, holder: str) -> bool:
@@ -272,6 +286,8 @@ class GpuSupervisor:
                 cutoff = utc_now() - timedelta(hours=2)
                 self._history = [item for item in self._history if item["end"] >= cutoff]
             self._persist_unlocked()
+            if not self._inflight and not self._active_booking_unlocked(utc_now()):
+                await self.monte_carlo.resume()
             return inflight
 
     async def add_booking(self, request: BookingRequest) -> Booking:
@@ -379,6 +395,7 @@ class GpuSupervisor:
                 "simulated": self.simulated,
                 "tokens_per_sec": self.tokens_per_sec,
                 "utilization_pct_1h": round(min(seconds_busy / 36.0, 100.0), 2),
+                "monte_carlo": self.monte_carlo.metrics(),
             }
 
     async def revenue(
@@ -478,6 +495,11 @@ class Scheduler:
 
     async def load(self) -> None:
         await asyncio.gather(*(worker.load_snapshot() for worker in self.workers.values()))
+        for worker in self.workers.values():
+            worker.monte_carlo.start()
+
+    async def close(self) -> None:
+        await asyncio.gather(*(worker.monte_carlo.stop() for worker in self.workers.values()))
 
     def worker(self, gpu_id: str) -> GpuSupervisor:
         try:
