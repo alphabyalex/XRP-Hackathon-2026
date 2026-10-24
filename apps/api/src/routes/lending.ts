@@ -95,7 +95,11 @@ lendingRouter.get(
 // Loans (borrowers)
 // ---------------------------------------------------------------------------
 
+// principal may be "max": the largest amount risk approves for the collateral.
 lendingRouter.post("/loans/quote", handle(async (req) => svc.buildQuote(req.body as LoanQuoteApiRequest)));
+
+// The borrower's cached credit profile on the lending network.
+lendingRouter.get("/loans/profile/:borrower", handle(async (req) => svc.borrowerProfile(req.params.borrower)));
 
 // The quote's Bedrock memo, written in the background. ?wait=ms long-polls up to 14 s.
 lendingRouter.get(

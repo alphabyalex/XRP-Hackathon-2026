@@ -30,6 +30,7 @@ import * as credit from "../adapters/creditClient.js";
 import * as risk from "../adapters/riskClient.js";
 import * as pricing from "../adapters/pricingClient.js";
 import * as compute from "../adapters/computeClient.js";
+import { swr, timed } from "./swr.js";
 
 export class LendingError extends Error {
   constructor(
@@ -72,8 +73,11 @@ export function oracleHistory(gpuId: string, from?: string, to?: string): PriceP
   return rows.map((r) => ({ timestamp: r.ts, price: r.price }));
 }
 
+// Quotes read the oracle through a 5 s cache; stress and restore drop it.
+const oracleCache = swr<Awaited<ReturnType<typeof lending.oraclePrice>>>("oracle", 5_000, 5_000);
+
 async function collateralPrice(gpuId: GpuId) {
-  const o = await lending.oraclePrice(gpuId);
+  const o = await oracleCache.get(gpuId, () => lending.oraclePrice(gpuId));
   const hist = oracleHistory(gpuId, new Date(Date.now() - 7 * 86400e3).toISOString());
   if (!hist.length || hist[hist.length - 1].price !== o.price) recordOracle(gpuId, o.price, o.source === "live" ? "ledger" : "mock");
   const history = oracleHistory(gpuId, new Date(Date.now() - 7 * 86400e3).toISOString());
@@ -95,28 +99,54 @@ export function xls66Terms(termSeconds: number, riskInterval: number, aprFractio
   };
 }
 
+// The borrower's credit profile on its own (cached), so /borrow can show the
+// score before the quote is back.
+export async function borrowerProfile(borrower: string) {
+  const { profile, source } = await credit.getProfile(CREDIT_NETWORK(), lending.addressOf(borrower), lending.nameOf(borrower));
+  return { ...profile, dataSource: source };
+}
+
+// A loan must mature before its vault round's redemption date (the ledger
+// rejects LoanSet with tecNO_PERMISSION otherwise), so cap the term. The cap
+// is rounded down to the hour: a term that moved every second made every
+// quote (and its memo cache key) unique.
+async function lendingTerm(requested?: number) {
+  const round = (await timed("vault", lending.vaultOverview())).investing;
+  if (!round) throw new LendingError("NO_LENDING_ROUND", "No vault round is lending right now. The next round opens shortly.", 409);
+  const roundLeft = Math.floor((new Date(round.redemptionDate).getTime() - Date.now()) / 1000) - 3 * 3600;
+  const termSeconds = Math.max(120, Math.min(Math.floor(requested ?? DEFAULT_TERM_SECONDS), Math.floor(roundLeft / 3600) * 3600));
+  return { round, termSeconds };
+}
+
+// Everything risk needs besides the principal, read in parallel.
+async function riskInputs(gpuId: GpuId, address: string, name: AccountName | undefined) {
+  const [{ profile, source: creditSource }, oracle, nav] = await Promise.all([
+    timed("credit profile", credit.getProfile(CREDIT_NETWORK(), address, name)),
+    timed("oracle", collateralPrice(gpuId)),
+    timed("nav", pricing.getNav(gpuId).catch(() => null)),
+  ]);
+  const revenue24h = Number(nav?.trailing_revenue_24h ?? 48.2);
+  const { buckets, source: revenueSource } = await timed("revenue", compute.getRevenueHistory(gpuId, 24, revenue24h));
+  return { profile, creditSource, oracle, buckets, revenueSource };
+}
+
 export async function buildQuote(req: LoanQuoteApiRequest): Promise<LoanQuoteApiResponse> {
   const gpu = GPUS.find((g) => g.id === req.gpuId);
   if (!gpu) throw new LendingError("BAD_REQUEST", `unknown gpuId ${req.gpuId}`);
+  // principal "max": quote the largest amount risk approves (what /borrow opens on).
+  if (req.principal === "max" && Number(req.collateralShares) > 0) {
+    const { maxPrincipal } = await timed("max", maxApprovedPrincipal(req));
+    req = { ...req, principal: Number(maxPrincipal) > 0 ? maxPrincipal : "1.00" };
+  }
   if (!(Number(req.collateralShares) > 0) || !(Number(req.principal) > 0)) {
     throw new LendingError("BAD_REQUEST", "collateralShares and principal must be positive");
   }
   const name = lending.nameOf(req.borrower);
   const address = lending.addressOf(req.borrower);
-  // A loan must mature before its vault round's redemption date (the ledger
-  // rejects LoanSet with tecNO_PERMISSION otherwise), so cap the term.
-  const round = (await lending.vaultOverview()).investing;
-  if (!round) throw new LendingError("NO_LENDING_ROUND", "No vault round is lending right now. The next round opens shortly.", 409);
-  const roundLeft = Math.floor((new Date(round.redemptionDate).getTime() - Date.now()) / 1000) - 3 * 3600;
-  const termSeconds = Math.max(120, Math.min(Math.floor(req.termSeconds ?? DEFAULT_TERM_SECONDS), roundLeft));
-
-  const [{ profile, source: creditSource }, oracle, nav] = await Promise.all([
-    credit.getProfile(CREDIT_NETWORK(), address, name),
-    collateralPrice(gpu.id),
-    pricing.getNav(gpu.id).catch(() => null),
+  const [{ termSeconds }, { profile, creditSource, oracle, buckets, revenueSource }] = await Promise.all([
+    lendingTerm(req.termSeconds),
+    riskInputs(gpu.id, address, name),
   ]);
-  const revenue24h = Number(nav?.trailing_revenue_24h ?? 48.2);
-  const { buckets, source: revenueSource } = await compute.getRevenueHistory(gpu.id, 24, revenue24h);
 
   const riskReq = {
     borrower: address,
@@ -129,7 +159,7 @@ export async function buildQuote(req: LoanQuoteApiRequest): Promise<LoanQuoteApi
     collateralPrice: oracle.price,
     collateralPriceHistory: oracle.history,
   };
-  const { quote, source: riskSource } = await risk.quote(riskReq);
+  const { quote, source: riskSource } = await timed("risk quote", risk.quote(riskReq));
   // The memo is written in the background: the quote returns now and /borrow
   // shows APR, LTV and the lines immediately, then picks the memo up from
   // GET /loans/quote/:id/memo. Identical inputs reuse one Bedrock call.
@@ -182,7 +212,7 @@ export async function buildQuote(req: LoanQuoteApiRequest): Promise<LoanQuoteApi
 // ---------------------------------------------------------------------------
 
 type MemoReq = Parameters<typeof pricing.creditMemo>[0];
-const MEMO_TTL_MS = 15 * 60 * 1000;
+const MEMO_TTL_MS = 60 * 60 * 1000;
 const memoInflight = new Map<string, { at: number; p: Promise<AgentText> }>();
 const memoReady = new Map<string, AgentText>();
 const memoByQuote = new Map<string, Promise<AgentText>>();
@@ -223,7 +253,11 @@ export async function quoteMemo(quoteId: string, waitMs = 0): Promise<{ status: 
 
 // Largest principal risk approves for this collateral. Approval depends on
 // the principal itself (dividend coverage falls as the loan grows), so this
-// searches the risk model directly; no memo, no stored quote.
+// searches the risk model directly; no memo, no stored quote. The search is
+// about 15 risk calls, so its result is kept per exact set of risk inputs
+// (any change in profile, price, revenue or vault gives a new key).
+const maxCache = swr<{ maxPrincipal: string; collateralValue: string; termSeconds: number }>("max", 30 * 60_000, 30 * 60_000);
+
 export async function maxApprovedPrincipal(req: { borrower: string; gpuId: string; collateralShares: string; termSeconds?: number }) {
   const gpu = GPUS.find((g) => g.id === req.gpuId);
   if (!gpu) throw new LendingError("BAD_REQUEST", `unknown gpuId ${req.gpuId}`);
@@ -231,16 +265,7 @@ export async function maxApprovedPrincipal(req: { borrower: string; gpuId: strin
   if (!(shares > 0)) throw new LendingError("BAD_REQUEST", "collateralShares must be positive");
   const name = lending.nameOf(req.borrower);
   const address = lending.addressOf(req.borrower);
-  const round = (await lending.vaultOverview()).investing;
-  if (!round) throw new LendingError("NO_LENDING_ROUND", "No vault round is lending right now. The next round opens shortly.", 409);
-  const roundLeft = Math.floor((new Date(round.redemptionDate).getTime() - Date.now()) / 1000) - 3 * 3600;
-  const termSeconds = Math.max(120, Math.min(Math.floor(req.termSeconds ?? DEFAULT_TERM_SECONDS), roundLeft));
-  const [{ profile }, oracle, nav] = await Promise.all([
-    credit.getProfile(CREDIT_NETWORK(), address, name),
-    collateralPrice(gpu.id),
-    pricing.getNav(gpu.id).catch(() => null),
-  ]);
-  const { buckets } = await compute.getRevenueHistory(gpu.id, 24, Number(nav?.trailing_revenue_24h ?? 48.2));
+  const [{ round, termSeconds }, { profile, oracle, buckets }] = await Promise.all([lendingTerm(req.termSeconds), riskInputs(gpu.id, address, name)]);
   const base = {
     borrower: address,
     gpuId: gpu.id,
@@ -251,11 +276,16 @@ export async function maxApprovedPrincipal(req: { borrower: string; gpuId: strin
     collateralPrice: oracle.price,
     collateralPriceHistory: oracle.history,
   };
-  const approves = async (principal: number) => (await risk.quote({ ...base, principal: fix6(principal) })).quote.decision === "approve";
   const cap = Math.min(shares * Number(oracle.price), Number(round.assetsAvailable));
+  const key = createHash("sha256").update(JSON.stringify([base, cap])).digest("hex");
+  return maxCache.get(key, () => searchMax(base, shares, oracle.price, cap, termSeconds));
+}
+
+async function searchMax(base: Omit<Parameters<typeof risk.quote>[0], "principal">, shares: number, price: string, cap: number, termSeconds: number) {
+  const approves = async (principal: number) => (await risk.quote({ ...base, principal: fix6(principal) })).quote.decision === "approve";
   let lo = 0;
   let hi = cap;
-  if (!(await approves(1))) return { maxPrincipal: "0.00", collateralValue: fix6(shares * Number(oracle.price)), termSeconds };
+  if (!(await approves(1))) return { maxPrincipal: "0.00", collateralValue: fix6(shares * Number(price)), termSeconds };
   lo = 1;
   for (let i = 0; i < 14 && hi - lo > 0.5; i++) {
     const mid = (lo + hi) / 2;
@@ -263,7 +293,7 @@ export async function maxApprovedPrincipal(req: { borrower: string; gpuId: strin
     else hi = mid;
   }
   // Whole USDC, a little under the edge so rounding never flips it to decline.
-  return { maxPrincipal: Math.max(0, Math.floor(lo * 0.99)).toFixed(2), collateralValue: fix6(shares * Number(oracle.price)), termSeconds };
+  return { maxPrincipal: Math.max(0, Math.floor(lo * 0.99)).toFixed(2), collateralValue: fix6(shares * Number(price)), termSeconds };
 }
 
 // ---------------------------------------------------------------------------
@@ -402,6 +432,7 @@ export async function openFromQuote(quoteId: string): Promise<XlsLoanRecord> {
   broadcast("loan", { id: opened.loanId, type: "opened", status: "open", borrower: name, txs: { escrow: opened.escrowTx.hash, loanSet: opened.loanSetTx.hash } });
   broadcast("vault", { round: opened.round });
 
+  credit.invalidateProfile(CREDIT_NETWORK(), q.borrowerAddress);
   const ledger = opened.loan;
   void credit.watch(CREDIT_NETWORK(), q.borrowerAddress, [
     { loanId: opened.loanId, dueAt: ledger?.nextPaymentDueDate ?? new Date(Date.now() + q.terms.paymentIntervalSeconds * 1000).toISOString(), principal: q.principal },
@@ -422,6 +453,7 @@ export async function repay(id: string, mode: "full" | "next" = "full"): Promise
   for (const t of res.payments) logTx(t as TxResult, "loan.pay", r.borrower, `${r.borrower} paid loan ${id.slice(0, 8)} (XLS-66 LoanPay)`);
   if (res.releaseTx) logTx(res.releaseTx as TxResult, "loan.release", r.borrower, `collateral returned to ${r.borrower} (Batch EscrowFinish + Payment)`);
   if (res.paidOff) setStatus(id, "repaid");
+  credit.invalidateProfile(CREDIT_NETWORK(), r.borrowerAddress);
   broadcast("loan", { id, type: res.paidOff ? "repaid" : "paid", status: res.paidOff ? "repaid" : r.status, txs: { pay: res.hash, release: res.releaseTx?.hash ?? null } });
   broadcast("vault", { round: r.round });
   return (await loanRecord(id))!;
@@ -518,6 +550,7 @@ async function marginCallLocked(id: string, body: KeeperActionBody, via: string)
   saveAction(body.idempotencyKey, id, "margin_call", tx, body);
   addTx(id, "marginCall", tx);
   setStatus(id, "margin_call", { margin_call_at: body.occurredAt || new Date().toISOString() });
+  credit.invalidateProfile(CREDIT_NETWORK(), r.borrowerAddress);
   logTx(tx, "loan.margin_call", r.borrower, `margin call on loan ${id.slice(0, 8)} at ${(Number(body.observedLtv) * 100).toFixed(1)}% LTV (${via})`);
   const alert = await alertFor("margin_call", r, body.observedLtv);
   broadcast("loan", { id, type: "margin_call", status: "margin_call", ltv: body.observedLtv, threshold: body.threshold, tx: tx.hash, alert, via });
@@ -542,6 +575,7 @@ async function liquidateLocked(id: string, body: KeeperActionBody, via: string) 
     liquidated_at: body.occurredAt || new Date().toISOString(),
     default_eligible_at: res.defaultEligibleAt,
   });
+  credit.invalidateProfile(CREDIT_NETWORK(), r.borrowerAddress);
   if (res.seizeTx) logTx(res.seizeTx as TxResult, "loan.liquidate", r.borrower, `collateral seized on loan ${id.slice(0, 8)} at ${(Number(body.observedLtv) * 100).toFixed(1)}% LTV (${via})`);
   if (res.defaultTx) logTx(res.defaultTx as TxResult, "loan.default", r.borrower, `loan ${id.slice(0, 8)} defaulted on the XLS-66 ledger`);
   const alert = await alertFor("liquidation", r, body.observedLtv);
@@ -642,6 +676,7 @@ async function stressRun(p: { gpuId: GpuId; level?: "margin_call" | "liquidation
   }
   target = Math.max(0.000001, target);
   const oracleTx = await lending.publishPrice(gpu.id, fix6(target));
+  oracleCache.invalidate(gpu.id);
   recordOracle(gpu.id, fix6(target), "stress", oracleTx.hash);
   logTx(oracleTx, "oracle.stress", "ORACLE", `stress test: ${gpu.id.toUpperCase()} oracle price ${before} -> ${fix6(target)}`);
   broadcast("risk", { type: "price_shock", gpuId: gpu.id, priceBefore: before, priceAfter: fix6(target), tx: oracleTx.hash });
@@ -685,6 +720,7 @@ async function stressRun(p: { gpuId: GpuId; level?: "margin_call" | "liquidation
 export async function restorePrice(gpuId: GpuId): Promise<{ price: string; tx: TxResult }> {
   const price = preStressPrice.get(gpuId) ?? "5.250000";
   const tx = await lending.publishPrice(gpuId, price);
+  oracleCache.invalidate(gpuId);
   recordOracle(gpuId, price, "restore", tx.hash);
   preStressPrice.delete(gpuId);
   broadcast("risk", { type: "price_restore", gpuId, price, tx: tx.hash });

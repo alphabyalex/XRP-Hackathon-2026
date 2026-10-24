@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import type {
   AgentText,
   BookStats,
+  CreditProfile,
   CreditStats,
   LoanQuoteApiResponse,
   StressResult,
@@ -22,9 +23,12 @@ export const getPositions = (account: string) =>
 export const deposit = (lender: string, amount: string) => post<{ round: number; tx: TxResult }>("/vault/deposit", { lender, amount });
 export const withdraw = (lender: string, amount: string) => post<{ round: number; tx: TxResult }>("/vault/withdraw", { lender, amount });
 
-export const quoteLoan = (borrower: string, gpuId: string, collateralShares: string, principal: string) =>
-  post<LoanQuoteApiResponse>("/loans/quote", { borrower, gpuId, collateralShares, principal });
+// principal "max" quotes the largest amount risk approves.
+export const quoteLoan = (borrower: string, gpuId: string, collateralShares: string, principal: string, init?: RequestInit) =>
+  apiFetch<LoanQuoteApiResponse>("/loans/quote", { ...init, method: "POST", body: JSON.stringify({ borrower, gpuId, collateralShares, principal }) });
 export const creditStats = () => apiFetch<CreditStats>("/credit/stats");
+// The borrower's cached credit profile, so the score can show before the quote.
+export const borrowerProfile = (borrower: string) => apiFetch<CreditProfile & { dataSource: string }>(`/loans/profile/${encodeURIComponent(borrower)}`);
 export const maxPrincipal = (borrower: string, gpuId: string, collateralShares: string) =>
   post<{ maxPrincipal: string; collateralValue: string; termSeconds: number }>("/loans/max", { borrower, gpuId, collateralShares });
 // Long-polls the quote's Bedrock memo (the api holds the request up to waitMs).
@@ -45,7 +49,7 @@ export const bookStats = (grade?: string) =>
 // Explorer link for a hash on the loan's network; mock hashes have none.
 export function txUrl(network: string, hash?: string | null): string | null {
   if (!hash || hash.startsWith("MOCK") || network === "mock") return null;
-  const base = network === "testnet" ? "https://testnet.xrpl.org" : "https://devnet.xrpl.org";
+  const base = network === "mainnet" ? "https://livenet.xrpl.org" : network === "testnet" ? "https://testnet.xrpl.org" : "https://devnet.xrpl.org";
   return `${base}/transactions/${hash}`;
 }
 

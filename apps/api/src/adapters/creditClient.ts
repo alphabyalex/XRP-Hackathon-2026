@@ -8,6 +8,7 @@ import type { CreditFeature, CreditProfile, CreditStats, DataSource, RiskCreditP
 import { mockFlag } from "../env.js";
 import { serviceJson, noteSource, ServiceUnavailable } from "./serviceFetch.js";
 import { db } from "../db/db.js";
+import { swr } from "../lending/swr.js";
 
 const CREDIT_URL = () => process.env.CREDIT_URL ?? "http://localhost:7100";
 
@@ -90,11 +91,22 @@ export function mockProfile(network: string, address: string, accountName?: stri
   };
 }
 
-export async function getProfile(
-  network: string,
-  address: string,
-  accountName?: string
-): Promise<{ profile: CreditProfile; source: DataSource }> {
+// The combined profile reads devnet and linked mainnet history. Served from
+// cache: refreshed in the background at most every 60 s, kept up to 30 min so
+// a borrower's page never waits on a full history read. Fallbacks are not kept.
+const profileCache = swr<{ profile: CreditProfile; source: DataSource }>("credit-profile", 60_000, 30 * 60_000, (r) => r.source === "live");
+
+export function getProfile(network: string, address: string, accountName?: string): Promise<{ profile: CreditProfile; source: DataSource }> {
+  if (mockFlag("MOCK_CREDIT")) return readProfile(network, address, accountName);
+  return profileCache.get(`${network}:${address}`, () => readProfile(network, address, accountName));
+}
+
+// A loan event changes the borrower's Moonshift history: read it fresh next time.
+export function invalidateProfile(network: string, address: string): void {
+  profileCache.invalidate(`${network}:${address}`);
+}
+
+async function readProfile(network: string, address: string, accountName?: string): Promise<{ profile: CreditProfile; source: DataSource }> {
   if (mockFlag("MOCK_CREDIT")) {
     noteSource("credit", "mock");
     return { profile: mockProfile(network, address, accountName), source: "mock" };

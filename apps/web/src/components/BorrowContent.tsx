@@ -2,10 +2,10 @@
 // /borrow: credit profile, live risk quote, Bedrock memo, then a real XLS-66
 // loan on devnet with GPU shares escrowed. Loan health updates live.
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AgentText, CreditStats, LoanQuoteApiResponse, PortfolioResponse, XlsLoanRecord } from "@moonshift/shared";
+import type { AgentText, CreditProfile, CreditStats, LoanQuoteApiResponse, PortfolioResponse, XlsLoanRecord } from "@moonshift/shared";
 import { getPortfolio } from "@/lib/api";
 import { fmt, shortHash, typedAmount } from "@/lib/format";
-import { creditStats, listLoans, maxPrincipal, openFromQuote, payNext, payOff, pct, quoteLoan, quoteMemo, txUrl, useApiEvents } from "@/lib/lendingApi";
+import { borrowerProfile, creditStats, listLoans, openFromQuote, payNext, payOff, pct, quoteLoan, quoteMemo, txUrl, useApiEvents } from "@/lib/lendingApi";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
 import { HealthMeter, LoanTxs, StatusChip, StressControls, TxLink } from "./LendingBits";
@@ -42,20 +42,25 @@ function until(iso: string | null | undefined, now: number) {
 
 export function BorrowContent({
   initialPortfolio,
+  initialQuote,
+  defaultShares,
   gpuId,
   gpuLabel,
 }: {
   initialPortfolio: PortfolioResponse;
+  initialQuote: LoanQuoteApiResponse | null;
+  defaultShares: string;
   gpuId: string;
   gpuLabel: string;
   sharePrice: number;
 }) {
   const [portfolio, setPortfolio] = useState(initialPortfolio);
-  const [shares, setShares] = useState("100");
-  const [principal, setPrincipal] = useState("");
+  const [shares, setShares] = useState(defaultShares);
+  const [principal, setPrincipal] = useState(initialQuote ? String(Number(initialQuote.principal)) : "");
   // Until the borrower types an amount, it follows the largest approved one.
   const [amountTouched, setAmountTouched] = useState(false);
-  const [quote, setQuote] = useState<LoanQuoteApiResponse | null>(null);
+  const [quote, setQuote] = useState<LoanQuoteApiResponse | null>(initialQuote);
+  const [profile, setProfile] = useState<CreditProfile | null>(null);
   const [quoteErr, setQuoteErr] = useState<string | null>(null);
   const [quoting, setQuoting] = useState(false);
   const [loans, setLoans] = useState<XlsLoanRecord[]>([]);
@@ -67,6 +72,8 @@ export function BorrowContent({
   const [requote, setRequote] = useState(0);
   const toast = useToast();
   const seq = useRef(0);
+  // The request the quote on screen answers; the server-rendered quote counts.
+  const lastAsked = useRef(initialQuote ? `${defaultShares}|max|${gpuId}|0` : "");
 
   const held = Number(portfolio.shares.find((s) => s.gpuId === gpuId)?.qty ?? 0);
   const code = `${gpuLabel} shares`;
@@ -77,45 +84,53 @@ export function BorrowContent({
     if (l) setLoans(l.loans);
   }, []);
 
-  // Default the amount to the largest one risk approves for these shares.
+  // If the server could not render a quote, show the score as soon as the
+  // (cached) profile arrives, while the quote is still on its way.
   useEffect(() => {
-    if (amountTouched || !(Number(shares) > 0)) return;
+    if (initialQuote) return;
     let alive = true;
-    const t = setTimeout(() => {
-      maxPrincipal(ACCOUNT, gpuId, String(Number(shares)))
-        .then((m) => {
-          if (alive && !amountTouched) setPrincipal(Number(m.maxPrincipal) > 0 ? String(Number(m.maxPrincipal)) : "1");
-        })
-        .catch(() => alive && !amountTouched && setPrincipal((p) => p || "50"));
-    }, 300);
+    borrowerProfile(ACCOUNT)
+      .then((p) => alive && setProfile(p))
+      .catch(() => {});
     return () => {
       alive = false;
-      clearTimeout(t);
     };
-  }, [shares, gpuId, amountTouched, requote]);
+  }, [initialQuote]);
 
-  // Live quote, debounced. Stale responses are dropped.
+  // Live quote. Until the borrower types an amount, one request asks for the
+  // largest approved amount ("max") and fills the field from the answer.
+  // The first request goes out at once; later ones are debounced. Stale
+  // responses are dropped.
+  const want = amountTouched ? principal : "max";
   useEffect(() => {
     const s = Number(shares);
-    const p = Number(principal);
-    if (!(s > 0) || !(p > 0)) return;
+    if (!(s > 0) || (want !== "max" && !(Number(want) > 0))) return;
+    const key = `${s}|${want}|${gpuId}|${requote}`;
+    if (key === lastAsked.current) return;
+    const first = lastAsked.current === "";
+    lastAsked.current = key;
     const mine = ++seq.current;
     setQuoting(true);
     const t = setTimeout(async () => {
       try {
-        const q = await quoteLoan(ACCOUNT, gpuId, String(s), String(p));
+        const q = await quoteLoan(ACCOUNT, gpuId, String(s), want);
         if (mine === seq.current) {
           setQuote(q);
           setQuoteErr(null);
+          if (want === "max") setPrincipal(String(Number(q.principal)));
         }
       } catch (e) {
         if (mine === seq.current) setQuoteErr((e as Error).message);
       } finally {
         if (mine === seq.current) setQuoting(false);
       }
-    }, 450);
-    return () => clearTimeout(t);
-  }, [shares, principal, gpuId, requote]);
+    }, first ? 0 : want === "max" ? 300 : 450);
+    return () => {
+      clearTimeout(t);
+      // React may run this effect twice on mount; let the rerun ask again.
+      if (lastAsked.current === key) lastAsked.current = first ? "" : "cancelled";
+    };
+  }, [shares, want, gpuId, requote]);
 
   // The credit memo arrives after the quote: show the quote now, the memo when Bedrock is done.
   useEffect(() => {
@@ -208,7 +223,7 @@ export function BorrowContent({
   const q = quote?.quote;
   const active = loans.filter((l) => l.status === "open" || l.status === "margin_call");
   const past = loans.filter((l) => !(l.status === "open" || l.status === "margin_call")).slice(0, 6);
-  const credit = quote?.credit;
+  const credit = quote?.credit ?? profile;
   const topFactors = credit
     ? Object.entries(credit.features)
         .filter(([, f]) => f.points !== 0)
@@ -245,7 +260,6 @@ export function BorrowContent({
                     <div key={k}>
                       <span>
                         {FACTOR_TEXT[k] ?? k}
-                        {f.from && <em className="from">{f.from}</em>}
                       </span>
                       <b className={f.points < 0 ? "dn" : "up"}>
                         {f.points > 0 ? "+" : ""}
@@ -256,7 +270,7 @@ export function BorrowContent({
                           .filter((h) => !/^0+[0-9]$/.test(h))
                           .slice(0, 1)
                           .map((h) => {
-                            const url = txUrl(credit.network, h);
+                            const url = txUrl(f.from ?? credit.network, h);
                             return url ? (
                               <a key={h} className="txl" href={url} target="_blank" rel="noreferrer">
                                 {shortHash(h)}
@@ -273,7 +287,7 @@ export function BorrowContent({
                       <div key={c.part}>
                         <b>{c.part}</b>
                         <span>
-                          {c.source === "quicknode" ? `Read through Quicknode (XRPL ${c.network})` : `XRPL ${c.network}`} · {shortHash(c.address)}
+                          {c.source === "quicknode" ? "Read through Quicknode" : `XRPL ${c.network}`} · {shortHash(c.address)}
                         </span>
                         {c.ownership && !c.ownership.verified && <span className="unverified">Ownership not verified</span>}
                       </div>

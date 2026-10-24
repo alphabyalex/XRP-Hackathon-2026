@@ -24,7 +24,23 @@ export class ApiUnreachableError extends Error {
   }
 }
 
+// NEXT_PUBLIC_DEBUG_TIMING=1 logs start, end and duration of every api call.
+const DEBUG_TIMING = process.env.NEXT_PUBLIC_DEBUG_TIMING === "1";
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  if (!DEBUG_TIMING) return apiFetchRaw<T>(path, init);
+  const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const name = `${init?.method ?? "GET"} ${path.split("?")[0]}`;
+  console.log(`[timing] ${name} start ${Math.round(t0)} ms`);
+  try {
+    return await apiFetchRaw<T>(path, init);
+  } finally {
+    const t1 = typeof performance !== "undefined" ? performance.now() : Date.now();
+    console.log(`[timing] ${name} end ${Math.round(t1)} ms (${Math.round(t1 - t0)} ms)`);
+  }
+}
+
+async function apiFetchRaw<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${path}`, {

@@ -73,16 +73,23 @@ export function LendContent() {
   const [err, setErr] = useState<string | null>(null);
   const toast = useToast();
 
+  // Each piece renders as soon as it arrives; the vault numbers do not wait on positions.
   const refresh = useCallback(async () => {
-    try {
-      const [v, l, p] = await Promise.all([getVault(), listLoans(), getPositions(LENDER)]);
-      setVault(v);
-      setLoans(l.loans);
-      setPositions(p.positions);
-      setErr(null);
-    } catch (e) {
-      setErr((e as Error).message);
-    }
+    const fail = (e: unknown) => setErr((e as Error).message);
+    await Promise.all([
+      getVault()
+        .then((v) => {
+          setVault(v);
+          setErr(null);
+        })
+        .catch(fail),
+      listLoans()
+        .then((l) => setLoans(l.loans))
+        .catch(fail),
+      getPositions(LENDER)
+        .then((p) => setPositions(p.positions))
+        .catch(fail),
+    ]);
   }, []);
 
   useEffect(() => {
