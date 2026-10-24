@@ -56,9 +56,15 @@
 - Stretch 1: GET /explain/{network}/{address}, the top three positive and
   negative factors with their tx hashes, computed from the same profile.
 
+- Stretch 2: two new scorecard features, msDividendsReceived (MS_DIVIDEND
+  payments) and msShareTrades (OfferCreate on GPA/GPB/HRA/HRB); scorecard
+  version 2026-10-24.2. Live on testnet ALICE: 4 on-time repayments, 5
+  dividends, 4 share trades; raw 61, capped to 60 (C, low) by the thin-file
+  rule because the account was funded today after the testnet reset.
+
 ## Next
-- Stretch 2: score a testnet address with Moonshift share trades and
-  dividends, so our own protocol activity feeds credit.
+- Improve tests and docs. Then, once a human sets the Quicknode env vars:
+  re-run the live checks with source "quicknode" and set up the Stream.
 
 ## Blockers
 - Streams needs a human in the Quicknode dashboard: create the Stream, paste

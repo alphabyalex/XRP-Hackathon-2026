@@ -113,6 +113,8 @@ A classic bank-style points card, fully transparent. Weights live in
 | `msRepaysLate` | Moonshift loans repaid late or overdue unpaid | 0+: +0, 1+: -8, 2+: -14, 4+: -20 |
 | `msMarginCalls` | Moonshift margin calls received (MS_MARGIN_CALL) | 0+: +0, 1+: -4, 3+: -8 |
 | `msLiquidations` | Moonshift collateral escrows claimed by the lender | 0+: +0, 1+: -20, 2+: -35 |
+| `msDividendsReceived` | Moonshift GPU dividends received (MS_DIVIDEND) | 0+: +0, 1+: +2, 5+: +4 |
+| `msShareTrades` | Moonshift GPU share and contract token trades (OfferCreate) | 0+: +0, 1+: +1, 5+: +2 |
 
 Each feature in a profile carries `value`, `points`, `reason` (a short code)
 and `txHashes` (the transactions behind it, up to three for volumes), so a
@@ -130,6 +132,9 @@ From the transactions `packages/xrpl` writes:
 - Margin call: a Payment to the borrower with memo `MS_MARGIN_CALL`.
 - Liquidation: an `EscrowFinish` of the borrower's collateral escrow by the
   lender.
+- Dividends: Payments to the borrower with memo `MS_DIVIDEND` (GPU revenue
+  paid to shareholders). Share trades: the borrower's `OfferCreate` on GPA,
+  GPB, HRA or HRB.
 - Older testnet loans use the pre-rename `GB_` memo names; they are read as
   their `MS_` equivalents.
 

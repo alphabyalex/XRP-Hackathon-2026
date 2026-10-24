@@ -113,3 +113,46 @@ def test_legacy_gb_memos_count_as_moonshift_memos():
             m["Memo"]["MemoData"] = raw.encode().hex().upper()
     f = F.extract(history(entries))
     assert (f["msRepaysOnTime"].value, f["msRepaysLate"].value) == (1, 0)
+
+
+def test_moonshift_dividends_and_share_trades_feed_credit():
+    from tests.fakes import entry, memo
+
+    base = old_active_entries()
+    gpa = {"currency": "GPA", "issuer": "rw9GnGPc5JQLF2uS4aJLeU9TAL5evz8LyT", "value": "10"}
+    extra = [
+        entry(
+            f"{i:064X}".replace("0", "9", 1),
+            "Payment",
+            "rUzFXKGtp6rtVbb7qon7Vw7fY5ZjRsbTrt",
+            "2026-10-01T00:00:00Z",
+            8000 + i,
+            destination=base[0]["tx"]["Destination"],
+            amount={"currency": "TDX", "issuer": "rppRGPmSSzP5pTo5XxFkKuTkKyDTeTyx5K", "value": "1.5"},
+            memos=memo({"type": "GB_DIVIDEND", "amount": "1.500000"}),
+        )
+        for i in range(5)
+    ] + [
+        entry(
+            "7" * 64,
+            "OfferCreate",
+            base[0]["tx"]["Destination"],
+            "2026-10-02T00:00:00Z",
+            8100,
+            TakerPays=gpa,
+            TakerGets="1000000",
+        ),
+        entry(
+            "6" * 64,
+            "OfferCreate",
+            base[0]["tx"]["Destination"],
+            "2026-10-02T00:00:00Z",
+            8101,
+            TakerPays={"currency": "USD", "issuer": "rIssuer", "value": "1"},
+            TakerGets="1",
+        ),
+    ]
+    with_activity = score_of(base + extra)
+    f = with_activity.features
+    assert (f["msDividendsReceived"]["value"], f["msShareTrades"]["value"]) == (5, 1)
+    assert with_activity.raw_points == score_of(base).raw_points + 4 + 1

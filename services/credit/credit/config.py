@@ -123,6 +123,9 @@ SSE_PING_SECONDS = 15
 MEMO_REPAY = "MS_REPAY"
 MEMO_LOAN_DISBURSE = "MS_LOAN_DISBURSE"
 MEMO_MARGIN_CALL = "MS_MARGIN_CALL"  # proposed, see request in docs/CONTRACTS.md
+MEMO_DIVIDEND = "MS_DIVIDEND"
+# GPU share and slot contract tokens (packages/shared GPUS: shareCode, contractCode).
+MOONSHIFT_TOKEN_CODES = frozenset({"GPA", "GPB", "HRA", "HRB"})
 # packages/xrpl sets CancelAfter = dueAt + 120 s on the collateral escrow.
 LOAN_CANCEL_GRACE_SECONDS = 120
 RIPPLE_EPOCH_OFFSET = 946684800

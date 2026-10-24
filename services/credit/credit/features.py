@@ -155,6 +155,12 @@ def extract(h: History) -> dict[str, Feature]:
             late.append(loan.loan_id)  # overdue and unpaid: point at the collateral escrow
     margin_calls = [t.hash for t in ok if t.memo(C.MEMO_MARGIN_CALL) and t.destination == a]
     liquidations = [lid for lid, loan in lo.items() if loan.liquidated]
+    dividends = [t.hash for t in payments if t.destination == a and t.memo(C.MEMO_DIVIDEND)]
+    share_trades = [
+        t.hash
+        for t in ok
+        if t.type == "OfferCreate" and t.account == a and _codes(t.tx) & C.MOONSHIFT_TOKEN_CODES
+    ]
 
     return {
         "accountAgeDays": age,
@@ -171,7 +177,14 @@ def extract(h: History) -> dict[str, Feature]:
         "msRepaysLate": Feature(len(late), sorted(late)),
         "msMarginCalls": Feature(len(margin_calls), sorted(margin_calls)),
         "msLiquidations": Feature(len(liquidations), sorted(liquidations)),
+        "msDividendsReceived": Feature(len(dividends), sorted(dividends)[:TOP_HASHES]),
+        "msShareTrades": Feature(len(share_trades), sorted(share_trades)[:TOP_HASHES]),
     }
+
+
+def _codes(tx: dict[str, Any]) -> set[str]:
+    """Issued currency codes on either side of an offer (XRP amounts are strings and have none)."""
+    return {amt["currency"] for amt in (tx.get("TakerGets"), tx.get("TakerPays")) if isinstance(amt, dict)}
 
 
 def open_loans(h: History) -> list[dict[str, Any]]:
