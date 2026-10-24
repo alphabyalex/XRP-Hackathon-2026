@@ -32,11 +32,15 @@ on `account_tx`, which we do not use).
   ledger at all; it only reads.
 - **Quicknode reads borrower history on Mainnet (read-only) and Testnet.**
   Devnet reads use the public devnet endpoint and are labeled `source: "public"`.
-- **Live monitoring uses a Quicknode WebSocket `subscribe` on `accounts`.**
-  Streams on XRPL only deliver whole ledgers, Webhooks need a public HTTPS
-  receiver, and both are ambiguous on our plan. A WebSocket subscription works
-  on every plan, needs no public URL, and pushes only the transactions that
-  touch our borrowers. See section 4.
+- **Live monitoring uses Quicknode Streams first, with a WebSocket fallback.**
+  Streams gives guaranteed delivery with retries, and it is a Quicknode product
+  rather than a generic node feature. On XRPL it only offers the whole-ledger
+  dataset, so a Streams filter function picks out borrower transactions. The
+  filter reads the borrower watchlist from the Quicknode Key-Value Store, which
+  the credit service keeps up to date. If Streams is not on our plan, or no
+  public receiver URL is available, `MONITOR_MODE=websocket` switches to a
+  Quicknode WebSocket `subscribe` on `accounts`. Both paths feed the same event
+  classifier. See section 4.
 - **Stay under 15 rps and the credit budget.** Every raw response is cached in
   SQLite, so repeat demo calls cost zero credits. Rate limit errors (HTTP 429,
   or rippled `slowDown`) are retried with exponential backoff.
@@ -61,4 +65,15 @@ Quicknode endpoint is configured (a boolean, never the URL).
 
 ## 4. Live monitoring (Phase 5)
 
-Filled in by Phase 5. See `services/credit/credit/monitor.py`.
+Further verified facts for the Streams design:
+
+| Question | Answer | Source |
+|---|---|---|
+| XRPL ledger payload | `data` is an array of ledgers shaped like the `ledger` RPC result: `ledger_index`, `ledger.close_time_iso`, and `ledger.transactions[]` expanded with `hash` and `metaData` | [docs/streams/data-sources/xrpl](https://www.quicknode.com/docs/streams/data-sources/xrpl) |
+| Filter functions | JavaScript `main(stream)`, `async` when using `qnLib`; return `null` to skip delivery | [docs/streams/filters](https://www.quicknode.com/docs/streams/filters) |
+| Watchlist in a filter | `await qnLib.qnContainsListItems(listId, items)` returns `boolean[]`, free inside filters | [docs/streams/filters/key-value-store](https://www.quicknode.com/docs/streams/filters/key-value-store) |
+| Updating the watchlist | Key-Value Store REST `https://api.quicknode.com/kv/rest/v1/lists`, header `x-api-key`, `POST /lists` to create, `POST /lists/{key}/items` to add | [KV REST OpenAPI](https://api.quicknode.com/kv/rest/openapi.json) |
+| Webhook signature | Headers `X-QN-Nonce`, `X-QN-Timestamp`, `X-QN-Signature`; HMAC-SHA256 with the stream's security token over `nonce + timestamp + payload`, hex digest | [validating Streams webhook messages](https://www.quicknode.com/guides/quicknode-products/streams/validating-incoming-streams-webhook-messages) |
+| Delivery | POST JSON, optional gzip, any non-2xx is retried, stream pauses after 3 failed retries by default | [docs/streams/destinations/webhooks](https://www.quicknode.com/docs/streams/destinations/webhooks) |
+
+Implementation details are filled in by Phase 5.

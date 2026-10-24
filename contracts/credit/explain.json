@@ -1,0 +1,23 @@
+{
+  "endpoint": "GET /explain/{network}/{address}",
+  "note": "Why this score. Top three positive and top three negative scorecard factors, ordered by absolute points, each with the tx hashes behind it. Same scoring run as GET /profile, so the numbers always match.",
+  "request": { "network": "mainnet", "address": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh" },
+  "response": {
+    "address": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "network": "mainnet",
+    "score": 74,
+    "grade": "B",
+    "confidence": "high",
+    "positive": [
+      { "feature": "accountAgeDays", "value": 1412, "points": 10, "reason": "ACCOUNT_AGE_3Y_PLUS", "text": "Account is 1412 days old", "txHashes": ["0000000000000000000000000000000000000000000000000000000000000001"] },
+      { "feature": "txCount", "value": 640, "points": 5, "reason": "TX_COUNT_200_PLUS", "text": "640 transactions on record", "txHashes": [] },
+      { "feature": "paymentVolumeInXrp", "value": "8420.500000", "points": 3, "reason": "VOLUME_IN_1K_PLUS", "text": "Received 8420.5 XRP in payments", "txHashes": ["0000000000000000000000000000000000000000000000000000000000000002"] }
+    ],
+    "negative": [
+      { "feature": "largestOutflowRatio", "value": 0.58, "points": -4, "reason": "LARGE_OUTFLOW_50PCT", "text": "Largest single payment sent was 58% of the balance before it", "txHashes": ["0000000000000000000000000000000000000000000000000000000000000005"] }
+    ],
+    "source": "quicknode",
+    "simulated": true,
+    "asOf": "2026-10-24T17:00:00Z"
+  }
+}

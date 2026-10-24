@@ -1,0 +1,28 @@
+{
+  "endpoint": "POST /link/challenge, POST /link/verify",
+  "note": "Proves a borrower controls a mainnet address before its history is used for their loans. The borrower signs the challenge message off-ledger with the mainnet key (no transaction is sent). Verified with xrpl-py: the public key must derive the mainnet address and the signature must match the message hex. Challenges expire after 10 minutes. Once verified, mainnet profiles for that address carry ownership.",
+  "challenge": {
+    "request": { "borrower": "rHu4dJcC3DALsgvprvekBt9dG3poU95Rzb", "mainnetAddress": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh" },
+    "response": {
+      "challengeId": "lc_3e9a1f",
+      "message": "Moonshift link: borrower rHu4dJcC3DALsgvprvekBt9dG3poU95Rzb controls rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh. Nonce 3e9a1f0c. Expires 2026-10-24T17:10:00Z",
+      "messageHex": "<hex of the UTF-8 message, this is what gets signed>",
+      "expiresAt": "2026-10-24T17:10:00Z"
+    }
+  },
+  "verify": {
+    "request": { "challengeId": "lc_3e9a1f", "publicKey": "<33-byte hex public key of the mainnet account>", "signature": "<hex signature over messageHex>" },
+    "response": {
+      "verified": true,
+      "borrower": "rHu4dJcC3DALsgvprvekBt9dG3poU95Rzb",
+      "mainnetAddress": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+      "verifiedAt": "2026-10-24T17:02:00Z"
+    },
+    "errors": {
+      "CHALLENGE_NOT_FOUND": "404, unknown or expired challengeId",
+      "KEY_ADDRESS_MISMATCH": "422, publicKey does not derive mainnetAddress",
+      "BAD_SIGNATURE": "422, signature does not verify"
+    }
+  },
+  "profileOwnershipField": { "ownership": { "verified": true, "borrower": "rHu4dJcC3DALsgvprvekBt9dG3poU95Rzb", "verifiedAt": "2026-10-24T17:02:00Z" } }
+}
