@@ -4,6 +4,9 @@ import * as pricing from "./adapters/pricingClient.js";
 import { db } from "./db/db.js";
 import { logTx } from "./db/helpers.js";
 import { broadcast } from "./sse.js";
+import * as svc from "./lending/service.js";
+import * as risk from "./adapters/riskClient.js";
+import { oraclePrice, lendingAvailable } from "./adapters/lendingAdapter.js";
 
 export function startBackgroundJobs(): void {
   // Refresh pricing NAV, hook point for a future cache. Keeps the pricing
@@ -58,4 +61,33 @@ export function startBackgroundJobs(): void {
       }
     }
   }, 30_000);
+
+  // XLS-66 lending: default liquidated loans once the ledger allows it, and
+  // run the api's own keeper whenever Kristian's keeper is not reachable.
+  let lendingBusy = false;
+  setInterval(async () => {
+    if (lendingBusy || !lendingAvailable()) return;
+    lendingBusy = true;
+    try {
+      await svc.defaulterTick();
+      if (!(await risk.liveKeeperAvailable())) await svc.builtInKeeperCheck("api-keeper");
+    } catch {
+      // ledger or service hiccup, next tick retries
+    } finally {
+      lendingBusy = false;
+    }
+  }, 20_000);
+
+  // Sample the on-ledger oracle so /internal/oracle/:gpuId/history has data.
+  setInterval(async () => {
+    if (!lendingAvailable()) return;
+    for (const gpu of GPUS) {
+      try {
+        const o = await oraclePrice(gpu.id);
+        svc.recordOracle(gpu.id, o.price, o.source === "live" ? "ledger" : "mock");
+      } catch {
+        // next tick
+      }
+    }
+  }, 60_000);
 }

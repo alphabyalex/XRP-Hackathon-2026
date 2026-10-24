@@ -5,10 +5,26 @@ import * as pricing from "../adapters/pricingClient.js";
 import { db } from "../db/db.js";
 import { logTx } from "../db/helpers.js";
 import { broadcast } from "../sse.js";
+import * as svc from "../lending/service.js";
+import { lendingAvailable } from "../adapters/lendingAdapter.js";
 
 export const loansRouter = Router();
 
 loansRouter.post("/loans/open", async (req, res) => {
+  // XLS-66 path: open from an accepted quote (POST /loans/quote first).
+  if ((req.body as any)?.quoteId) {
+    if (!lendingAvailable()) {
+      res.status(409).json({ error: { code: "LENDING_UNAVAILABLE", message: "XLS-66 lending needs NETWORK=devnet (or MOCK_XRPL=1)" } });
+      return;
+    }
+    try {
+      res.json(await svc.openFromQuote((req.body as any).quoteId));
+    } catch (e) {
+      const err = e as any;
+      res.status(err instanceof svc.LendingError ? err.status : 500).json({ error: { code: err.code ?? "INTERNAL", message: err.message } });
+    }
+    return;
+  }
   const { borrower, gpuId, collateralShares } = req.body as {
     borrower: string;
     gpuId: GpuId;
@@ -67,6 +83,16 @@ loansRouter.post("/loans/open", async (req, res) => {
 
 loansRouter.post("/loans/:id/repay", async (req, res) => {
   const loanId = req.params.id;
+  // XLS-66 loans: pay off, release collateral, delete the loan.
+  if (db.prepare(`SELECT 1 FROM xls_loans WHERE id = ?`).get(loanId)) {
+    try {
+      res.json(await svc.repay(loanId, ((req.body ?? {}) as any).mode ?? "full"));
+    } catch (e) {
+      const err = e as any;
+      res.status(err instanceof svc.LendingError ? err.status : 500).json({ error: { code: err.code ?? "INTERNAL", message: err.message } });
+    }
+    return;
+  }
   const loan = db.prepare(`SELECT * FROM loans WHERE id = ?`).get(loanId) as any;
   if (!loan) {
     res.status(404).json({ error: { code: "NOT_FOUND", message: "unknown loanId" } });

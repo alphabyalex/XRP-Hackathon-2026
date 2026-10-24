@@ -424,7 +424,7 @@ export interface AdminDividendsProposeBody {
 }
 
 // SSE event payloads on GET /events
-export type SseEventType = "usage" | "tx" | "calendar" | "dividend" | "loan";
+export type SseEventType = "usage" | "tx" | "calendar" | "dividend" | "loan" | "vault" | "credit" | "risk";
 
 export interface SseEvent<T = unknown> {
   type: SseEventType;

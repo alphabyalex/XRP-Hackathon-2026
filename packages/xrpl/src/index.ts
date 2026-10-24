@@ -15,7 +15,7 @@ export { redeemContracts } from "./contracts.js";
 export { payForInference } from "./inference.js";
 export { payDividends } from "./dividends.js";
 export { openLoan, repayLoan, settleLoan } from "./loans.js";
-export { publishOracle } from "./oracle.js";
+export { publishOracle, readOracle, type OracleReading } from "./oracle.js";
 export { subscribe } from "./subscribe.js";
 
 // Export typed errors (B1)

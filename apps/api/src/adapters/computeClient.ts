@@ -4,6 +4,8 @@
 
 import { randomBytes } from "crypto";
 import { GPUS, SLOT_MINUTES, type GpuId } from "@moonshift/shared";
+import type { RevenueBucket } from "@moonshift/shared";
+import { serviceJson } from "./serviceFetch.js";
 import type {
   ChatCompletionRequest,
   ChatCompletionResponse,
@@ -233,4 +235,72 @@ export async function chatCompletions(
       simulated,
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Revenue history (risk underwriting input). Shape is what services/risk
+// expects: start, end, revenue, bookedMinutes, inferenceMinutes, idleMinutes,
+// utilizationPct, simulated. Mock buckets come from the same calendar the
+// schedule draws, so the schedule and the revenue agree.
+// ---------------------------------------------------------------------------
+
+export async function getRevenueHistory(
+  gpuId: GpuId,
+  hours = 24,
+  revenue24h = 48.2
+): Promise<{ buckets: RevenueBucket[]; source: "live" | "mock" | "mock-fallback" }> {
+  const to = new Date(Math.floor(Date.now() / 3600000) * 3600000);
+  const from = new Date(to.getTime() - hours * 3600000);
+  if (!MOCK) {
+    try {
+      const raw = await serviceJson<any>("compute", `${COMPUTE_URL}/gpus/${gpuId}/revenue?from=${from.toISOString()}&to=${to.toISOString()}`, { timeoutMs: 5000 });
+      const list: any[] = Array.isArray(raw) ? raw : raw.buckets ?? raw.history ?? [];
+      const buckets = list.map((b) => {
+        const booked = Number(b.bookedMinutes ?? b.booked_minutes ?? 0);
+        const inference = Number(b.inferenceMinutes ?? b.inference_minutes ?? 0);
+        const span = (new Date(b.end ?? b.bucketEnd).getTime() - new Date(b.start ?? b.bucketStart).getTime()) / 60000 || 60;
+        return {
+          start: b.start ?? b.bucketStart,
+          end: b.end ?? b.bucketEnd,
+          revenue: Number(b.revenue ?? b.revenueTdx ?? b.gross ?? 0).toFixed(6),
+          bookedMinutes: booked,
+          inferenceMinutes: inference,
+          idleMinutes: Number(b.idleMinutes ?? b.idle_minutes ?? Math.max(0, span - booked - inference)),
+          utilizationPct: Number(b.utilizationPct ?? ((booked + inference) / span) * 100).toFixed(6),
+          simulated: Boolean(b.simulated),
+        };
+      });
+      if (buckets.length) return { buckets, source: "live" };
+    } catch {
+      // fall through to the simulated history
+    }
+  }
+  const cal = await getCalendar(gpuId, from.toISOString(), to.toISOString());
+  const minutesIn = (startMs: number, endMs: number, kind: string) =>
+    cal
+      .filter((e) => e.kind === kind)
+      .reduce((s, e) => {
+        const a = Math.max(startMs, new Date(e.start).getTime());
+        const b = Math.min(endMs, new Date(e.end).getTime());
+        return s + Math.max(0, b - a) / 60000;
+      }, 0);
+  const rows = Array.from({ length: hours }, (_, i) => {
+    const s = from.getTime() + i * 3600000;
+    const e = s + 3600000;
+    const booked = Math.round(minutesIn(s, e, "BOOKED"));
+    const inference = Math.round(minutesIn(s, e, "INFERENCE"));
+    return { s, e, booked, inference };
+  });
+  const util = rows.reduce((a, r) => a + r.booked + r.inference, 0) || 1;
+  const buckets: RevenueBucket[] = rows.map((r) => ({
+    start: new Date(r.s).toISOString(),
+    end: new Date(r.e).toISOString(),
+    revenue: ((revenue24h * (hours / 24) * (r.booked + r.inference)) / util).toFixed(6),
+    bookedMinutes: r.booked,
+    inferenceMinutes: r.inference,
+    idleMinutes: Math.max(0, 60 - r.booked - r.inference),
+    utilizationPct: (((r.booked + r.inference) / 60) * 100).toFixed(6),
+    simulated: true,
+  }));
+  return { buckets, source: MOCK ? "mock" : "mock-fallback" };
 }

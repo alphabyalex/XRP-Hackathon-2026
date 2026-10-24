@@ -1,13 +1,8 @@
-import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
+// Must stay the first import: loads the monorepo .env before any module
+// reads process.env (ESM evaluates imports in order).
+import "./env.js";
 import express from "express";
 import cors from "cors";
-
-// .env lives at the monorepo root, not apps/api/, and process.cwd() here is
-// apps/api/ when npm runs this workspace's script. Load it explicitly.
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, "..", "..", "..", ".env") });
 import { PORTS } from "@moonshift/shared";
 import { gpusRouter } from "./routes/gpus.js";
 import { portfolioRouter } from "./routes/portfolio.js";
@@ -16,6 +11,7 @@ import { sharesRouter } from "./routes/shares.js";
 import { contractsRouter } from "./routes/contracts.js";
 import { inferenceRouter } from "./routes/inference.js";
 import { loansRouter } from "./routes/loans.js";
+import { lendingRouter } from "./routes/lending.js";
 import { adminRouter } from "./routes/admin.js";
 import { internalRouter } from "./routes/internal.js";
 import { eventsRouter } from "./routes/events.js";
@@ -38,6 +34,7 @@ app.use(txRouter);
 app.use(sharesRouter);
 app.use(contractsRouter);
 app.use(inferenceRouter);
+app.use(lendingRouter);
 app.use(loansRouter);
 
 // admin (gated)
@@ -55,7 +52,7 @@ const PORT = Number(process.env.PORT ?? PORTS.api);
 app.listen(PORT, () => {
   console.log(`apps/api listening on http://localhost:${PORT}`);
   console.log(
-    `mocks: MOCK_XRPL=${process.env.MOCK_XRPL ?? "1"} MOCK_COMPUTE=${process.env.MOCK_COMPUTE ?? "1"} MOCK_PRICING=${process.env.MOCK_PRICING ?? "1"}`
+    `network: ${process.env.NETWORK ?? "testnet"}  mocks: MOCK_XRPL=${process.env.MOCK_XRPL ?? "1"} MOCK_COMPUTE=${process.env.MOCK_COMPUTE ?? "1"} MOCK_PRICING=${process.env.MOCK_PRICING ?? "1"} MOCK_RISK=${process.env.MOCK_RISK ?? "1"} MOCK_CREDIT=${process.env.MOCK_CREDIT ?? "1"}`
   );
   startBackgroundJobs();
 });

@@ -27,6 +27,11 @@ export function resetDb(): void {
     "tx_log",
     "holders_cache",
     "inference_credits",
+    "xls_loans",
+    "loan_quotes",
+    "oracle_history",
+    "keeper_actions",
+    "credit_events",
   ];
   for (const t of tables) {
     db.exec(`DELETE FROM ${t}`);

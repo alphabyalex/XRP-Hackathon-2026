@@ -99,3 +99,61 @@ CREATE TABLE IF NOT EXISTS inference_credits (
   buyer TEXT PRIMARY KEY,
   balance TEXT NOT NULL DEFAULT '0'
 );
+
+-- XLS-66 loans (devnet lending). One row per loan; ledger state is read live.
+CREATE TABLE IF NOT EXISTS xls_loans (
+  id TEXT PRIMARY KEY,
+  network TEXT NOT NULL,
+  borrower TEXT NOT NULL,
+  borrower_address TEXT NOT NULL,
+  gpu_id TEXT NOT NULL,
+  collateral_shares TEXT NOT NULL,
+  principal TEXT NOT NULL,
+  apr TEXT NOT NULL,
+  margin_call_ltv TEXT NOT NULL,
+  liquidation_ltv TEXT NOT NULL,
+  pd TEXT NOT NULL,
+  round INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  opened_at TEXT NOT NULL,
+  margin_call_at TEXT,
+  liquidated_at TEXT,
+  default_eligible_at TEXT,
+  txs TEXT NOT NULL DEFAULT '{}',
+  quote_id TEXT,
+  simulated INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS loan_quotes (
+  id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  body TEXT NOT NULL,
+  used INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS oracle_history (
+  gpu_id TEXT NOT NULL,
+  ts TEXT NOT NULL,
+  price TEXT NOT NULL,
+  source TEXT NOT NULL,
+  tx_hash TEXT,
+  PRIMARY KEY (gpu_id, ts)
+);
+
+CREATE TABLE IF NOT EXISTS keeper_actions (
+  idempotency_key TEXT PRIMARY KEY,
+  loan_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  tx_hash TEXT,
+  body TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS credit_events (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  address TEXT NOT NULL,
+  body TEXT NOT NULL,
+  received_at TEXT NOT NULL
+);
