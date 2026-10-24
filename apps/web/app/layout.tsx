@@ -5,6 +5,7 @@ import Script from "next/script";
 import "./globals.css";
 import { theme } from "@/theme";
 import { Nav } from "@/components/Nav";
+import { WalletProvider } from "@/lib/wallet";
 import { Footer } from "@/components/Footer";
 import { ToastHost } from "@/components/Toast";
 
@@ -63,9 +64,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </Script>
       </head>
       <body>
-        <Nav />
-        {children}
-        <Footer />
+        <WalletProvider>
+          <Nav />
+          {children}
+          <Footer />
+        </WalletProvider>
         <ToastHost />
       </body>
     </html>
