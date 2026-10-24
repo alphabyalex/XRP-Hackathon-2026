@@ -161,7 +161,21 @@ export async function buildQuote(req: LoanQuoteApiRequest): Promise<LoanQuoteApi
     collateralPrice: oracle.price,
     collateralPriceHistory: oracle.history,
   };
-  const { quote, source: riskSource } = await timed("risk quote", risk.quote(riskReq));
+  let { quote, source: riskSource } = await timed("risk quote", risk.quote(riskReq));
+  // Only grade E declines. Above what risk approves, a grade A-D borrower is
+  // offered the largest approved amount instead of a decline (a thin wallet
+  // gets a smaller loan, not a flat no).
+  let counterOffer: LoanQuoteApiResponse["counterOffer"] = null;
+  if (profile.grade === "E") {
+    quote = { ...quote, decision: "decline", reasons: [...new Set([...quote.reasons, "HIGHEST_RISK_GRADE"])] };
+  } else if (quote.decision !== "approve") {
+    const { maxPrincipal } = await timed("max", maxApprovedPrincipal({ ...req, borrower: req.borrower }));
+    if (Number(maxPrincipal) > 0 && Number(maxPrincipal) < Number(riskReq.principal)) {
+      counterOffer = { requested: riskReq.principal, offered: fix6(maxPrincipal) };
+      riskReq.principal = fix6(maxPrincipal);
+      ({ quote, source: riskSource } = await timed("risk quote", risk.quote(riskReq)));
+    }
+  }
   // The memo is written in the background: the quote returns now and /borrow
   // shows APR, LTV and the lines immediately, then picks the memo up from
   // GET /loans/quote/:id/memo. Identical inputs reuse one Bedrock call.
@@ -190,6 +204,7 @@ export async function buildQuote(req: LoanQuoteApiRequest): Promise<LoanQuoteApi
     terms: xls66Terms(termSeconds, quote.paymentIntervalSeconds, Number(quote.apr)),
     credit: profile,
     memo: ready,
+    counterOffer,
     memoStatus: ready ? "ready" : "pending",
     revenue24h: fix6(buckets.reduce((s, b) => s + Number(b.revenue), 0)),
     sources: { credit: creditSource, risk: riskSource, memo: ready?.source ?? "pending", revenue: revenueSource, oracle: oracle.source === "live" ? "live" : "mock" },
@@ -268,6 +283,8 @@ export async function maxApprovedPrincipal(req: { borrower: string; gpuId: strin
   const name = lending.nameOf(req.borrower);
   const address = lending.addressOf(req.borrower);
   const [{ round, termSeconds }, { profile, oracle, buckets }] = await Promise.all([lendingTerm(req.termSeconds), riskInputs(gpu.id, address, name)]);
+  // Grade E is the one grade that declines outright.
+  if (profile.grade === "E") return { maxPrincipal: "0.00", collateralValue: fix6(shares * Number(oracle.price)), termSeconds };
   const base = {
     borrower: address,
     gpuId: gpu.id,

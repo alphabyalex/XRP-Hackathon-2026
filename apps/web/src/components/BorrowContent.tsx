@@ -497,7 +497,9 @@ export function BorrowContent({
                   />
                   <span>USDC</span>
                 </div>
-                {max && Number(max.maxPrincipal) > 0 ? (
+                {quote?.counterOffer ? (
+                  <span className="note">Approved for {fmt(Number(quote.counterOffer.offered), 2)} USDC</span>
+                ) : max && Number(max.maxPrincipal) > 0 ? (
                   <button type="button" className="note max-hint" onClick={() => setPrincipal(String(Number(max.maxPrincipal)))}>
                     Up to {fmt(Number(max.maxPrincipal), 0)} USDC
                   </button>
@@ -554,9 +556,9 @@ export function BorrowContent({
               {busy === "open"
                 ? "Signing LoanSet on devnet..."
                 : q?.decision === "decline"
-                  ? "Lower the amount to get approved"
+                  ? "Not approved"
                   : Number(principal) > 0
-                    ? `Lock ${fmt(Number(shares) || 0, 0)} ${code}, borrow ${fmt(Number(principal), 2)} USDC`
+                    ? `Lock ${fmt(Number(shares) || 0, 0)} ${code}, borrow ${fmt(Number(quote?.counterOffer ? quote.principal : principal), 2)} USDC`
                     : "Enter an amount"}
             </Button>
           </div>

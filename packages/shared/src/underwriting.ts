@@ -243,6 +243,9 @@ export interface LoanQuoteApiResponse {
   credit: CreditProfile;
   memo: AgentText | null; // null while Bedrock is still writing it (memoStatus "pending")
   memoStatus: "ready" | "pending";
+  // Set when the amount asked for was above what risk approves: this quote is
+  // for the largest approved amount instead (grades A-D; only E declines).
+  counterOffer?: { requested: string; offered: string } | null;
   revenue24h: DecimalString;
   sources: { credit: DataSource; risk: DataSource; memo: DataSource | "pending"; revenue: DataSource; oracle: DataSource };
 }
