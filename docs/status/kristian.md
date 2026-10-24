@@ -26,10 +26,16 @@
   a grade filter and labels every summary as simulated.
 - Phase 5 checks: 19 service tests pass and the grade-C response matches its
   contract example exactly.
+- Phase 6 and stretch: documented pricing, PD, loss, stress, simulation, and
+  portfolio formulas; added the grade APR curve and simulated vault health
+  endpoint with contract examples.
+- Final checks: 22 service tests pass, Python compile checks pass, all seven
+  risk contract examples parse as JSON, and `git diff --check` is clean.
 
 ## Next
 
-- Phase 6 and stretch: complete docs, rate curve, and vault health summary.
+- Ready for review. Push the local commits to `kristian` only after Kristian's
+  approval.
 
 ## Blockers
 

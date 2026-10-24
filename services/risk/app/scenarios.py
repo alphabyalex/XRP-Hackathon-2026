@@ -51,11 +51,9 @@ async def run_scenario(
         annual_interest += loan.outstanding_balance * loan.apr
 
     health = await keeper.check_once(force_dry_run=True)
-    utilization_before = D("0.50")
-    utilization_after = max(
-        D(0), min(D(1), utilization_before + request.utilization_shock_pct / D(100))
+    utilization_factor = max(
+        D(0), min(D(2), D(1) + request.utilization_shock_pct / D(100))
     )
-    utilization_factor = utilization_after / utilization_before
     deposits = D(settings.vault_deposits_usdc)
     cover = D(settings.first_loss_cover_usdc)
     cover_absorbed = min(total_loss, cover)

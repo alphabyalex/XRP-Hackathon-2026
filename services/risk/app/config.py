@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 
@@ -43,6 +44,23 @@ class Settings:
     book_sim_borrowers: int = 500
     book_sim_seed: int = 20261024
     state_dir: Path = SERVICE_DIR / ".state"
+
+    def __post_init__(self) -> None:
+        if self.keeper_interval_seconds < 1:
+            raise ValueError("KEEPER_INTERVAL_SECONDS must be at least 1")
+        if self.cure_seconds < 0 or self.demo_shock_seconds < 1:
+            raise ValueError("cure duration cannot be negative and demo shock duration must be positive")
+        if self.default_term_seconds < 1 or self.payment_interval_seconds < 1:
+            raise ValueError("demo loan term and payment interval must be positive")
+        if self.book_sim_borrowers < 0:
+            raise ValueError("BOOK_SIM_BORROWERS cannot be negative")
+        try:
+            deposits = Decimal(self.vault_deposits_usdc)
+            cover = Decimal(self.first_loss_cover_usdc)
+        except (InvalidOperation, TypeError, ValueError):
+            raise ValueError("vault assumptions must be decimal strings") from None
+        if not deposits.is_finite() or not cover.is_finite() or deposits <= 0 or cover < 0:
+            raise ValueError("vault deposits must be positive and first-loss cover non-negative")
 
     @classmethod
     def from_env(cls) -> Settings:

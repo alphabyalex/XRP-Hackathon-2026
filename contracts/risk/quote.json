@@ -43,6 +43,7 @@
     "termSeconds": 600,
     "paymentIntervalSeconds": 60,
     "pd": "0.053000",
+    "pdLabel": "estimate",
     "expectedLoss": "0.000000",
     "coverageRatio": "6.729155",
     "reasons": []

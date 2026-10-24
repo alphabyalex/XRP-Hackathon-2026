@@ -53,3 +53,13 @@ def test_internal_health_route_requires_configured_key(tmp_path) -> None:
 
     assert client.get("/loans/health").status_code == 401
 
+
+def test_live_keeper_reports_missing_api_without_exposing_credentials(tmp_path) -> None:
+    client = TestClient(create_app(Settings(mock=False, state_dir=tmp_path)))
+
+    response = client.get("/loans/health")
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "UPSTREAM_UNAVAILABLE"
+    assert response.json()["error"]["message"] == "API_URL_NOT_CONFIGURED"
+

@@ -5,18 +5,20 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.config import Settings
 from app.book import build_book_stats
-from app.data import RiskDataClient
+from app.data import RiskDataClient, UpstreamUnavailable
 from app.events import EventLog
 from app.keeper import Keeper
 from app.models import QuoteRequest
 from app.risk import calculate_quote
 from app.models import ScenarioRequest
 from app.scenarios import ScenarioDisabled, run_scenario
+from app.risk import rate_curve
+from app.vault import vault_health
 
 
 def create_app(
@@ -48,6 +50,13 @@ def create_app(
     app.state.data_client = data_client
     app.state.events = event_log
     app.state.keeper = keeper
+
+    @app.exception_handler(UpstreamUnavailable)
+    async def upstream_error(_: Request, exc: UpstreamUnavailable) -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content={"error": {"code": "UPSTREAM_UNAVAILABLE", "message": str(exc)}},
+        )
 
     def require_internal_key(x_ms_internal_key: str | None) -> None:
         if settings.internal_api_key and x_ms_internal_key != settings.internal_api_key:
@@ -103,6 +112,16 @@ def create_app(
         if grade is not None and grade not in {"A", "B", "C", "D", "E"}:
             raise HTTPException(status_code=422, detail="grade must be A, B, C, D, or E")
         return build_book_stats(settings, grade)
+
+    @app.get("/rates/curve")
+    async def rates_curve(x_ms_internal_key: str | None = Header(default=None)) -> dict[str, object]:
+        require_internal_key(x_ms_internal_key)
+        return rate_curve()
+
+    @app.get("/vault/health")
+    async def get_vault_health(x_ms_internal_key: str | None = Header(default=None)) -> dict[str, object]:
+        require_internal_key(x_ms_internal_key)
+        return await vault_health(settings, data_client)
 
     return app
 

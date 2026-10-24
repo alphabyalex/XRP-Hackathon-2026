@@ -79,25 +79,26 @@ fractions, so `0.500000` means 50 percent.
    oracle price. Requested LTV is principal divided by collateral value.
 2. Base APR and base maximum LTV depend on credit grade. Base APRs for grades A
    through E are 5, 8, 12, 18, and 30 percent. Base maximum LTVs are 65, 55,
-   45, 35, and 20 percent.
-3. APR adds up to 6 percentage points as score falls from 100 to 0. Confidence
-   scales maximum LTV by `0.75 + 0.25 * confidence`. Price volatility is the
-   average absolute change between consecutive oracle prices. Its LTV penalty
-   is twice that change, capped at 20 percentage points.
+   45, 35, and 20 percent. Base PD estimates are 1, 3, 8, 20, and 40 percent.
+3. `APR = baseAPR + ((100 - score) / 100) * 0.06`. Confidence factor is
+   `0.75 + 0.25 * confidence`. Price volatility is the mean absolute
+   consecutive percentage price change. Its penalty is
+   `min(0.20, 2 * volatility)`.
 4. Expected dividends use the average revenue per second in the supplied
-   history, projected across the loan term. The model subtracts the 15 percent
-   hosting fee and 5 percent reserve, then allocates the remainder by pledged
-   shares out of 1,000.
-5. Payments due are principal plus simple interest: `principal * APR * term /
-   31,536,000`. Coverage is expected dividends divided by payments due. When
-   coverage is below 1, maximum LTV is multiplied by coverage. A request above
-   that limit is declined.
-6. PD is an estimate, not a measured fact. It starts with a grade estimate,
-   then adds score, confidence, low-coverage, and excess-LTV adjustments. It is
-   capped between 0.1 and 99 percent.
-7. Expected loss is principal times PD times loss given default. Loss given
-   default is `max(0, 1 - 0.90 * collateral value / principal)`, which applies
-   a 10 percent collateral recovery haircut.
+   history, projected across the loan term. `projectedRevenue =
+   mean(revenuePerSecond) * termSeconds`. `projectedDividend = projectedRevenue
+   * 0.85 * 0.95 * collateralShares / 1000`, reflecting the 15 percent hosting
+   fee and 5 percent reserve.
+5. Payments due are principal plus simple interest:
+   `principal * (1 + APR * termSeconds / 31,536,000)`. Coverage is expected
+   dividends divided by payments due. When coverage is below 1, maximum LTV is
+   multiplied by coverage. A request above that limit is declined.
+6. PD is an estimate, not a measured fact. `PD = clamp(baseGradePD + 0.10 *
+   (100 - score) / 100 + 0.05 * (1 - confidence) + 0.15 * max(0, 1 -
+   coverage) + 0.20 * max(0, requestedLTV - effectiveMaxLTV), 0.001, 0.99)`.
+7. `expectedLoss = principal * PD * LGD`. Loss given default is
+   `LGD = max(0, 1 - 0.90 * collateralValue / principal)`, which applies a
+   10 percent collateral recovery haircut.
 8. Margin-call LTV is maximum LTV plus 15 percentage points, capped at 85
    percent. Liquidation LTV is maximum LTV plus 30 percentage points, capped
    at 95 percent.
@@ -113,24 +114,31 @@ Margin-call and liquidation requests are idempotent at the API boundary. The
 keeper uses `KEEPER_DRY_RUN=1` by default and persists its cure timestamps and
 event log under `.state/`.
 
-Stress requests alter only the values used for simulation. A price shock
-changes collateral price by `1 + gpuPriceShockPct / 100`. A utilization shock
-changes projected revenue by the ratio of shocked utilization to current
-utilization. Default loss is scaled by `defaultRateMultiplier`. First-loss
-cover absorbs the smaller of modeled vault loss and configured cover. The
-reported APY is a modeled lender yield based on the loan book and scenario
-revenue, not an on-ledger yield. The endpoint is disabled outside `MOCK=1`
-unless `DEMO_SHOCK_ENABLED=1` is explicitly set.
+Stress requests alter only values used for simulation. A price shock changes
+collateral price to `price * (1 + gpuPriceShockPct / 100)`. Utilization changes
+to `utilization * clamp(1 + utilizationShockPct / 100, 0, 2)`.
+`shockedPD = min(1, PD * defaultRateMultiplier)` and
+`vaultLoss = sum(principal * shockedPD * LGD)`. First-loss cover absorbs
+`min(vaultLoss, configuredCover)`. Before-shock APY is annual loan interest
+divided by deposits; after-shock APY is
+`max(0, beforeAPY * utilizationFactor - uncoveredLoss / deposits)`. APY is a
+modeled lender yield, not an on-ledger yield. The endpoint is disabled outside
+`MOCK=1` unless `DEMO_SHOCK_ENABLED=1` is explicitly set.
 
 ## Simulator and stretch endpoints
 
 The book simulator creates the configured number of borrowers, distributes
-them across grades, samples outcomes from the same grade PD estimates, and
-reports 30-day repayment, late, margin-call, cure, and liquidation rates. Its
-fixed random seed makes repeated requests comparable. The rate curve uses a
-representative score for each grade and adds a premium for LTV above that
-grade's base limit. Vault utilization is outstanding modeled principal divided
-by configured vault deposits; weighted APR uses principal weights; cover ratio
-is configured cover divided by expected loss. These portfolio summaries are
-simulated until live vault fields are added to the API contract.
+them across grades, and samples deterministic 30-day outcomes using the fixed
+seed. A borrower defaults when its draw is below grade PD; otherwise a margin
+call occurs with probability `min(0.75, 0.05 + 0.8 * PD)`. A called borrower
+cures with probability `max(0.05, 0.8 - 2 * PD)`; a noncalled loan is late
+when its draw is below `PD / 2`. The rate curve uses representative scores
+A=90, B=80, C=65, D=50, E=25 and `APR = baseAPR + ((100 - score) / 100) *
+0.06 + max(0, LTV - baseMaxLTV) * 0.10`. Vault utilization is
+outstanding modeled principal divided by configured vault deposits. Weighted
+APR is the sum of principal times APR divided by outstanding principal.
+Expected loss uses each loan's PD and the same 10 percent collateral recovery
+haircut as loan quotes. Cover ratio is configured cover divided by expected
+loss; it is `UNBOUNDED` when expected loss is zero. These portfolio summaries
+are simulated until live vault fields are added to the API contract.
 

@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class ContractModel(BaseModel):
@@ -34,6 +34,13 @@ class RevenueBucket(ContractModel):
     utilization_pct: Decimal = Field(alias="utilizationPct", ge=Decimal("0"), le=Decimal("100"))
     simulated: bool
 
+    @field_validator("start", "end")
+    @classmethod
+    def require_utc_time(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("revenue bucket times must include a UTC offset")
+        return value.astimezone(timezone.utc)
+
     @model_validator(mode="after")
     def valid_interval(self) -> RevenueBucket:
         if self.end <= self.start:
@@ -44,6 +51,13 @@ class RevenueBucket(ContractModel):
 class OraclePricePoint(ContractModel):
     timestamp: datetime
     price: Decimal = Field(gt=Decimal("0"))
+
+    @field_validator("timestamp")
+    @classmethod
+    def require_utc_time(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("oracle timestamps must include a UTC offset")
+        return value.astimezone(timezone.utc)
 
 
 class QuoteRequest(ContractModel):
@@ -77,3 +91,10 @@ class OpenLoan(ContractModel):
     status: str = "open"
     margin_call_at: datetime | None = Field(default=None, alias="marginCallAt")
     simulated: bool = False
+
+    @field_validator("margin_call_at")
+    @classmethod
+    def require_utc_margin_call_time(cls, value: datetime | None) -> datetime | None:
+        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+            raise ValueError("marginCallAt must include a UTC offset")
+        return value.astimezone(timezone.utc) if value is not None else None

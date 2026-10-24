@@ -83,7 +83,16 @@ def test_live_action_retries_until_api_accepts_then_stays_idempotent(tmp_path) -
 
     assert len(data.actions) == 1
     assert data.actions[0][0] == "/internal/loans/loan-1/margin-call"
-    assert data.actions[0][1]["idempotencyKey"] == "risk-margin-call-loan-1"
+    first_key = data.actions[0][1]["idempotencyKey"]
+    assert str(first_key).startswith("risk-margin-call-loan-1-")
+
+    data.loan = loan("60.000000")
+    asyncio.run(keeper.check_once())
+    data.loan = loan("75.000000")
+    asyncio.run(keeper.check_once())
+
+    assert len(data.actions) == 2
+    assert data.actions[1][1]["idempotencyKey"] != first_key
 
 
 def test_far_above_liquidation_threshold_triggers_immediately(tmp_path) -> None:

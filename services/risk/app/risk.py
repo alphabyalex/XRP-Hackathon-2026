@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
@@ -151,6 +150,7 @@ def calculate_quote(request: QuoteRequest, settings: Settings) -> dict[str, Any]
         "termSeconds": term_seconds,
         "paymentIntervalSeconds": min(settings.payment_interval_seconds, term_seconds),
         "pd": ratio6(pd),
+        "pdLabel": "estimate",
         "expectedLoss": money6(expected_loss),
         "coverageRatio": ratio6(coverage_ratio),
         "reasons": reasons,

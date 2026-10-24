@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from app.config import Settings
 from app.data import RiskDataClient, UpstreamUnavailable
@@ -98,6 +99,7 @@ class Keeper:
                 if immediate_liquidation:
                     state_name = "LIQUIDATE"
                     if not state.get("liquidationRequested"):
+                        state.setdefault("liquidationAt", _iso(now))
                         state["liquidationRequested"] = await self._action(
                             loan,
                             "liquidate",
@@ -106,12 +108,15 @@ class Keeper:
                             "FAR_ABOVE_LIQUIDATION_LTV",
                             now,
                             dry_run,
+                            str(state["liquidationAt"]),
                         )
                 elif ltv >= loan.margin_call_ltv:
                     if margin_call_at is None:
                         margin_call_at = now
                         state["marginCallAt"] = _iso(now)
                         state["marginCallRequested"] = False
+                    else:
+                        state.setdefault("marginCallAt", _iso(margin_call_at))
                     if not state.get("marginCallRequested"):
                         state["marginCallRequested"] = await self._action(
                             loan,
@@ -121,11 +126,13 @@ class Keeper:
                             "MARGIN_CALL_THRESHOLD_CROSSED",
                             now,
                             dry_run,
+                            _iso(margin_call_at),
                         )
                     elapsed = now - margin_call_at
                     if ltv >= loan.liquidation_ltv and elapsed >= timedelta(seconds=self.settings.cure_seconds):
                         state_name = "LIQUIDATE"
                         if not state.get("liquidationRequested"):
+                            state.setdefault("liquidationAt", _iso(now))
                             state["liquidationRequested"] = await self._action(
                                 loan,
                                 "liquidate",
@@ -134,6 +141,7 @@ class Keeper:
                                 "CURE_WINDOW_EXPIRED_ABOVE_LIQUIDATION_LTV",
                                 now,
                                 dry_run,
+                                str(state["liquidationAt"]),
                             )
                     else:
                         state_name = "MARGIN_CALL"
@@ -193,10 +201,11 @@ class Keeper:
         reason: str,
         now: datetime,
         dry_run: bool,
+        idempotency_suffix: str,
     ) -> bool:
-        action_path = f"/internal/loans/{loan.loan_id}/{action}"
+        action_path = f"/internal/loans/{quote(loan.loan_id, safe='')}/{action}"
         body: dict[str, object] = {
-            "idempotencyKey": f"risk-{action}-{loan.loan_id}",
+            "idempotencyKey": f"risk-{action}-{loan.loan_id}-{idempotency_suffix}",
             "observedLtv": ratio6(ltv),
             "threshold": ratio6(threshold),
             "occurredAt": _iso(now),

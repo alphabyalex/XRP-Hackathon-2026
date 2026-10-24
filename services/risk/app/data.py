@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -93,7 +94,7 @@ class RiskDataClient:
             if gpu_id not in MOCK_PRICES:
                 raise UpstreamUnavailable("MOCK_GPU_NOT_FOUND")
             return MOCK_PRICES[gpu_id]
-        payload = await self._get(f"/internal/oracle/{gpu_id}/history")
+        payload = await self._get(f"/internal/oracle/{quote(gpu_id, safe='')}/history")
         points: Any = payload
         if isinstance(payload, dict):
             points = payload.get("prices", payload.get("history", []))
