@@ -45,7 +45,16 @@ export {
 // Export utilities
 export { checkFeatures } from "./features.js";
 export { getClient, disconnectClient } from "./client.js";
-export { getAccountWallet, getAccountAddress, loadAccountsJson } from "./wallets.js";
+export {
+  getAccountWallet,
+  getAccountAddress,
+  loadAccountsJson,
+  isUserAccount,
+  userAccountName,
+  registerUserAccount,
+  registeredUserAccounts,
+} from "./wallets.js";
+export { createUserAccount, STARTING_BALANCE, type CreatedUserAccount } from "./userAccounts.js";
 
 // XLS-65 vaults and XLS-66 loan brokers (devnet lending)
 export {

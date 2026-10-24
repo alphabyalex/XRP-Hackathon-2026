@@ -8,8 +8,9 @@ import * as svc from "../lending/service.js";
 import { db } from "../db/db.js";
 import { buildReturns } from "../marketData/returns.js";
 
+import { asActor } from "../middleware/session.js";
 export const accountRouter = Router();
-accountRouter.get("/account/:account/returns", (req, res) => {
+accountRouter.get("/account/:account/returns", asActor("params", "account"), (req, res) => {
   const days = Number(req.query.days ?? 30);
   if (![7, 30, 90].includes(days)) {
     res.status(400).json({ error: { code: "BAD_RANGE", message: "Choose 7, 30 or 90 days" } }); return;
@@ -102,10 +103,10 @@ export async function buildAccount(input: string): Promise<AccountResponse> {
   }
   return {account,address,explorerUrl:explorer ? `${explorer}/accounts/${address}` : null,updatedAt:new Date().toISOString(),balances:{usdc:balances.tokens.TDX ?? "0.000000",xrp:balances.xrp,shares:holdings.map(h=>({gpuId:h.gpuId,free:h.free,locked:h.locked}))},holdings,gpuPerformance,loans,activity:activity.sort((a,b)=>b.time.localeCompare(a.time)).slice(0,50),totals:{totalValue:fix6(n(balances.tokens.TDX)+holdings.reduce((s,h)=>s+n(h.value),0)-loans.reduce((s,l)=>s+n(l.outstanding),0)),earned7d:fix6(earned(7)),earned30d:fix6(earned(30))}};
 }
-accountRouter.get("/account/:account", async (req,res) => {
+accountRouter.get("/account/:account", asActor("params", "account"), async (req,res) => {
   try {
     const key=req.params.account;
-    if (!/^(?:[A-Z_]{2,32}|r[1-9A-HJ-NP-Za-km-z]{24,34})$/.test(key)) { res.status(400).json({error:{code:"BAD_ACCOUNT",message:"Invalid account"}}); return; }
+    if (!/^(?:[A-Z_]{2,32}|U_r[1-9A-HJ-NP-Za-km-z]{24,34}|r[1-9A-HJ-NP-Za-km-z]{24,34})$/.test(key)) { res.status(400).json({error:{code:"BAD_ACCOUNT",message:"Invalid account"}}); return; }
     const cached=cache.get(key);
     if(cached && cached.expires>Date.now()) {res.json(cached.value);return;}
     const startedAtRevision=revision;

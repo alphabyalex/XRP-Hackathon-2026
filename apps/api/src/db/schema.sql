@@ -157,3 +157,30 @@ CREATE TABLE IF NOT EXISTS credit_events (
   body TEXT NOT NULL,
   received_at TEXT NOT NULL
 );
+
+-- Moonshift accounts: one per connected wallet. The devnet seed is encrypted
+-- at rest (AES-256-GCM, key MOONSHIFT_ACCOUNT_KEY in .env); never logged or returned.
+CREATE TABLE IF NOT EXISTS users (
+  wallet_address TEXT PRIMARY KEY,
+  wallet_network TEXT NOT NULL,
+  account_address TEXT NOT NULL UNIQUE,
+  seed_enc TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  setup_ms INTEGER
+);
+
+-- Funded, ready accounts handed out on first connect (instant sign-up).
+CREATE TABLE IF NOT EXISTS account_pool (
+  account_address TEXT PRIMARY KEY,
+  seed_enc TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  setup TEXT NOT NULL
+);
+
+-- Signed-in browsers: sha256 of the httpOnly cookie token.
+CREATE TABLE IF NOT EXISTS sessions (
+  token_hash TEXT PRIMARY KEY,
+  wallet_address TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);

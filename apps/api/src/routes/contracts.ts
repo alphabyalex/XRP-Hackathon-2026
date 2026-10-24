@@ -7,10 +7,11 @@ import * as pricing from "../adapters/pricingClient.js";
 import { db } from "../db/db.js";
 import { logTx, addRevenue } from "../db/helpers.js";
 import { broadcast } from "../sse.js";
+import { asActor } from "../middleware/session.js";
 
 export const contractsRouter = Router();
 
-contractsRouter.post("/contracts/buy", async (req, res) => {
+contractsRouter.post("/contracts/buy", asActor("body", "buyer"), async (req, res) => {
   const { buyer, gpuId, qty } = req.body as { buyer: string; gpuId: GpuId; qty: string };
   if (!buyer || !gpuId || !qty) {
     res.status(400).json({ error: { code: "BAD_REQUEST", message: "buyer, gpuId, qty required" } });
@@ -31,7 +32,7 @@ contractsRouter.post("/contracts/buy", async (req, res) => {
   }
 });
 
-contractsRouter.post("/contracts/redeem", async (req, res) => {
+contractsRouter.post("/contracts/redeem", asActor("body", "holder"), async (req, res) => {
   const { holder, gpuId, qty, slotStart } = req.body as {
     holder: string;
     gpuId: GpuId;

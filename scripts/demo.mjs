@@ -191,7 +191,7 @@ if (!args.has("--no-web")) {
   start("web", "npm", ["run", prodWeb ? "start" : "dev", "-w", "apps/web"], { cwd: ROOT, env: baseEnv });
 }
 
-// Prewarm exactly what /borrow asks for on load (ALICE, gpu-a, 100 shares,
+// Prewarm the shared caches (vault, oracle, Bedrock) with the DEV system account (gpu-a, 100 shares,
 // largest approved amount), so the credit profile, vault read, max search and
 // Bedrock memo are cached before anyone opens the page. Then compile the web
 // pages (next dev builds a route on its first request) and re-warm every
@@ -207,17 +207,17 @@ if (!args.has("--no-web")) {
     }
     await new Promise((r) => setTimeout(r, 2000));
   }
-  const json = { "Content-Type": "application/json" };
+  const json = { "Content-Type": "application/json", "X-MS-Internal-Key": baseEnv.INTERNAL_API_KEY };
   const warm = async () => {
-    await Promise.all([fetch(`${api}/loans/profile/ALICE`), fetch(`${api}/vault`), fetch(`${api}/vault/positions/BOB`)]);
-    const q = await (await fetch(`${api}/loans/quote`, { method: "POST", headers: json, body: JSON.stringify({ borrower: "ALICE", gpuId: "gpu-a", collateralShares: "100", principal: "max" }) })).json();
+    await Promise.all([fetch(`${api}/loans/profile/DEV`, { headers: json }), fetch(`${api}/vault`)]);
+    const q = await (await fetch(`${api}/loans/quote`, { method: "POST", headers: json, body: JSON.stringify({ borrower: "DEV", gpuId: "gpu-a", collateralShares: "100", principal: "max" }) })).json();
     const m = q.quoteId ? await (await fetch(`${api}/loans/quote/${q.quoteId}/memo?wait=14000`)).json() : null;
     return m?.memo ? (m.memo.fellBack ? `fallback (${m.memo.outcome ?? "?"})` : `Bedrock ${m.memo.latencyMs} ms`) : "not ready";
   };
   const t0 = Date.now();
   try {
     const memo = await warm();
-    log("demo", `prewarmed ALICE's credit profile, quote and memo (${memo}) in ${Math.round((Date.now() - t0) / 1000)} s`);
+    log("demo", `prewarmed the vault, oracle, a quote and the memo (${memo}) in ${Math.round((Date.now() - t0) / 1000)} s`);
   } catch {
     log("demo", "prewarm skipped (api not reachable yet)");
   }

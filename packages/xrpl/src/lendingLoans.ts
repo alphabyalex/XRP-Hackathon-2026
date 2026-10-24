@@ -35,7 +35,7 @@ import {
 import { createdEntryId, getClient, getLedgerEntry, ledgerCloseTime, submitTx, submitTxFull } from "./client.js";
 import fs from "node:fs";
 import path from "node:path";
-import { ALL_ACCOUNT_NAMES, getAccountAddress, getAccountWallet, REPO_ROOT } from "./wallets.js";
+import { ALL_ACCOUNT_NAMES, getAccountAddress, getAccountWallet, REPO_ROOT, registeredUserAccounts, userAccountName } from "./wallets.js";
 import { BROKER_ACCOUNT, currentRound, findRound, loadLendingState, must, tdx } from "./lending.js";
 import { escrowExists, lockCollateral, memo, newNonce, releaseCollateral, seizeCollateral } from "./collateral.js";
 import { LedgerRejected } from "./errors.js";
@@ -46,6 +46,8 @@ const TF_LOAN_OVERPAYMENT = 0x00010000; // LoanSet: allow principal prepayment (
 export const DEFAULT_GRACE_SECONDS = 60;
 
 export function accountNameFor(address: string): AccountName | undefined {
+  const user = userAccountName(address);
+  if (registeredUserAccounts().includes(user)) return user;
   for (const n of ALL_ACCOUNT_NAMES) {
     try {
       if (getAccountAddress(n) === address) return n;

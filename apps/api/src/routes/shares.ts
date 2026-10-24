@@ -3,10 +3,11 @@ import type { GpuId } from "@moonshift/shared";
 import * as xrpl from "../adapters/xrplAdapter.js";
 import { logTx } from "../db/helpers.js";
 import { broadcast } from "../sse.js";
+import { asActor } from "../middleware/session.js";
 
 export const sharesRouter = Router();
 
-sharesRouter.post("/shares/buy", async (req, res) => {
+sharesRouter.post("/shares/buy", asActor("body", "buyer"), async (req, res) => {
   const { buyer, gpuId, qty } = req.body as { buyer: string; gpuId: GpuId; qty: string };
   if (!buyer || !gpuId || !qty) {
     res.status(400).json({ error: { code: "BAD_REQUEST", message: "buyer, gpuId, qty required" } });
@@ -22,7 +23,7 @@ sharesRouter.post("/shares/buy", async (req, res) => {
   }
 });
 
-sharesRouter.post("/shares/sell", async (req, res) => {
+sharesRouter.post("/shares/sell", asActor("body", "seller"), async (req, res) => {
   const { seller, gpuId, qty, price } = req.body as { seller: string; gpuId: GpuId; qty: string; price: string };
   if (!seller || !gpuId || !qty || !price) {
     res.status(400).json({ error: { code: "BAD_REQUEST", message: "seller, gpuId, qty, price required" } });
