@@ -1,0 +1,11 @@
+{
+  "_note": "Demo addresses. Mainnet ones are read-only, scored through Quicknode (scores checked 2026-10-24). demoLinks attach a mainnet payment history to a demo borrower WITHOUT a signature, always labeled 'unverified, demo'; the borrower is resolved by name from contracts/accounts.<network>.json so a fresh demo:reset account keeps the link.",
+  "mainnet": [
+    { "address": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh", "label": "XRPL genesis account", "scored": "74 B high" },
+    { "address": "rMQ98K56yXJbDGv49ZSmW51sLn94Xe1mu1", "label": "small long-lived account", "scored": "83 A high" },
+    { "address": "rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B", "label": "Bitstamp issuer", "scored": "63 C high" }
+  ],
+  "demoLinks": [
+    { "borrowerName": "ALICE", "network": "devnet", "mainnetAddress": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh" }
+  ]
+}

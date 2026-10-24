@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from credit import config as C
-from credit import explain, mock, portfolio, profile, streams, ws
+from credit import combine, explain, mock, portfolio, profile, stats, streams, ws
 from credit import features as F
 from credit.errors import CreditError
 from credit.events import bus
@@ -66,13 +66,17 @@ def check_target(network: str, address: str) -> None:
         raise CreditError(422, "INVALID_ADDRESS", "not a classic XRPL address")
 
 
-async def build_profile(network: str, address: str, refresh: bool = False) -> dict:
+async def build_profile(network: str, address: str, refresh: bool = False, combined: bool = True) -> dict:
     check_target(network, address)
+    link = linker().link_for(address) if (combined and network != "mainnet" and not C.MOCK) else None
     if C.MOCK:
         body = mock.profile(network, address)
     else:
         try:
-            body, _ = await profile.build(network, address, refresh)
+            if link:
+                body = await combine.build(network, address, link, refresh)
+            else:
+                body, _ = await profile.build(network, address, refresh)
         except AccountNotFound:
             raise CreditError(404, "ACCOUNT_NOT_FOUND", f"{address} does not exist on {network}") from None
         except UpstreamError as e:
@@ -150,9 +154,21 @@ def health() -> dict:
     }
 
 
+@app.get("/stats")
+def get_stats() -> dict:
+    """Upstream XRPL reads since start: calls by source, network and method, Quicknode credits,
+    cache hit rate, p50 latency. Counts only, no URLs (contracts/credit/stats.json)."""
+    out = stats.snapshot()
+    out["quicknodeConfigured"] = C.quicknode_configured()
+    out["mock"] = C.MOCK
+    return out
+
+
 @app.get("/profile/{network}/{address}", dependencies=[Depends(internal_key)])
-async def get_profile(network: str, address: str, refresh: bool = False) -> dict:
-    return await build_profile(network, address, refresh)
+async def get_profile(network: str, address: str, refresh: bool = False, combined: bool = True) -> dict:
+    """With a linked mainnet address (verified, or a labeled demo link), devnet and testnet
+    profiles combine the borrower's Moonshift history with the linked payment history."""
+    return await build_profile(network, address, refresh, combined)
 
 
 @app.get("/explain/{network}/{address}", dependencies=[Depends(internal_key)])
@@ -194,9 +210,23 @@ async def link_verify(req: VerifyRequest) -> dict:
         raise CreditError(502, "UPSTREAM_ERROR", str(e)) from None
 
 
+class DemoLinkRequest(BaseModel):
+    borrower: str
+    mainnetAddress: str  # noqa: N815
+
+
+@app.post("/link/demo", dependencies=[Depends(internal_key)])
+def link_demo(req: DemoLinkRequest) -> dict:
+    """Attach a mainnet history address without a signature, for the demo. Labeled unverified."""
+    for addr in (req.borrower, req.mainnetAddress):
+        if not CLASSIC_ADDRESS.match(addr):
+            raise CreditError(422, "INVALID_ADDRESS", f"{addr} is not a classic XRPL address")
+    return linker().demo_link(req.borrower, req.mainnetAddress, datetime.now(UTC))
+
+
 @app.get("/links/{borrower}", dependencies=[Depends(internal_key)])
 def links(borrower: str) -> dict:
-    return {"borrower": borrower, "mainnet": linker().links_for(borrower)}
+    return {"borrower": borrower, "mainnet": linker().links_for(borrower), "combinedWith": linker().link_for(borrower)}
 
 
 @app.post("/watch", dependencies=[Depends(internal_key)])

@@ -9,7 +9,7 @@ from decimal import Decimal
 from typing import Any
 
 from credit import config as C
-from credit.history import Tx
+from credit.history import Tx, ripple_to_datetime
 
 TOP_HASHES = 3
 SIX = Decimal("0.000001")
@@ -29,6 +29,8 @@ class Loan:
     repaid_at: datetime | None = None
     repay_hash: str | None = None
     liquidated: bool = False
+    payments: list[tuple[str, bool]] = field(default_factory=list)  # XLS-66 LoanPay (hash, onTime)
+    late_repay: bool = False  # MS_REPAY said onTime: false
 
 
 @dataclass
@@ -81,9 +83,19 @@ def loans(h: History) -> dict[str, Loan]:
             loan = out.setdefault(lid, Loan(lid, None, None))
             if loan.repaid_at is None:
                 loan.repaid_at, loan.repay_hash = t.date, t.hash
+    _xls66_loans(h, ok, out)
     by_seq = {lo.escrow_sequence: lo for lo in out.values() if lo.escrow_sequence is not None}
     for t in ok:
         if t.type == "EscrowFinish" and t.tx.get("Owner") == h.address and t.account != h.address:
+            # Devnet XLS-66: the broker finishes the collateral escrow both on repayment
+            # (MS_COLLATERAL_RELEASE, shares go straight back) and on liquidation
+            # (MS_LIQUIDATION). Only the second one is a liquidation.
+            if t.memo(C.MEMO_COLLATERAL_RELEASE):
+                continue
+            liq = t.memo(C.MEMO_LIQUIDATION)
+            if liq and str(liq.get("loanId")) in out:
+                out[str(liq["loanId"])].liquidated = True
+                continue
             offer_seq = t.tx.get("OfferSequence")
             lo = by_seq.get(offer_seq) if isinstance(offer_seq, int) else None
             if lo is not None:
@@ -91,6 +103,43 @@ def loans(h: History) -> dict[str, Loan]:
             elif t.account in h.lenders:
                 out[t.hash] = Loan(t.hash, None, t.tx.get("OfferSequence"), liquidated=True)
     return out
+
+
+def _xls66_loans(h: History, ok: list[Tx], out: dict[str, Loan]) -> None:
+    """Native XLS-66 loans (devnet). packages/xrpl writes:
+    LoanSet (broker Account, borrower Counterparty) with memo MS_LOAN_DISBURSE; the Loan ledger
+    entry it creates is the loanId. LoanPay by the borrower with memo MS_REPAY {loanId, kind,
+    onTime}. A payoff (kind payoff, or the last installment) closes the loan.
+    """
+    for t in ok:
+        if t.type != "LoanSet" or t.tx.get("Counterparty") != h.address:
+            continue
+        node = next(
+            (n["CreatedNode"] for n in t.meta.get("AffectedNodes", []) if n.get("CreatedNode", {}).get("LedgerEntryType") == "Loan"),
+            None,
+        )
+        if node is None:
+            continue
+        lid = node.get("LedgerIndex")
+        nf = node.get("NewFields", {})
+        due = nf.get("NextPaymentDueDate")
+        out[lid] = Loan(lid, ripple_to_datetime(due) if isinstance(due, int) else None, None)
+    for t in sorted(ok, key=lambda t: (t.date or h.now, t.hash)):
+        m = t.memo(C.MEMO_REPAY)
+        if not m or t.type != "LoanPay" or t.account != h.address:
+            continue
+        lid = str(m.get("loanId"))
+        loan = out.setdefault(lid, Loan(lid, None, None))
+        loan.payments.append((t.hash, bool(m.get("onTime", True))))
+        closed = not any(
+            n.get("ModifiedNode", {}).get("LedgerEntryType") == "Loan"
+            and float((n["ModifiedNode"].get("FinalFields") or {}).get("TotalValueOutstanding", 0) or 0) > 0
+            for n in t.meta.get("AffectedNodes", [])
+        )
+        if closed and loan.repaid_at is None:
+            loan.repaid_at, loan.repay_hash = t.date, t.hash
+            if not m.get("onTime", True):
+                loan.late_repay = True
 
 
 def extract(h: History) -> dict[str, Feature]:
@@ -147,7 +196,9 @@ def extract(h: History) -> dict[str, Feature]:
         if loan.liquidated:
             continue
         if loan.repaid_at is not None and loan.repay_hash is not None:
-            if loan.due_at is None or loan.repaid_at <= loan.due_at:
+            if loan.payments:
+                (late if loan.late_repay else on_time).append(loan.repay_hash)
+            elif loan.due_at is None or loan.repaid_at <= loan.due_at:
                 on_time.append(loan.repay_hash)
             else:
                 late.append(loan.repay_hash)

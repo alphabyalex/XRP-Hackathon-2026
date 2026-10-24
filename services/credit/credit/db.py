@@ -49,6 +49,11 @@ CREATE TABLE IF NOT EXISTS links (
   public_key TEXT NOT NULL,
   verified_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS demo_links (
+  borrower TEXT PRIMARY KEY,
+  mainnet_address TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
 """
 
 

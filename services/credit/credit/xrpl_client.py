@@ -16,6 +16,7 @@ from typing import Any
 import httpx
 
 from credit import config as C
+from credit import stats
 from credit.db import Store, store
 
 log = logging.getLogger("credit.xrpl")
@@ -79,6 +80,7 @@ class XrplClient:
         if not refresh:
             hit = self.db.cache_get(key, ttl)
             if hit is not None:
+                stats.record_hit(self.network, self.source)
                 return hit
         result = await self._call(method, params)
         self.db.cache_put(key, self.network, self.source, method, params, result)
@@ -93,8 +95,11 @@ class XrplClient:
                 await _pace(self.network, self.source)
                 try:
                     self.calls += 1
-                    r = await http.post(self.url, json=body)
+                    with stats.Timer() as timer:
+                        r = await http.post(self.url, json=body)
+                    stats.record_call(self.network, self.source, method, timer.ms, r.status_code < 400)
                 except httpx.HTTPError as e:
+                    stats.record_call(self.network, self.source, method, 0.0, False)
                     last = type(e).__name__
                 else:
                     if r.status_code in RETRY_STATUS:

@@ -124,6 +124,8 @@ MEMO_REPAY = "MS_REPAY"
 MEMO_LOAN_DISBURSE = "MS_LOAN_DISBURSE"
 MEMO_MARGIN_CALL = "MS_MARGIN_CALL"  # proposed, see request in docs/CONTRACTS.md
 MEMO_DIVIDEND = "MS_DIVIDEND"
+MEMO_LIQUIDATION = "MS_LIQUIDATION"  # broker EscrowFinish that seizes collateral (devnet XLS-66)
+MEMO_COLLATERAL_RELEASE = "MS_COLLATERAL_RELEASE"  # broker EscrowFinish on repayment: NOT a liquidation
 # GPU share and slot contract tokens (packages/shared GPUS: shareCode, contractCode).
 MOONSHIFT_TOKEN_CODES = frozenset({"GPA", "GPB", "HRA", "HRB"})
 # packages/xrpl sets CancelAfter = dueAt + 120 s on the collateral escrow.
@@ -134,12 +136,16 @@ RIPPLE_EPOCH_OFFSET = 946684800
 def lender_addresses() -> frozenset[str]:
     """Accounts whose EscrowFinish on a borrower's escrow counts as a liquidation.
 
-    LENDING_POOL from contracts/accounts.testnet.json, plus any in LENDER_ADDRESSES (comma separated).
+    LENDING_POOL from contracts/accounts.testnet.json and accounts.devnet.json, plus any in
+    LENDER_ADDRESSES (comma separated).
     """
     out = {a.strip() for a in os.getenv("LENDER_ADDRESSES", "").split(",") if a.strip()}
-    if ACCOUNTS_FILE.exists():
+    # The broker (LENDING_POOL) differs per network: testnet escrow loans and devnet XLS-66.
+    for f in (ACCOUNTS_FILE, REPO_ROOT / "contracts" / "accounts.devnet.json"):
+        if not f.exists():
+            continue
         try:
-            data = json.loads(ACCOUNTS_FILE.read_text())
+            data = json.loads(f.read_text())
             pool = data.get("LENDING_POOL", {})
             addr = pool.get("address") if isinstance(pool, dict) else pool
             if isinstance(addr, str):
