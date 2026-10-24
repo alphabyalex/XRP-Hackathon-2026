@@ -1,0 +1,63 @@
+{
+  "endpoint": "POST /quote",
+  "note": "Prices one order in all three modes at once so checkout can show Cheapest, Balanced and Fastest side by side. kind inference: tokens = total output tokens, requests = number of prompts (one streamed reply runs on one GPU at a time and is never split; several prompts can be split across up to 3 GPUs). kind rental: minutes of GPU time (rounded up to 5 minute slots), splittable across up to 3 GPUs. Optional deadlineSeconds, budgetUsdc, constraints {gpuModel, region, excludeProviders}. Only executable, fresh, available fleet entries are considered. Deterministic for the same request and catalog snapshot (catalogAsOf). alternativesConsidered counts every priced offer looked at per provider (executable or not). why is a Bedrock explanation of the chosen plan's numbers, present only when BEDROCK_EXPLAIN=1. Amounts are USDC (TDX on the ledger) decimal strings.",
+  "request": {
+    "kind": "inference",
+    "tokens": 1200,
+    "requests": 4,
+    "deadlineSeconds": null,
+    "budgetUsdc": null,
+    "constraints": { "gpuModel": null, "region": null, "excludeProviders": [] }
+  },
+  "requestRental": { "kind": "rental", "minutes": 30, "deadlineSeconds": 3600, "budgetUsdc": "1.000000" },
+  "response": {
+    "quoteId": "q_5f1c2a9e",
+    "order": { "kind": "inference", "tokens": 1200, "requests": 4, "minutes": null, "deadlineSeconds": null, "budgetUsdc": null, "constraints": {} },
+    "catalogAsOf": "2026-10-24T22:00:00Z",
+    "default": "balanced",
+    "options": {
+      "cheapest": {
+        "mode": "cheapest",
+        "feasible": true,
+        "priceUsdc": "0.001716",
+        "etaSeconds": 36.0,
+        "completesAt": "2026-10-24T22:00:36Z",
+        "interruptionRisk": 0.000004,
+        "providers": ["azure"],
+        "parts": [
+          {
+            "gpuId": "gpu-a3",
+            "label": "GPU-A3",
+            "provider": "azure",
+            "region": "eastus",
+            "hardware": "T4 (Standard_NC4as_T4_v3)",
+            "capacityType": "spot",
+            "moonshiftGpuId": "gpu-a",
+            "share": 1.0,
+            "requests": 4,
+            "work": 1200,
+            "unit": "tokens",
+            "startsInSeconds": 0,
+            "runSeconds": 30.0,
+            "etaSeconds": 36.0,
+            "priceUsdc": "0.001716",
+            "interruptible": true,
+            "interruptionRisk": 0.000004
+          }
+        ]
+      },
+      "balanced": { "mode": "balanced", "feasible": true, "priceUsdc": "0.002000", "etaSeconds": 12.0, "providers": ["moonshift", "vast"], "parts": ["<part>"], "score": { "normalizedCost": 0.18, "normalizedTime": 0.21, "distance": 0.28, "frontierSize": 7 } },
+      "fastest": { "mode": "fastest", "feasible": true, "priceUsdc": "0.004100", "etaSeconds": 4.1, "providers": ["vast", "aws", "moonshift"], "parts": ["<part>"] }
+    },
+    "alternativesConsidered": { "aws": 12, "azure": 2, "gcp": 3, "oracle": 3, "lambda": 3, "runpod": 2, "vast": 2, "coreweave": 4, "moonshift": 2 },
+    "plansEvaluated": 412,
+    "why": null,
+    "validUntil": "2026-10-24T22:01:00Z",
+    "asOf": "2026-10-24T22:00:00Z"
+  },
+  "infeasibleOption": { "mode": "cheapest", "feasible": false, "reason": "NO_PLAN_MEETS_DEADLINE_AND_BUDGET" },
+  "errors": {
+    "INVALID_ORDER": "422, missing or out of range tokens, requests or minutes",
+    "NO_CAPACITY": "503, no executable GPU is available"
+  }
+}

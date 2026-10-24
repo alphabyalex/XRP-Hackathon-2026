@@ -1,0 +1,9 @@
+{
+  "_note": "Providers with no public price API. priceSource static, refreshed by hand. Multi-GPU instances are listed as sold; the catalog divides by gpuCount for per-GPU comparisons.",
+  "offers": [
+    { "provider": "coreweave", "region": "us-east", "instanceType": "gh200-1x", "gpuModel": "GH200", "gpuCount": 1, "capacityType": "on-demand", "pricePerHourUsd": 6.50, "asOf": "2026-10-24T00:00:00Z", "source": "https://www.coreweave.com/pricing" },
+    { "provider": "coreweave", "region": "us-east", "instanceType": "l40s-8x", "gpuModel": "L40S", "gpuCount": 8, "capacityType": "on-demand", "pricePerHourUsd": 18.00, "asOf": "2026-10-24T00:00:00Z", "source": "https://www.coreweave.com/pricing" },
+    { "provider": "coreweave", "region": "us-east", "instanceType": "a100-8x", "gpuModel": "A100", "gpuCount": 8, "capacityType": "on-demand", "pricePerHourUsd": 21.60, "asOf": "2026-10-24T00:00:00Z", "source": "https://www.coreweave.com/pricing" },
+    { "provider": "coreweave", "region": "us-east", "instanceType": "h100-8x", "gpuModel": "H100", "gpuCount": 8, "capacityType": "on-demand", "pricePerHourUsd": 49.24, "asOf": "2026-10-24T00:00:00Z", "source": "https://www.coreweave.com/pricing" }
+  ]
+}

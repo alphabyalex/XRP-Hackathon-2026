@@ -1,0 +1,140 @@
+{
+ "_source": "shape: cloudbilling v2beta skus and skus/{id}/prices (rate.tiers[].listPrice units+nanos). Needs an API key; values illustrative until GCP_API_KEY is in Secrets Manager.",
+ "skus": [
+  {
+   "skuId": "MOCK-T4-OD",
+   "displayName": "Nvidia Tesla T4 GPU running in Americas",
+   "productTaxonomy": {
+    "taxonomyCategories": [
+     {
+      "category": "GCP"
+     },
+     {
+      "category": "Compute"
+     },
+     {
+      "category": "GPUs"
+     },
+     {
+      "category": "GPUs On Demand"
+     }
+    ]
+   },
+   "geoTaxonomy": {
+    "type": "REGIONAL",
+    "regionalMetadata": {
+     "region": {
+      "region": "us-central1"
+     }
+    }
+   }
+  },
+  {
+   "skuId": "MOCK-T4-SPOT",
+   "displayName": "Nvidia Tesla T4 GPU attached to Spot Preemptible VMs running in Americas",
+   "productTaxonomy": {
+    "taxonomyCategories": [
+     {
+      "category": "GCP"
+     },
+     {
+      "category": "Compute"
+     },
+     {
+      "category": "GPUs"
+     },
+     {
+      "category": "GPUs Preemptible"
+     }
+    ]
+   },
+   "geoTaxonomy": {
+    "type": "REGIONAL",
+    "regionalMetadata": {
+     "region": {
+      "region": "us-central1"
+     }
+    }
+   }
+  },
+  {
+   "skuId": "MOCK-L4-OD",
+   "displayName": "Nvidia L4 GPU running in Americas",
+   "productTaxonomy": {
+    "taxonomyCategories": [
+     {
+      "category": "GCP"
+     },
+     {
+      "category": "Compute"
+     },
+     {
+      "category": "GPUs"
+     },
+     {
+      "category": "GPUs On Demand"
+     }
+    ]
+   },
+   "geoTaxonomy": {
+    "type": "REGIONAL",
+    "regionalMetadata": {
+     "region": {
+      "region": "us-central1"
+     }
+    }
+   }
+  }
+ ],
+ "prices": {
+  "MOCK-T4-OD": {
+   "rate": {
+    "tiers": [
+     {
+      "listPrice": {
+       "currencyCode": "USD",
+       "units": "0",
+       "nanos": 350000000
+      }
+     }
+    ],
+    "unitInfo": {
+     "unit": "h"
+    }
+   }
+  },
+  "MOCK-T4-SPOT": {
+   "rate": {
+    "tiers": [
+     {
+      "listPrice": {
+       "currencyCode": "USD",
+       "units": "0",
+       "nanos": 140000000
+      }
+     }
+    ],
+    "unitInfo": {
+     "unit": "h"
+    }
+   }
+  },
+  "MOCK-L4-OD": {
+   "rate": {
+    "tiers": [
+     {
+      "listPrice": {
+       "currencyCode": "USD",
+       "units": "0",
+       "nanos": 560000000
+      }
+     }
+    ],
+    "unitInfo": {
+     "unit": "h"
+    }
+   }
+  }
+ },
+ "vmBaseUsdPerHour": 0.19
+}

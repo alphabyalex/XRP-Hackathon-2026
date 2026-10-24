@@ -1,0 +1,17 @@
+{
+  "endpoint": "POST /fleet/{id}/reclaim",
+  "note": "Manual reclaim with the GPU's warning window (default its warningWindowSeconds; override with warningSeconds). Same code path as provider reclaims: reclaim(gpuId, warningSeconds, reason). The router stops admitting work there immediately; every job on it checkpoints inside the warning window and continues on the best other GPU (any provider) for its order's mode. The GPU returns after durationSeconds. Guaranteed on-demand capacity cannot be reclaimed; a Moonshift GPU reclaim models an incoming booking. Requires X-MS-Internal-Key when INTERNAL_API_KEY is set.",
+  "request": { "warningSeconds": 5, "durationSeconds": 300 },
+  "response": {
+    "gpuId": "gpu-a3",
+    "label": "GPU-A3",
+    "warningSeconds": 5,
+    "reclaimAt": "2026-10-24T22:00:08Z",
+    "returnsAt": "2026-10-24T22:05:08Z",
+    "affectedOrders": ["ord_7a3f19c2"]
+  },
+  "errors": {
+    "UNKNOWN_GPU": "404",
+    "NOT_INTERRUPTIBLE": "409, guaranteed on-demand capacity cannot be reclaimed"
+  }
+}

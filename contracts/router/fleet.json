@@ -1,0 +1,37 @@
+{
+  "endpoint": "GET /fleet",
+  "note": "Every GPU the router can run on: services/router/config/fleet.json (FLEET_SOURCE=mock) or fleet.live.json, joined with the latest catalog offer for its price, speed and interruption risk. bookedWindows come from compute's /gpus/{computeGpuId}/calendar plus the router's own rental bookings. available is false with a reason: RECLAIMED, OFFLINE, NO_CAPACITY, STALE_PRICE (offer older than CATALOG_MAX_AGE) or OFFER_MISSING. endpoint is a boolean (the URL is never returned).",
+  "response": [
+    {
+      "id": "gpu-a2",
+      "label": "GPU-A2",
+      "provider": "aws",
+      "region": "us-east-2",
+      "hardware": "T4 (g4dn.xlarge)",
+      "gpuModel": "T4",
+      "capacityType": "spot",
+      "offerKey": "aws#us-east-2#g4dn.xlarge#spot",
+      "pricePerHourUsdc": "0.199640",
+      "tokensPerSec": 40.0,
+      "interruptible": true,
+      "interruptionRatePerHour": 0.000087,
+      "warningWindowSeconds": 120.0,
+      "maxConcurrent": 2,
+      "moonshiftGpuId": "gpu-a",
+      "computeGpuId": null,
+      "endpoint": false,
+      "asOf": "2026-10-24T22:00:00Z",
+      "state": {
+        "available": true,
+        "reason": null,
+        "reclaimed": false,
+        "reclaimAt": null,
+        "returnsAt": null,
+        "activeJobs": 1,
+        "queueLength": 0,
+        "queueWaitSeconds": 0.0,
+        "bookedWindows": [{ "start": "2026-10-24T22:30:00Z", "end": "2026-10-24T22:40:00Z", "source": "compute" }]
+      }
+    }
+  ]
+}

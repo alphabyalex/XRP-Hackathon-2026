@@ -1,0 +1,23 @@
+{
+  "_note": "Live fleet (FLEET_SOURCE=live). One entry per real worker. endpoint is the compute worker that runs it (services/compute with resume.py); ${COMPUTE_URL} is filled from the environment. Add Tharun's rented GPUs as they come online: an inline moonshift block for GPUs Moonshift owns or leases at a fixed price, or an offer key for capacity bought from a provider (the price then tracks the live catalog). Each external worker needs an account plus a running worker before it counts as executable.",
+  "gpus": [
+    {
+      "id": "gpu-a1",
+      "label": "GPU-A1",
+      "moonshift": { "gpuModel": "T4", "hardware": "NVIDIA T4 16GB (g4dn.xlarge)", "pricePerHourUsdc": "0.250000", "region": "us-east-2" },
+      "maxConcurrent": 1,
+      "moonshiftGpuId": "gpu-a",
+      "computeGpuId": "gpu-a",
+      "endpoint": "${COMPUTE_URL}"
+    },
+    {
+      "id": "gpu-b1",
+      "label": "GPU-B1",
+      "moonshift": { "gpuModel": "T4", "hardware": "NVIDIA T4 16GB (g4dn.xlarge)", "pricePerHourUsdc": "0.250000", "region": "us-east-2" },
+      "maxConcurrent": 1,
+      "moonshiftGpuId": "gpu-b",
+      "computeGpuId": "gpu-b",
+      "endpoint": "${COMPUTE_URL}"
+    }
+  ]
+}

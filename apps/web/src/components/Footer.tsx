@@ -5,10 +5,10 @@ export function Footer() {
   return (
     <footer>
       <div className="wrap">
-        <Link className="logo" href="/" style={{ fontSize: 16 }}>
+        <div className="logo" style={{ fontSize: 16 }}>
           <MoonMark size={22} />
           Moonshift
-        </Link>
+        </div>
         <div>Moonshift. GPU-backed lending on the XRP Ledger.</div>
       </div>
     </footer>
