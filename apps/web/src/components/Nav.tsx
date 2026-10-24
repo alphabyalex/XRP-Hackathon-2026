@@ -4,13 +4,11 @@ import Link from "next/link";
 import clsx from "clsx";
 import { MoonMark } from "./MoonMark";
 import { WalletButton } from "./WalletButton";
-import { ThemeToggle } from "./ThemeToggle";
 
 const LINKS = [
   { href: "/borrow", label: "Borrow" },
   { href: "/lend", label: "Lend" },
   { href: "/market", label: "Market" },
-  { href: "/portfolio", label: "Portfolio" },
   { href: "/playground", label: "Developers" },
   { href: "/#schedule", label: "How it earns" },
 ];
@@ -44,7 +42,9 @@ export function Nav() {
           ))}
         </nav>
         <div className="nav-end">
-          <ThemeToggle />
+          <Link className="nav-tab" href="/portfolio">
+            Portfolio
+          </Link>
           <WalletButton />
         </div>
       </div>
