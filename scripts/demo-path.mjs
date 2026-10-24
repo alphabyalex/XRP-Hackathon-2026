@@ -5,6 +5,10 @@
 // stress to margin call, stress to liquidation, restore, second loan, repay.
 
 const API = process.env.API_URL || "http://localhost:4000";
+// Its own throwaway borrower, never ALICE: ALICE is the pitch borrower and
+// this script liquidates a loan every run, which would wreck her score.
+const BORROWER = process.env.DEMO_CHECK_BORROWER || "DEV";
+if (BORROWER === "ALICE") throw new Error("demo:check never borrows as ALICE; set DEMO_CHECK_BORROWER to another account");
 const rows = [];
 let failed = false;
 
@@ -45,6 +49,15 @@ const health = await call("GET", "/health/services");
 const net = health.network;
 console.log(`api network: ${net}, lending: ${health.lending}, mocks: ${JSON.stringify(health.mocks)}`);
 
+await step("collateral", async () => {
+  const p = await call("GET", `/portfolio/${BORROWER}`);
+  const held = Number(p.shares.find((x) => x.gpuId === "gpu-a")?.qty ?? 0);
+  if (held < 200) {
+    const tx = await call("POST", "/shares/buy", { buyer: BORROWER, gpuId: "gpu-a", qty: String(200 - held) });
+    console.log(`    ${BORROWER} bought ${200 - held} GPU-A shares (${tx.result})`);
+  }
+});
+
 await step("deposit", async () => {
   const r = await call("POST", "/vault/deposit", { lender: "BOB", amount: "50" });
   row(`Lender deposits 50 USDC (round ${r.round})`, "XLS-65 VaultDeposit into a closed-ended vault", r.tx.hash, net);
@@ -52,8 +65,8 @@ await step("deposit", async () => {
 
 const quote = await step("quote", async () => {
   // Same default the /borrow page uses: the largest amount risk approves.
-  const max = await call("POST", "/loans/max", { borrower: "ALICE", gpuId: "gpu-a", collateralShares: "100" });
-  const q = await call("POST", "/loans/quote", { borrower: "ALICE", gpuId: "gpu-a", collateralShares: "100", principal: max.maxPrincipal });
+  const max = await call("POST", "/loans/max", { borrower: BORROWER, gpuId: "gpu-a", collateralShares: "100" });
+  const q = await call("POST", "/loans/quote", { borrower: BORROWER, gpuId: "gpu-a", collateralShares: "100", principal: max.maxPrincipal });
   console.log(
     `    quote: ${q.quote.decision}, APR ${(q.quote.apr * 100).toFixed(2)}%, LTV ${(q.quote.ltv * 100).toFixed(1)}%, margin call ${(q.quote.marginCallLtv * 100).toFixed(1)}%, liquidation ${(q.quote.liquidationLtv * 100).toFixed(1)}%, grade ${q.credit.grade}, sources ${JSON.stringify(q.sources)}`
   );
@@ -62,7 +75,7 @@ const quote = await step("quote", async () => {
 
 const loan = quote && (await step("open", async () => {
   const l = await call("POST", "/loans/open", { quoteId: quote.quoteId });
-  row("Borrower escrows 100 GPA shares", "GPU shares locked as collateral (EscrowCreate, MS_COLLATERAL)", l.txs.escrow, net);
+  row(`Borrower (${BORROWER}) escrows 100 GPU-A shares`, "GPU shares locked as collateral (EscrowCreate, MS_COLLATERAL)", l.txs.escrow, net);
   row(`Loan opens: ${Number(l.principal).toFixed(0)} USDC from the vault`, "XLS-66 LoanSet, broker signs, borrower countersigns", l.txs.loanSet, net);
   return l;
 }));
@@ -89,8 +102,8 @@ if (loan) {
 }
 
 const q2 = await step("quote 2", async () => {
-  const max = await call("POST", "/loans/max", { borrower: "ALICE", gpuId: "gpu-a", collateralShares: "80" });
-  return call("POST", "/loans/quote", { borrower: "ALICE", gpuId: "gpu-a", collateralShares: "80", principal: String(Math.max(1, Math.floor(Number(max.maxPrincipal) * 0.8))) });
+  const max = await call("POST", "/loans/max", { borrower: BORROWER, gpuId: "gpu-a", collateralShares: "80" });
+  return call("POST", "/loans/quote", { borrower: BORROWER, gpuId: "gpu-a", collateralShares: "80", principal: String(Math.max(1, Math.floor(Number(max.maxPrincipal) * 0.8))) });
 });
 const loan2 = q2 && (await step("open 2", async () => {
   const l = await call("POST", "/loans/open", { quoteId: q2.quoteId });
