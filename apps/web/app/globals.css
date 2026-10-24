@@ -1416,3 +1416,12 @@ a.txl:hover {
 .inp input {
   width: 100%;
 }
+
+/* the market section sits right under the hero's proof row; its full
+   section padding plus the hero's bottom padding left a ~280px gap */
+.hero {
+  padding-bottom: 0;
+}
+.hero + section.s {
+  padding-top: clamp(40px, 5vw, 64px);
+}

@@ -60,7 +60,7 @@ export function HomeContent() {
                 <b>{fmt(avgUtil, 1)}%</b>of hours earning, 24h
               </div>
               <div>
-                <b>{GPUS.length}</b>GPUs live on testnet
+                <b>{GPUS.length}</b>GPUs live on the XRPL
               </div>
             </div>
           </div>
