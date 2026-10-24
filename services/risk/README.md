@@ -35,6 +35,12 @@ from this folder with `py -m pytest -q`.
 - `GET /vault/health` returns the stretch vault summary. Until the API provides
   live vault data, this endpoint labels its configured demo assumptions as
   simulated.
+- `GET /vault/round-apy?round=1&assets=10000&lentOut=150&weightedApr=0.086667`
+  returns current and target round yields. `roundSeconds` optionally supplies
+  the actual lending duration (default 14 days). Target yield is an estimate.
+- `GET /scenarios?preset=demo` lists two POST payloads for `/scenarios/run`:
+  `{"preset":"demo","step":1}` then `{"preset":"demo","step":2}`.
+  Optionally include `loanId` to select the same active GPU-A loan explicitly.
 
 ## Configuration
 
@@ -51,7 +57,7 @@ checked-in files.
 | `KEEPER_DRY_RUN` | `1` | Log proposed actions without calling API action routes. |
 | `DEMO_SHOCK_ENABLED` | `0` | Allow the stress endpoint outside mock mode. |
 | `DEMO_SHOCK_SECONDS` | `120` | How long the keeper sees a stress price override. |
-| `DEFAULT_TERM_SECONDS` | `600` | Demo quote term when a request omits the term. |
+| `DEFAULT_TERM_SECONDS` | `1209600` | 14 day quote term when omitted; API caps to the actual round. |
 | `PAYMENT_INTERVAL_SECONDS` | `60` | Demo payment interval. |
 | `FIRST_LOSS_COVER_USDC` | `250.000000` | Configured demo first-loss cover. |
 | `VAULT_DEPOSITS_USDC` | `10000.000000` | Configured demo vault size. |
@@ -87,12 +93,25 @@ fractions, so `0.500000` means 50 percent.
 4. Expected dividends use the average revenue per second in the supplied
    history, projected across the loan term. `projectedRevenue =
    mean(revenuePerSecond) * termSeconds`. `projectedDividend = projectedRevenue
-   * 0.85 * 0.95 * collateralShares / 1000`, reflecting the 15 percent hosting
-   fee and 5 percent reserve.
+   * 0.80 * collateralShares / 1000`, reflecting the 15 percent hosting
+   fee and 5 percent reserve, both taken from gross revenue. The holding period
+   is the full agreed loan term: shares are released on repayment. No dividends
+   beyond that period are counted and the API caps it to the vault redemption.
 5. Payments due are principal plus simple interest:
-   `principal * (1 + APR * termSeconds / 31,536,000)`. Coverage is expected
-   dividends divided by payments due. When coverage is below 1, maximum LTV is
-   multiplied by coverage. A request above that limit is declined.
+   `principal * (1 + APR * termSeconds / 31,536,000)`. Coverage assets are
+   `expectedDividends + 0.35 * collateralValue`; `coverageRatio` is those assets
+   divided by payments due. Coverage capacity is
+   `coverageAssets / collateralValue / (1 + APR * termSeconds / 31,536,000)`.
+   Maximum LTV is the lesser of that capacity and the confidence/volatility
+   adjusted grade cap. A request above that limit is declined.
+   The 65 percent collateral haircut is a conservative underwriting allowance
+   for a volatile, illiquid GPU share market, separate from the 10 percent
+   execution haircut used in LGD. This recognizes collateral as a repayment
+   source without counting its full spot value. Unlike the old dividend-only
+   multiplier, capacity does not depend on the requested principal.
+   With daily GPU-A gross revenue 48.2, price 5.25, and a 14 day holding period,
+   B (score 82, confidence 0.9) gets about 45.1 percent maximum LTV, 60.1 percent
+   margin call, and 75.1 percent liquidation. E remains capped near 20 percent.
 6. PD is an estimate, not a measured fact. `PD = clamp(baseGradePD + 0.10 *
    (100 - score) / 100 + 0.05 * (1 - confidence) + 0.15 * max(0, 1 -
    coverage) + 0.20 * max(0, requestedLTV - effectiveMaxLTV), 0.001, 0.99)`.
@@ -102,8 +121,17 @@ fractions, so `0.500000` means 50 percent.
 8. Margin-call LTV is maximum LTV plus 15 percentage points, capped at 85
    percent. Liquidation LTV is maximum LTV plus 30 percentage points, capped
    at 95 percent.
+9. `paymentIntervalSeconds = max(60, configuredInterval, ceil(termSeconds / 30))`,
+   matching the API's XLS-66 mapping and limiting the schedule to 30 installments.
 
 ## Keeper and scenario assumptions
+
+The demo preset calculates prices from the selected GPU-A loan's actual
+thresholds. Step 1 targets margin-call LTV plus 1% of the gap to liquidation.
+Step 2 targets 126% of liquidation LTV, crossing the existing emergency rule
+so the second click liquidates in simulation without bypassing cure policy.
+GPU-B prices are untouched. These are temporary, dry-run keeper overrides;
+no oracle or ledger transactions are submitted. The normal scenario gate applies.
 
 The keeper reads open loans and current oracle history from the API. A loan is
 `HEALTHY` below 90 percent of its margin-call threshold, `WATCH` from there up
@@ -141,4 +169,35 @@ Expected loss uses each loan's PD and the same 10 percent collateral recovery
 haircut as loan quotes. Cover ratio is configured cover divided by expected
 loss; it is `UNBOUNDED` when expected loss is zero. These portfolio summaries
 are simulated until live vault fields are added to the API contract.
+
+## Round yield formulas
+
+`realizedApy = weightedApr * lentOut / assets` describes annualized interest
+from loans open now. It is a simple annualized yield, not historical cash
+received or compounded APY. `weightedApr` is a fraction, not percentage points.
+For closed rounds, partial deployment makes this number look artificially low.
+The target estimate uses an explicit 80% utilization assumption:
+
+```
+bookExpectedLoss = sum(outstanding * PD * max(0, 1 - 0.90 * collateral / outstanding))
+lossRate = bookExpectedLoss / bookOutstanding
+expectedLoss = assets * 0.80 * lossRate
+targetApy = weightedApr * 0.80 - expectedLoss / assets * 31,536,000 / roundSeconds
+```
+
+`expectedLoss` is projected USDC loss over the round at target exposure;
+`bookExpectedLoss` is the current book's USDC loss. Both use estimated loan PD
+as round-period default probabilities. Loss is annualized over the same period
+as the lending income. Negative net estimates remain visible. First-loss cover
+is not credited. Until round membership is available in the internal loan feed,
+the whole open book supplies the loss-rate proxy (`lossBasis=all-open-loans`);
+`round` identifies the supplied vault inputs, not an upstream book filter.
+An empty book uses zero loss and reports `lossBasis=empty-book`, which is lack
+of evidence rather than a claim of zero risk. `simulated` follows the source
+loan data and mock setting, and `targetApyLabel` always says `estimate`.
+
+At assets 10,000, lent out 150, and weighted APR 8.6667%, the mock book has
+zero modeled LGD, realized yield is 0.1300%, target estimate is 6.9334%, and
+expected loss is 0 USDC. Actual defaults, utilization, fees, and share prices
+can change the return.
 

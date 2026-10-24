@@ -7,9 +7,46 @@ from typing import Any
 
 from app.config import Settings
 from app.data import RiskDataClient
-from app.risk import money6, ratio6
+from app.risk import money6, ratio6, YEAR_SECONDS
 
 D = Decimal
+
+
+async def round_apy(
+    settings: Settings,
+    data: RiskDataClient,
+    round_id: int,
+    assets: Decimal,
+    lent_out: Decimal,
+    weighted_apr: Decimal,
+    round_seconds: int = 14 * 86400,
+) -> dict[str, Any]:
+    """Annualized simple yields, with book losses projected to round exposure."""
+    loans = [loan for loan in await data.list_open_loans()
+             if loan.status.lower() in {"open", "active", "margin_call"}]
+    outstanding = sum((loan.outstanding_balance for loan in loans), D(0))
+    book_loss = D(0)
+    for loan in loans:
+        price = await data.current_price(loan.gpu_id)
+        recovery = min(loan.outstanding_balance, loan.collateral_shares * price * D("0.90"))
+        book_loss += loan.pd * (loan.outstanding_balance - recovery)
+    target_utilization = D("0.80")
+    loss_rate = book_loss / outstanding if outstanding > 0 else D(0)
+    expected_loss = assets * target_utilization * loss_rate
+    annual_loss_yield = expected_loss / assets * YEAR_SECONDS / D(round_seconds)
+    return {
+        "round": round_id,
+        "realizedApy": ratio6(weighted_apr * lent_out / assets),
+        "targetApy": ratio6(weighted_apr * target_utilization - annual_loss_yield),
+        "targetApyLabel": "estimate",
+        "targetUtilization": ratio6(target_utilization),
+        "expectedLoss": money6(expected_loss),
+        "bookExpectedLoss": money6(book_loss),
+        "lossRate": ratio6(loss_rate),
+        "lossBasis": "all-open-loans" if outstanding > 0 else "empty-book",
+        "roundSeconds": round_seconds,
+        "simulated": settings.mock or any(loan.simulated for loan in loans),
+    }
 
 
 async def vault_health(settings: Settings, data: RiskDataClient) -> dict[str, Any]:

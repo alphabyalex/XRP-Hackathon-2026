@@ -1,0 +1,22 @@
+{
+  "endpoint": "GET /vault/round-apy?round=1&assets=10000&lentOut=150&weightedApr=0.086667",
+  "request": {
+    "round": 1,
+    "assets": "10000",
+    "lentOut": "150",
+    "weightedApr": "0.086667"
+  },
+  "response": {
+    "round": 1,
+    "realizedApy": "0.001300",
+    "targetApy": "0.069334",
+    "targetApyLabel": "estimate",
+    "targetUtilization": "0.800000",
+    "expectedLoss": "0.000000",
+    "bookExpectedLoss": "0.000000",
+    "lossRate": "0.000000",
+    "lossBasis": "all-open-loans",
+    "roundSeconds": 1209600,
+    "simulated": true
+  }
+}

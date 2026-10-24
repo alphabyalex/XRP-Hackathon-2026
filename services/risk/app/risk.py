@@ -67,7 +67,7 @@ def projected_dividends(request: QuoteRequest, term_seconds: int) -> Decimal:
     if total_seconds == 0:
         return D(0)
     gross_projection = total_revenue / total_seconds * D(term_seconds)
-    distributable = gross_projection * D("0.85") * D("0.95")
+    distributable = gross_projection * D("0.80")
     return distributable * request.collateral_shares / D(1000)
 
 
@@ -111,8 +111,14 @@ def calculate_quote(request: QuoteRequest, settings: Settings) -> dict[str, Any]
         D(1) + apr * D(term_seconds) / YEAR_SECONDS
     )
     expected_dividends = projected_dividends(request, term_seconds)
-    coverage_ratio = expected_dividends / payment_due if payment_due > 0 else D(0)
-    max_ltv = preliminary_max_ltv * min(D(1), coverage_ratio)
+    # Full holding-period income plus conservatively recoverable collateral.
+    # Capacity is independent of the requested principal, avoiding circular limits.
+    coverage_assets = expected_dividends + collateral_value * D("0.35")
+    coverage_ratio = coverage_assets / payment_due
+    coverage_max_ltv = coverage_assets / collateral_value / (
+        D(1) + apr * D(term_seconds) / YEAR_SECONDS
+    )
+    max_ltv = min(preliminary_max_ltv, coverage_max_ltv)
 
     margin_call_ltv = min(D("0.850000"), max_ltv + D("0.150000"))
     liquidation_ltv = min(D("0.950000"), max_ltv + D("0.300000"))
@@ -148,7 +154,7 @@ def calculate_quote(request: QuoteRequest, settings: Settings) -> dict[str, Any]
         "marginCallLtv": ratio6(margin_call_ltv),
         "liquidationLtv": ratio6(liquidation_ltv),
         "termSeconds": term_seconds,
-        "paymentIntervalSeconds": min(settings.payment_interval_seconds, term_seconds),
+        "paymentIntervalSeconds": max(60, settings.payment_interval_seconds, (term_seconds + 29) // 30),
         "pd": ratio6(pd),
         "pdLabel": "estimate",
         "expectedLoss": money6(expected_loss),

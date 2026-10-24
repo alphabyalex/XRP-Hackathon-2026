@@ -339,3 +339,35 @@ All routes below are live on `alex`. Every internal route requires `X-MS-Interna
 **Request to Kristian (services/risk): same split in `projected_dividends`.**
 - `gross_projection * 0.85 * 0.95` becomes `gross_projection * 0.80`.
 - The api's TypeScript port in `apps/api/src/adapters/riskClient.ts` keeps your current formula until you change it, so both stay identical.
+
+**Kristian round 2 risk update:** Python and the API fallback now use the 80%
+gross dividend split, full holding-period dividends plus 35% of collateral
+value as coverage assets, and the lesser of coverage capacity and the existing
+grade cap. See `services/risk/README.md` formulas and `contracts/risk/quote.json`.
+The returned interval is `max(60, configuredInterval, ceil(term / 30))`, matching
+the API mapping. Default term is 14 days; the API supplies the actual capped term.
+
+## Kristian round APY endpoint and request to Alex
+
+`GET /vault/round-apy?round=1&assets=10000&lentOut=150&weightedApr=0.086667`
+on risk (port 7000), protected by `X-MS-Internal-Key` when configured.
+`roundSeconds` optionally sets the actual lending duration (default 1,209,600).
+See `contracts/risk/round_apy.json`. Ratios are six-decimal strings.
+`expectedLoss` is projected USDC loss at 80% target utilization, derived from
+the all-open-loan book loss rate. That proxy is explicit in `lossBasis` because
+the internal loan feed does not currently expose round membership.
+
+**Alex:** please show `targetApy` beside `realizedApy` on `/lend`, label it
+"Estimated target APY (80% utilization)", and show expected loss in USDC.
+Pass vault round ID, total assets, lent-out amount, weighted APR as a fraction,
+and the actual round lending duration. Display yields multiplied by 100 as
+percentages. The example is 0.13% realized and 6.93% estimated target, with
+0 USDC expected loss under the mock collateral assumptions. Do not present
+the estimate as a guaranteed return or a historical payout.
+
+The simulated demo preset is discoverable at `GET /scenarios?preset=demo`.
+POST `{"preset":"demo","step":1}` then `{"preset":"demo","step":2}` to
+`/scenarios/run`; optionally include the same GPU-A `loanId` in both calls.
+Step 1 crosses margin call; step 2 crosses the emergency liquidation line.
+These do not publish on-ledger prices. Existing API `/demo/stress` remains the
+route for an explicitly requested devnet oracle transaction demo.
