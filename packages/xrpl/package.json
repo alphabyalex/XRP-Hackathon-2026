@@ -7,6 +7,7 @@
   "types": "src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test": "tsx test/xrpl.test.ts",
     "features": "tsx src/scripts/features.ts",
     "setup": "tsx src/scripts/setup.ts",
     "smoke": "tsx src/scripts/smoke.ts"

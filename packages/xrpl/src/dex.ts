@@ -8,7 +8,15 @@ import type {
 } from "@moonshift/shared";
 import { OfferCreateFlags, type OfferCreate } from "xrpl";
 import { getClient, submitTx } from "./client.js";
-import { getAccountAddress, getAccountWallet } from "./wallets.js";
+import { getAccountAddress, getAccountWallet, loadAccountsJson } from "./wallets.js";
+
+function getDomainIdIfConfigured(): string | undefined {
+  if (process.env.PERMISSIONED_SHARES === "1") {
+    const file = loadAccountsJson() as any;
+    return file?.DomainID || undefined;
+  }
+  return undefined;
+}
 
 export async function listShareOffers(gpuId: GpuId): Promise<Offer[]> {
   const client = await getClient();
@@ -46,6 +54,7 @@ export async function buyShares(p: BuySharesParams): Promise<TxResult> {
   const tdxIssuer = getAccountAddress("TDX_ISSUER");
 
   const totalCostTdx = (Number(p.qty) * Number(p.maxPricePerShare)).toFixed(6);
+  const domainId = getDomainIdIfConfigured();
 
   const offer: OfferCreate = {
     TransactionType: "OfferCreate",
@@ -61,6 +70,7 @@ export async function buyShares(p: BuySharesParams): Promise<TxResult> {
       value: p.qty,
     },
     Flags: OfferCreateFlags.tfImmediateOrCancel,
+    ...(domainId ? { DomainID: domainId } : {}),
   };
 
   return submitTx(buyerWallet, offer);
@@ -75,6 +85,7 @@ export async function sellShares(p: SellSharesParams): Promise<TxResult> {
   const tdxIssuer = getAccountAddress("TDX_ISSUER");
 
   const totalTdx = (Number(p.qty) * Number(p.pricePerShare)).toFixed(6);
+  const domainId = getDomainIdIfConfigured();
 
   const offer: OfferCreate = {
     TransactionType: "OfferCreate",
@@ -89,6 +100,7 @@ export async function sellShares(p: SellSharesParams): Promise<TxResult> {
       issuer: tdxIssuer,
       value: totalTdx,
     },
+    ...(domainId ? { DomainID: domainId } : {}),
   };
 
   return submitTx(sellerWallet, offer);
