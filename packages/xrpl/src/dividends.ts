@@ -23,16 +23,7 @@ export async function payDividends(p: PayDividendsParams): Promise<TxResult[]> {
 
   const items: PaymentItem[] = [];
 
-  // 1. Hosting fee to PROTOCOL_FEES
-  if (Number(p.hostingFee) > 0) {
-    items.push({
-      destination: protocolFeesAddress,
-      amount: p.hostingFee,
-      memoType: "MS_HOSTING_FEE",
-    });
-  }
-
-  // 2. Shareholder payouts
+  // 1. Shareholder payouts first
   for (const payout of p.payouts) {
     if (Number(payout.amount) > 0) {
       items.push({
@@ -43,8 +34,25 @@ export async function payDividends(p: PayDividendsParams): Promise<TxResult[]> {
     }
   }
 
+  // 2. Hosting fee to PROTOCOL_FEES last
+  if (Number(p.hostingFee) > 0) {
+    items.push({
+      destination: protocolFeesAddress,
+      amount: p.hostingFee,
+      memoType: "MS_HOSTING_FEE",
+    });
+  }
+
   if (items.length === 0) {
-    return [];
+    const noopResult: TxResult = {
+      hash: "ZERO_PAYOUT_NOOP",
+      result: "tesSUCCESS",
+      validated: true,
+      explorerUrl: "",
+    };
+    const zeroResults: TxResult[] = p.payouts.map(() => noopResult);
+    zeroResults.push(noopResult);
+    return zeroResults;
   }
 
   // Check if BatchV1_1 is enabled on network
@@ -56,12 +64,11 @@ export async function payDividends(p: PayDividendsParams): Promise<TxResult[]> {
     useBatch = false;
   }
 
-  const results: TxResult[] = [];
-
   if (useBatch) {
     try {
       // Split into batches of up to 8 inner transactions
       const batchSize = 8;
+      let lastBatchResult: TxResult | null = null;
       for (let i = 0; i < items.length; i += batchSize) {
         const chunk = items.slice(i, i + batchSize);
 
@@ -103,33 +110,47 @@ export async function payDividends(p: PayDividendsParams): Promise<TxResult[]> {
           RawTransactions: rawTransactions,
         };
 
-        const txResult = await submitTx(treasuryWallet, batchTx);
-        results.push(txResult);
+        lastBatchResult = await submitTx(treasuryWallet, batchTx);
       }
 
-      return results;
+      if (lastBatchResult) {
+        // Return 1:1 TxResult for each payout, plus 1 for the hosting fee
+        const results: TxResult[] = p.payouts.map(() => lastBatchResult!);
+        results.push(lastBatchResult);
+        return results;
+      }
     } catch (batchErr) {
       console.warn("Batch payment failed or rejected, falling back to sequential payments:", (batchErr as Error).message);
     }
   }
 
   // Fallback: Sequential Payments
-  for (const item of items) {
+  const results: TxResult[] = [];
+  for (const payout of p.payouts) {
+    if (Number(payout.amount) <= 0) {
+      results.push({
+        hash: "ZERO_PAYOUT_NOOP",
+        result: "tesSUCCESS",
+        validated: true,
+        explorerUrl: "",
+      });
+      continue;
+    }
     const payment: Payment = {
       TransactionType: "Payment",
       Account: treasuryWallet.address,
-      Destination: item.destination,
+      Destination: payout.account,
       Amount: {
         currency: "TDX",
         issuer: tdxIssuer,
-        value: item.amount,
+        value: payout.amount,
       },
       Memos: [
         {
           Memo: {
             MemoType: Buffer.from("text/plain", "utf8").toString("hex").toUpperCase(),
             MemoData: Buffer.from(
-              JSON.stringify({ type: item.memoType, runRef, amount: item.amount }),
+              JSON.stringify({ type: "MS_DIVIDEND", runRef, amount: payout.amount }),
               "utf8"
             )
               .toString("hex")
@@ -138,9 +159,43 @@ export async function payDividends(p: PayDividendsParams): Promise<TxResult[]> {
         },
       ],
     };
-
     const res = await submitTx(treasuryWallet, payment);
     results.push(res);
+  }
+
+  if (Number(p.hostingFee) > 0) {
+    const feePayment: Payment = {
+      TransactionType: "Payment",
+      Account: treasuryWallet.address,
+      Destination: protocolFeesAddress,
+      Amount: {
+        currency: "TDX",
+        issuer: tdxIssuer,
+        value: p.hostingFee,
+      },
+      Memos: [
+        {
+          Memo: {
+            MemoType: Buffer.from("text/plain", "utf8").toString("hex").toUpperCase(),
+            MemoData: Buffer.from(
+              JSON.stringify({ type: "MS_HOSTING_FEE", runRef, amount: p.hostingFee }),
+              "utf8"
+            )
+              .toString("hex")
+              .toUpperCase(),
+          },
+        },
+      ],
+    };
+    const feeRes = await submitTx(treasuryWallet, feePayment);
+    results.push(feeRes);
+  } else {
+    results.push({
+      hash: "ZERO_PAYOUT_NOOP",
+      result: "tesSUCCESS",
+      validated: true,
+      explorerUrl: "",
+    });
   }
 
   return results;
