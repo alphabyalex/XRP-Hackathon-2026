@@ -469,7 +469,12 @@ export async function liquidateLoan(p: { loanId: string; reason?: string }): Pro
 
   let seizeTx: TxResult | null = null;
   if (loan.collateral?.locked) {
-    seizeTx = await seizeCollateral(loan.collateral, p.loanId, p.reason ?? "LTV_ABOVE_LIQUIDATION");
+    try {
+      seizeTx = await seizeCollateral(loan.collateral, p.loanId, p.reason ?? "LTV_ABOVE_LIQUIDATION");
+    } catch (e) {
+      // Another actor finished the escrow first (tecNO_TARGET): already seized.
+      if (await escrowExists(loan.collateral.owner, loan.collateral.escrowSequence)) throw e;
+    }
   }
   if (loan.state === "late") {
     await impairLoan(p.loanId);

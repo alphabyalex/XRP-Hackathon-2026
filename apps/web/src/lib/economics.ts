@@ -13,9 +13,8 @@ export interface RevenueSplit {
 
 export function splitRevenue(gross: number): RevenueSplit {
   const hosting = gross * (HOSTING_FEE_BPS / 10000);
-  const afterFee = gross - hosting;
-  const reserve = afterFee * (RESERVE_BPS / 10000);
-  const holders = afterFee - reserve;
+  const reserve = gross * (RESERVE_BPS / 10000); // from gross, so holders get exactly 80%
+  const holders = gross - hosting - reserve;
   return { gross, hosting, reserve, holders };
 }
 

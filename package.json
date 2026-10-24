@@ -16,7 +16,8 @@
     "xrpl:smoke": "npm run smoke -w packages/xrpl",
     "demo": "node scripts/demo.mjs",
     "demo:mock": "node scripts/demo.mjs --mock-xrpl",
-    "demo:reset": "tsx scripts/demo-reset.ts"
+    "demo:reset": "tsx scripts/demo-reset.ts",
+    "demo:check": "node scripts/demo-path.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

@@ -34,7 +34,9 @@ export type GpuId = (typeof GPUS)[number]["id"];
 
 export const SLOT_MINUTES = Number(process.env.SLOT_MINUTES ?? 5); // 1 contract token = 1 slot; 5 min demo, 60 production
 export const HOSTING_FEE_BPS = 1500; // 15% placeholder
-export const RESERVE_BPS = 500; // 5% of net revenue kept in treasury
+// 80/15/5 of GROSS revenue: holders / hosting / reserve. The reserve is taken
+// from gross (not after the fee), so holders get exactly 80%.
+export const RESERVE_BPS = 500; // 5% of gross revenue kept in treasury
 export const LOAN = {
   maxLtvBps: 5000,
   aprBps: 1000,

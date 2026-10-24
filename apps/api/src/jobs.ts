@@ -70,7 +70,7 @@ export function startBackgroundJobs(): void {
     lendingBusy = true;
     try {
       await svc.defaulterTick();
-      if (!(await risk.liveKeeperAvailable())) await svc.builtInKeeperCheck("api-keeper");
+      if (!svc.isStressing() && !(await risk.liveKeeperAvailable())) await svc.builtInKeeperCheck("api-keeper");
     } catch {
       // ledger or service hiccup, next tick retries
     } finally {

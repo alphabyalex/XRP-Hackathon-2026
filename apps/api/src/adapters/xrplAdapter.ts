@@ -1,6 +1,7 @@
 // Adapter over packages/xrpl. MOCK_XRPL=1 (default) uses an in-memory mock
 // ledger that behaves consistently across calls. MOCK_XRPL=0 calls the real
-// packages/xrpl functions (owner Tharun), which currently throw NotImplemented.
+// packages/xrpl functions on the active NETWORK (devnet or testnet).
+// Lending (XLS-65/66) lives in ./lendingAdapter.ts.
 
 import { randomBytes } from "crypto";
 import * as realXrpl from "@moonshift/xrpl";

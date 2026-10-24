@@ -6,6 +6,7 @@
 import { randomUUID } from "crypto";
 import {
   GPUS,
+  explorerUrl,
   fix6,
   pctToTenthBps,
   type AccountName,
@@ -379,7 +380,25 @@ async function alertFor(type: "margin_call" | "liquidation", r: ReturnType<typeo
   });
 }
 
-export async function marginCall(id: string, body: KeeperActionBody, via: string) {
+// One keeper action per loan at a time: the background keeper, a stress run
+// and Kristian's keeper can all fire on the same price move.
+const loanLocks = new Map<string, Promise<unknown>>();
+function withLoanLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
+  const prev = loanLocks.get(id) ?? Promise.resolve();
+  const next = prev.catch(() => {}).then(fn);
+  loanLocks.set(id, next.catch(() => {}));
+  return next;
+}
+
+export function marginCall(id: string, body: KeeperActionBody, via: string) {
+  return withLoanLock(id, () => marginCallLocked(id, body, via));
+}
+
+export function liquidate(id: string, body: KeeperActionBody, via: string) {
+  return withLoanLock(id, () => liquidateLocked(id, body, via));
+}
+
+async function marginCallLocked(id: string, body: KeeperActionBody, via: string) {
   const prior = priorAction(body.idempotencyKey);
   if (prior) return { loanId: id, idempotent: true, txHash: prior.tx_hash as string | null };
   const r = getRow(id);
@@ -398,7 +417,7 @@ export async function marginCall(id: string, body: KeeperActionBody, via: string
   return { loanId: id, idempotent: false, txHash: tx.hash, tx, alert };
 }
 
-export async function liquidate(id: string, body: KeeperActionBody, via: string) {
+async function liquidateLocked(id: string, body: KeeperActionBody, via: string) {
   const prior = priorAction(body.idempotencyKey);
   if (prior) return { loanId: id, idempotent: true, txHash: prior.tx_hash as string | null };
   const r = getRow(id);
@@ -426,6 +445,13 @@ export async function liquidate(id: string, body: KeeperActionBody, via: string)
 
 // The api's own keeper: used whenever Kristian's keeper is not running (Python
 // missing, MOCK_RISK=1) and right after a stress shock.
+// A tx for the response: the new one, or the one an earlier actor already sent.
+function actionTx(res: any): TxResult | null {
+  if (res?.tx) return res.tx as TxResult;
+  if (res?.txHash) return { hash: res.txHash, result: "tesSUCCESS", validated: true, explorerUrl: explorerUrl(res.txHash) };
+  return null;
+}
+
 export async function builtInKeeperCheck(via = "api-keeper", onlyLoan?: string) {
   const actions: StressResult["actions"] = [];
   for (const l of await keeperLoans()) {
@@ -437,10 +463,10 @@ export async function builtInKeeperCheck(via = "api-keeper", onlyLoan?: string) 
     const at = new Date().toISOString();
     if (ltv >= Number(l.liquidationLtv)) {
       const res = await liquidate(l.loanId, { idempotencyKey: `${via}:liq:${l.loanId}`, observedLtv: ltvStr, threshold: l.liquidationLtv, occurredAt: at, reason: "LIQUIDATION_THRESHOLD_CROSSED" }, via);
-      actions.push({ loanId: l.loanId, action: "liquidate", ltv: ltvStr, tx: (res as any).tx ?? null, alert: (res as any).alert });
+      actions.push({ loanId: l.loanId, action: "liquidate", ltv: ltvStr, tx: actionTx(res), alert: (res as any).alert });
     } else if (ltv >= Number(l.marginCallLtv) && l.status === "open") {
       const res = await marginCall(l.loanId, { idempotencyKey: `${via}:mc:${l.loanId}:${Math.floor(Date.now() / 600000)}`, observedLtv: ltvStr, threshold: l.marginCallLtv, occurredAt: at, reason: "MARGIN_CALL_THRESHOLD_CROSSED" }, via);
-      actions.push({ loanId: l.loanId, action: "margin_call", ltv: ltvStr, tx: (res as any).tx ?? null, alert: (res as any).alert });
+      actions.push({ loanId: l.loanId, action: "margin_call", ltv: ltvStr, tx: actionTx(res), alert: (res as any).alert });
     }
   }
   return actions;
@@ -470,13 +496,30 @@ export async function defaulterTick(): Promise<void> {
 
 const preStressPrice = new Map<string, string>();
 
-export async function stress(p: { gpuId: GpuId; level?: "margin_call" | "liquidation"; shockPct?: number; loanId?: string }): Promise<StressResult> {
+// While a stress run is shocking the oracle, the background keeper waits, so
+// the run reports the margin call or liquidation it caused.
+let stressing = 0;
+export function isStressing(): boolean {
+  return stressing > 0;
+}
+
+export async function stress(p: Parameters<typeof stressRun>[0]): Promise<StressResult> {
+  stressing++;
+  try {
+    return await stressRun(p);
+  } finally {
+    stressing--;
+  }
+}
+
+async function stressRun(p: { gpuId: GpuId; level?: "margin_call" | "liquidation"; shockPct?: number; loanId?: string }): Promise<StressResult> {
   const gpu = GPUS.find((g) => g.id === p.gpuId);
   if (!gpu) throw new LendingError("BAD_REQUEST", `unknown gpuId ${p.gpuId}`);
   const before = (await lending.oraclePrice(gpu.id)).price;
   if (!preStressPrice.has(gpu.id)) preStressPrice.set(gpu.id, before);
 
   let target = Number(before);
+  let targetId = p.loanId;
   if (p.shockPct !== undefined) {
     target = Number(before) * (1 + p.shockPct / 100);
   } else {
@@ -484,6 +527,7 @@ export async function stress(p: { gpuId: GpuId; level?: "margin_call" | "liquida
     const book = (await keeperLoans()).filter((l) => l.gpuId === gpu.id);
     const loan = book.find((l) => l.loanId === p.loanId) ?? book[0];
     if (!loan) throw new LendingError("NO_OPEN_LOAN", `no open loan on ${gpu.id} to stress`, 409);
+    targetId = loan.loanId;
     const mc = Number(loan.marginCallLtv);
     const liq = Number(loan.liquidationLtv);
     const ltvTarget = p.level === "liquidation" ? Math.min(0.99, liq + 0.05) : (mc + liq) / 2;
@@ -515,6 +559,19 @@ export async function stress(p: { gpuId: GpuId; level?: "margin_call" | "liquida
     )
   );
   const actions = await builtInKeeperCheck("stress-test");
+  // If another keeper acted on the target loan in the same instant, report
+  // what it did (from the loan record) so the demo shows the tx either way.
+  const row = targetId ? getRow(targetId) : null;
+  if (row && !actions.some((a) => a.loanId === row.id)) {
+    const cv = Number(row.collateralShares) * target;
+    const ledger = await lending.getLoan(row.id).catch(() => null);
+    const ltv = cv > 0 ? (Number(ledger?.totalValueOutstanding ?? row.principal) / cv).toFixed(6) : "0";
+    if ((row.status === "liquidated" || row.status === "defaulted") && row.txs.seize) {
+      actions.push({ loanId: row.id, action: "liquidate", ltv, tx: actionTx({ txHash: row.txs.seize }) });
+    } else if (row.status === "margin_call" && row.txs.marginCall && p.level !== "liquidation") {
+      actions.push({ loanId: row.id, action: "margin_call", ltv, tx: actionTx({ txHash: row.txs.marginCall }) });
+    }
+  }
   return { gpuId: gpu.id, priceBefore: before, priceAfter: fix6(target), oracleTx, scenario, actions };
 }
 

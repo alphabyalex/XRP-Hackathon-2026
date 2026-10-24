@@ -293,3 +293,49 @@ Contracts: `contracts/credit/*.json`. Base URL from env `CREDIT_URL`
   reads `{ grade, loans, defaults, defaultRatePct, simulated: true }` to
   attach "borrowers in this grade defaulted X% (simulated)" to each profile.
   Credit mocks it until risk is up. See `contracts/credit/risk_book_stats.json`.
+
+---
+
+## Answers from Alex (apps/api), 2026-10-24
+
+All routes below are live on `alex`. Every internal route requires `X-MS-Internal-Key`. Money is a 6-decimal string, and ratios are decimal fractions.
+
+**To Kristian (risk keeper): all four routes are done and idempotent by `idempotencyKey`.**
+- `GET /internal/loans` returns `{ loans: KeeperLoan[] }` with exactly your fields (`loanId`, `borrower`, `gpuId`, `collateralShares`, `outstandingBalance`, `apr`, `pd`, `status`, `marginCallLtv`, `liquidationLtv`, `marginCallAt`, `simulated`). Thresholds come from the accepted quote.
+- `POST /internal/loans/{id}/margin-call` writes an `MS_MARGIN_CALL` memo tx on devnet and sets status `margin_call`. It also asks pricing for a risk alert and pushes an SSE `loan` event.
+- `POST /internal/loans/{id}/liquidate` seizes the escrowed shares (EscrowFinish, `MS_LIQUIDATION`). The XLS-66 `LoanManage tfLoanDefault` follows once due date + grace passes (the ledger refuses earlier); the api runs that defaulter in the background.
+- `GET /internal/oracle/{gpuId}/history?from=&to=` returns `{ gpuId, prices: [{ timestamp, price }] }`, sampled from the devnet oracle every 60 s plus every stress publish.
+- When your keeper is mock or dry-run (per your `/health`), the api's built-in keeper applies the same LTV rule, so the demo works either way.
+
+**To Lucy (credit): all requests are done.**
+- `POST /internal/credit-events` stores each event (duplicate `id` is ignored, `{ ok: true, duplicate }`) and forwards it on SSE as `credit`.
+- The api calls `POST {CREDIT_URL}/watch` after every loan opens, and `GET /profile/{network}/{address}` before every quote.
+- Margin calls are on-ledger (`MS_MARGIN_CALL`, 1 drop). LoanPay carries `MS_REPAY` with `kind` and `onTime`, and LoanSet carries `MS_LOAN_DISBURSE`. See the memo table in "Requests from Alex" above.
+
+**New public routes (web uses these):**
+- `GET /vault`: investing and subscribing rounds with broker state.
+- `POST /vault/deposit` and `POST /vault/withdraw` take `{ lender, amount }`.
+- `GET /vault/positions/{account}`.
+- `GET /credit/{network}/{address}`: the address may be a demo name like `ALICE`.
+- `GET /risk/book-stats`.
+- `POST /loans/quote` takes `{ borrower, gpuId, collateralShares, principal, termSeconds? }` and returns the credit profile, risk quote, XLS-66 terms and credit memo.
+- `POST /loans/open` takes `{ quoteId }`.
+- `GET /loans?borrower=` and `GET /loans/{id}`.
+- `POST /loans/{id}/pay` takes `{ mode: "next" }`. `POST /loans/{id}/repay` pays off, releases the collateral and deletes the loan.
+- `POST /demo/stress` takes `{ gpuId, level: "margin_call" | "liquidation" }`. It publishes a shocked price to the devnet oracle, runs the scenario and fires the keeper. `POST /demo/stress/restore` undoes it.
+- `GET /health/services`.
+
+**Quote to XLS-66 mapping (decision, tell me if you disagree):**
+- `InterestRate = round(apr * 100000)`.
+- `PaymentInterval = max(risk paymentIntervalSeconds, ceil(term / 30))`, so a demo loan has at most 30 installments and is not late every 60 s.
+- `PaymentTotal = ceil(term / interval)`.
+- `GracePeriod = 60`.
+- The term is capped to the vault round's redemption date minus 3 h, because LoanSet is rejected with `tecNO_PERMISSION` if the loan would mature after the round redeems.
+
+**Request to Tharun (services/pricing): 80/15/5 is now of gross.**
+- `packages/shared` and the api mock now take the 5% reserve from **gross** revenue, so holders get exactly 80% (was 80.75%).
+- Please match it in `services/pricing` `dividends.py`: `reserve = gross * 0.05`, `distributable = gross - hosting_fee - reserve`.
+
+**Request to Kristian (services/risk): same split in `projected_dividends`.**
+- `gross_projection * 0.85 * 0.95` becomes `gross_projection * 0.80`.
+- The api's TypeScript port in `apps/api/src/adapters/riskClient.ts` keeps your current formula until you change it, so both stay identical.

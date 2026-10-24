@@ -1,6 +1,6 @@
 # Runbook
 
-How to run Moonshift locally. Keep this current as services go from mock to real.
+How to run Moonshift locally. Lending (XLS-65 vaults, XLS-66 loans) runs on XRPL **devnet**. Nothing here ever touches mainnet.
 
 ## 1. Install
 
@@ -9,8 +9,23 @@ cd moonshift
 npm install
 ```
 
-services/compute and services/pricing are Python placeholders for now
-(README only), nothing to install there yet.
+Python services (pricing, risk, credit, compute) need **Python 3.11 or newer**. Each one gets its own virtual environment, because their pinned FastAPI and pydantic versions differ. `npm run demo` creates and fills the venvs automatically (`services/<name>/.venv`). By hand:
+
+```
+cd services/risk
+py -3.12 -m venv .venv            # macOS/Linux: python3.12 -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python -m uvicorn app.main:app --port 7000
+```
+
+| Service | Folder | App | Port | Owner |
+|---|---|---|---|---|
+| web | apps/web | Next.js | 3000 | Alex |
+| api | apps/api | Express | 4000 | Alex |
+| compute | services/compute | `compute.main:app` | 5000 | Tharun (EC2) |
+| pricing + Bedrock memo | services/pricing | `app.main:app` | 6000 | Tharun |
+| risk desk + keeper | services/risk | `app.main:app` | 7000 | Kristian |
+| credit (Quicknode) | services/credit | `credit.main:app` | 7100 | Lucy |
 
 ## 2. Configure
 
@@ -18,63 +33,75 @@ services/compute and services/pricing are Python placeholders for now
 cp .env.example .env
 ```
 
-Fill in at minimum, to run everything in mock mode:
-- `ADMIN_KEY` (any string, required for /admin/* routes)
-- `INTERNAL_API_KEY` (any string, required for /internal/* routes)
+- `INTERNAL_API_KEY`: one shared value. **Every** service must see the same key; it goes in the `X-MS-Internal-Key` header on every service-to-service call. `npm run demo` passes the root `.env` to every process. If the key is unset there, it uses a local-only default.
+- `ADMIN_KEY` for `/admin/*`.
+- `NETWORK=devnet` for lending. Devnet seeds (`DEVNET_<NAME>_SEED`) are written by setup, never by hand, and are never printed.
+- `QUICKNODE_WSS` is testnet only (Quicknode has no devnet) and is never printed.
 
-Leave `MOCK_XRPL=1`, `MOCK_COMPUTE=1`, `MOCK_PRICING=1` as-is until the
-corresponding real service is ready. Account seeds (`<ACCOUNT>_SEED`) are
-only needed once MOCK_XRPL=0, filled in by Tharun's setup script.
-
-## 3. Run
+## 3. Build the devnet world (once, and after any devnet reset)
 
 ```
-npm run dev
+npm run demo:reset
 ```
 
-Starts apps/web (http://localhost:3000) and apps/api (http://localhost:4000)
-together. Visit http://localhost:3000, it should show GPU-A and GPU-B with
-mock numbers pulled live from apps/api.
+This runs setupNetwork on devnet and is safe to rerun:
+- Faucet top-ups.
+- Issuers and flags, TDX, GPU shares, compute tokens, DEX offers, oracles.
+- Lending rounds: one vault round lending, the next one open for deposits.
 
-Health check: `curl http://localhost:4000/health`
+It then closes leftover loans, restores the oracle prices, makes sure ALICE holds GPU shares, and clears the api's loan tables.
 
-Routes:
-- `/` landing page: hero, market window, schedule, 80 cents, borrow, developers.
-- `/market` the two GPUs trading now, full page. `/marketplace` redirects here.
-- `/gpu/[id]` one GPU's price, 24h schedule and trade panel, e.g. `/gpu/gpu-a`.
-- `/portfolio` holdings, dividends received, redeemable contracts, open loans.
-- `/borrow` open a loan against shares, or see the open one with a repay button and countdown.
-- `/playground` the OpenAI-compatible code sample plus a live Try It box.
+## 4. Run everything
 
-`?accent=moon` on any route switches the whole site to moon yellow.
+```
+npm run demo          # web + api on devnet + pricing/risk/credit if Python 3.11+ exists
+npm run demo:mock     # same, but an in-memory ledger (no network)
+npm run dev           # web + api only, mock flags from .env
+```
 
-## 4. Demo script (A3), once all lanes are real
+- Without Python 3.11+, the api uses its **built-in mocks** for pricing, risk and credit. They return exactly the `contracts/` shapes, labeled simulated.
+- If a real service dies mid-demo, the api falls back to the mock (source `mock-fallback`) and keeps going.
+- `GET /health/services` shows which source answered.
 
-1. Marketplace: GPU cards show share price, utilization, yield.
-2. Buy shares: `POST /shares/buy`, see the tx hash and explorer link.
-3. Idle inference: start the simulator (`POST /admin/sim/start`), then type
-   one live prompt in the Playground. Revenue ticker moves.
-4. Booked compute: `POST /contracts/buy` then `POST /contracts/redeem`.
-   Watch the calendar flip to BOOKED and inference reroute to the other GPU.
-5. Dividends: `POST /admin/dividends/propose`, read the explanation, then
-   `POST /admin/dividends/:id/approve`. Holders get paid in one shot.
-6. Loan: `POST /loans/open`, then either `POST /loans/:id/repay` before the
-   due time, or let the demo timer expire to show default settlement.
+Pages:
+- `/` landing.
+- `/market` GPUs.
+- `/gpu/gpu-a` schedule and trading.
+- `/borrow` credit profile, quote, memo, open loan, loan health, stress.
+- `/lend` vault rounds, deposit and withdraw, loan book, stress test.
+- `/portfolio`.
+- `/playground` the code sample and live Try It box.
 
-## 5. Fallbacks
+Check the whole demo path from the command line (needs `npm run demo` running):
 
-- Any service down: flip its `MOCK_*` env var back to 1, mock adapters return
-  contract-shaped fake data so the rest of the demo still runs.
-- `POST /admin/demo/reset` (requires `ADMIN_KEY`) clears all SQLite tables,
-  resets the mock XRPL ledger and mock compute bookings, and stops the
-  simulator. Use this between demo run-throughs.
+```
+npm run demo:check    # deposit, quote, open, margin call, liquidation, restore, repay; prints a tx table
+```
 
-## 6. Mock vs real
+## 5. Tests
+
+```
+npm run typecheck           # web, api, shared, xrpl
+npm run test:xrpl           # xrpl unit tests (no network)
+NETWORK=devnet npm run xrpl:smoke   # on-ledger smoke + full lending cycle on devnet
+cd services/<name> && .venv\Scripts\python -m pytest
+```
+
+## 6. Mock switches (api)
 
 | Switch | 1 (default) | 0 |
 |---|---|---|
-| `MOCK_XRPL` | in-memory mock ledger in apps/api | calls packages/xrpl (real testnet) |
-| `MOCK_COMPUTE` | in-memory mock GPU/bookings in apps/api | calls services/compute at `COMPUTE_URL` |
-| `MOCK_PRICING` | deterministic placeholder numbers | calls services/pricing at `PRICING_URL` |
+| `MOCK_XRPL` | in-memory ledger | packages/xrpl on `NETWORK` (devnet for lending) |
+| `MOCK_COMPUTE` | simulated GPU calendar and revenue | services/compute at `COMPUTE_URL` |
+| `MOCK_PRICING` | fallback memo, placeholder prices | services/pricing at `PRICING_URL` (Bedrock) |
+| `MOCK_RISK` | TypeScript port of the risk quote, api keeper | services/risk at `RISK_URL` |
+| `MOCK_CREDIT` | deterministic simulated profile | services/credit at `CREDIT_URL` |
 
-Flip one at a time and re-run the demo script to confirm nothing else broke.
+`npm run demo` sets `NETWORK=devnet MOCK_XRPL=0` and turns each Python service's flag to 0 when it starts.
+
+## 7. Fallbacks during a live demo
+
+- **A Python service crashes:** nothing to do. The api falls back to its mock and labels it.
+- **Devnet was reset, or "no vault round is lending":** run `npm run demo:reset` (2 to 3 minutes).
+- **A loan is stuck in margin call:** press "Restore price" on /borrow or /lend, or pay it off.
+- **Full reset of api state:** `POST /admin/demo/reset` (requires `ADMIN_KEY`), or `npm run demo:reset`.

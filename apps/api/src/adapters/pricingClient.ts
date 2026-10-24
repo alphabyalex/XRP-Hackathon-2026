@@ -85,7 +85,7 @@ export async function proposeDividends(req: DividendsProposeRequest): Promise<Di
   const gross = Number(req.gross_revenue);
   const hostingFee = Math.round(gross * (HOSTING_FEE_BPS / 10000) * 1e6) / 1e6;
   const afterFee = gross - hostingFee;
-  const reserve = Math.round(afterFee * (RESERVE_BPS / 10000) * 1e6) / 1e6;
+  const reserve = Math.round(gross * (RESERVE_BPS / 10000) * 1e6) / 1e6; // 5% of gross, so holders get 80%
   const distributable = afterFee - reserve;
   const totalShares = req.holders.reduce((sum, h) => sum + Number(h.shares), 0);
 
