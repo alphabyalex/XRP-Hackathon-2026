@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections import Counter
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import timedelta
@@ -16,8 +17,10 @@ from router import config as C
 from router import scheduler
 from router.catalog import iso, now_utc
 from router.errors import RouterError
+from router.quoting import OrderIn, quote, to_spec
 from router.service import service
 from router.store import catalog_store
+from router.why import explain
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 # Provider keys travel in headers and some query strings; keep client libraries quiet.
@@ -111,3 +114,14 @@ async def reclaim(gpu_id: str, req: ReclaimRequest) -> dict:
         "returnsAt": iso(r.returns_at),
         "affectedOrders": [],
     }
+
+
+@app.post("/quote", dependencies=[Depends(internal_key)])
+async def post_quote(req: OrderIn) -> dict:
+    await service.state.refresh_compute(service.entries)
+    now = now_utc()
+    spec = to_spec(req)
+    alternatives = Counter(o.provider for o in service.catalog())
+    body, _ = quote(spec, service.views(now), alternatives, service.catalog_as_of, now)
+    body["why"] = explain(body)
+    return body

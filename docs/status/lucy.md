@@ -40,9 +40,26 @@
   collectors today: Azure 4 offers, Oracle 3, RunPod 6, Vast.ai 23, Spot
   Advisor live. 31 tests.
 
+- Phase 3: router/optimizer.py. Per part: run time, earliest start that
+  clears booked windows (plus guard), interruption probability
+  1 - exp(-rate x hours), resume cost (resume latency + new worker start + lost
+  progress, never zero), cross-provider egress (checkpoint GB x egress price),
+  expected cost and ETA. Enumerates every split over up to 3 GPUs on a
+  12-step share grid (a single streamed reply is never split). Cheapest = min
+  cost s.t. deadline and budget; Fastest = min ETA s.t. budget; Balanced =
+  Pareto frontier, min-max normalized, closest to (0,0). POST /quote returns
+  all three plus alternativesConsidered, plansEvaluated, catalogAsOf and an
+  optional Bedrock "why" (number guard drops sentences with invented numbers).
+  All required tests pass (ordering over 40 random orders, booked window,
+  deadline, interruptible cheapest, stale/non-executable never chosen,
+  cheaper executable provider wins, egress flips the choice). 86 tests.
+  scripts/benchmark.py: 1,000 orders; Balanced costs 36.0 USDC vs 73.1 for
+  naive round-robin, p50 49 s vs 301 s, p99 1,801 s vs 5,699 s; under 500x
+  interruption stress round-robin restarts 10 jobs, every router mode 0.
+  Results in docs/ROUTER.md.
+
 ## Next
-- Phase 3: optimizer (cost, ETA, interruption and egress model, three
-  modes, Pareto knee), benchmark.
+- Phase 4: orders, leases, orchestration, SQS dispatch, devnet settlement.
 
 ## Blockers
 - No AWS credentials on this machine (no AWS CLI either). All AWS adapters
@@ -86,6 +103,18 @@
   before the end; instances terminate 10 min later) and "EC2 Capacity
   Reservation Instance Interruption Warning". AWS's samples spell the key
   detail_type there; the receiver accepts detail_type and detail-type.
+- Balanced knee: both axes min-max normalized over the Pareto frontier,
+  pick the smallest Euclidean distance to (0, 0); ties by cost, then time,
+  then GPU ids. This guarantees Balanced lies between Cheapest and Fastest.
+- Without a deadline, Cheapest may wait in a queue or for a booked window
+  to clear (waiting is free); a deadline, Balanced and Fastest move the job.
+  That is why Cheapest's p99 in the benchmark is long: half the synthetic
+  orders have no deadline.
+- Resume target in the model: the cheapest other available GPU; egress is
+  charged only when that GPU is on another provider. Rental checkpoints are
+  2 GB (session snapshot), inference checkpoints 200 KB.
+- Benchmark load: arrivals every 150 s on average (about 40% utilization);
+  at 20 s the 6-GPU fleet was oversubscribed and every policy queued for hours.
 - A fleet entry whose catalog offer is missing or older than CATALOG_MAX_AGE
   stays listed but unavailable (OFFER_MISSING, STALE_PRICE); static-priced
   and Moonshift offers never go stale.

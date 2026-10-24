@@ -1,7 +1,8 @@
 {
-  "_note": "Per-provider planning constants. Warning windows and auth are from docs/ROUTER_PROVIDERS.md (verified 2026-10-24). startupSeconds: time for an already-registered worker to accept a job (model warm). egressPerGbUsd: list price for data leaving that provider, used when a resume moves a checkpoint across providers. spotRatePerHour: default interruption rate when a provider publishes no data. External capacity is resold at pricePerHourUsd x (1 + moonshiftMargin).",
+  "_note": "Per-provider planning constants. Warning windows and auth are from docs/ROUTER_PROVIDERS.md (verified 2026-10-24). checkpointSizeGb: an inference checkpoint (prompt plus partial answer, about 200 KB); rentalCheckpointSizeGb: a rented session snapshot. startupSeconds: time for an already-registered worker to accept a job (model warm). egressPerGbUsd: list price for data leaving that provider, used when a resume moves a checkpoint across providers. spotRatePerHour: default interruption rate when a provider publishes no data. External capacity is resold at pricePerHourUsd x (1 + moonshiftMargin).",
   "moonshiftMargin": 0.15,
   "checkpointSizeGb": 0.0002,
+  "rentalCheckpointSizeGb": 2.0,
   "providers": {
     "moonshift": { "displayName": "Moonshift", "startupSeconds": 1.0, "egressPerGbUsd": 0.0, "warningWindowSeconds": 20, "spotRatePerHour": 0.0, "secret": null },
     "aws": { "displayName": "AWS", "startupSeconds": 3.0, "egressPerGbUsd": 0.09, "warningWindowSeconds": 120, "spotRatePerHour": null, "secret": null },
