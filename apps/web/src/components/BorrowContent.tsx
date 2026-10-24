@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LoanQuoteApiResponse, PortfolioResponse, XlsLoanRecord } from "@moonshift/shared";
 import { getPortfolio } from "@/lib/api";
-import { fmt, shortHash } from "@/lib/format";
+import { fmt, shortHash, typedAmount } from "@/lib/format";
 import { listLoans, maxPrincipal, openFromQuote, payNext, payOff, pct, quoteLoan, txUrl, useApiEvents } from "@/lib/lendingApi";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
@@ -245,7 +245,7 @@ export function BorrowContent({
                   Shares to lock
                 </label>
                 <div className="inp">
-                  <input id="coll" type="number" min={1} value={shares} inputMode="numeric" onChange={(e) => setShares(e.target.value)} />
+                  <input id="coll" type="text" autoComplete="off" value={shares} inputMode="numeric" onChange={(e) => setShares(typedAmount(e.target.value, false))} />
                   <span>{code}</span>
                 </div>
                 <span className="note">You hold {fmt(held, 0)}</span>
@@ -255,9 +255,9 @@ export function BorrowContent({
                   Borrow
                 </label>
                 <div className="inp">
-                  <input id="amt" type="number" min={1} value={principal} inputMode="decimal" onChange={(e) => {
+                  <input id="amt" type="text" autoComplete="off" value={principal} inputMode="decimal" onChange={(e) => {
                       setAmountTouched(true);
-                      setPrincipal(e.target.value);
+                      setPrincipal(typedAmount(e.target.value));
                     }}
                   />
                   <span>USDC</span>

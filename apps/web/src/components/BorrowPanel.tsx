@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button } from "./Button";
-import { fmt, txToastLine } from "@/lib/format";
+import { fmt, txToastLine, typedAmount } from "@/lib/format";
 import { openLoan } from "@/lib/api";
 import { useToast } from "./Toast";
 import { ACCOUNT } from "@/lib/session";
@@ -58,12 +58,11 @@ export function BorrowPanel({
       <div className="inp">
         <input
           id="coll"
-          type="number"
-          min={1}
-          max={maxShares}
+          type="text"
+          autoComplete="off"
           value={collateral}
           inputMode="numeric"
-          onChange={(e) => setCollateral(Number(e.target.value) || 0)}
+          onChange={(e) => setCollateral(Number(typedAmount(e.target.value, false)) || 0)}
         />
         <span>{gpuLabel.replace("GPU-", "GP")}</span>
       </div>

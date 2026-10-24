@@ -3,7 +3,7 @@
 // loan-book stats from the risk desk, and the stress test.
 import { useCallback, useEffect, useState } from "react";
 import type { BookStats, VaultOverview, VaultState, XlsLoanRecord } from "@moonshift/shared";
-import { fmt, shortHash } from "@/lib/format";
+import { fmt, shortHash, typedAmount } from "@/lib/format";
 import { LENDER, bookStats, deposit, getPositions, getVault, listLoans, pct, useApiEvents, withdraw } from "@/lib/lendingApi";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
@@ -143,7 +143,7 @@ export function LendContent() {
                   Amount ({LENDER.charAt(0) + LENDER.slice(1).toLowerCase()}, demo lender)
                 </label>
                 <div className="inp">
-                  <input id="dep" type="number" min={1} value={amount} inputMode="decimal" onChange={(e) => setAmount(e.target.value)} />
+                  <input id="dep" type="text" autoComplete="off" value={amount} inputMode="decimal" onChange={(e) => setAmount(typedAmount(e.target.value))} />
                   <span>USDC</span>
                 </div>
                 <div className="two">

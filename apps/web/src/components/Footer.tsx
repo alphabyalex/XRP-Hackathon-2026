@@ -8,7 +8,6 @@ export function Footer() {
           <MoonMark size={22} />
           Moonshift
         </div>
-        <div>XRPL Commons AI &amp; Fintech Hackathon, New York, October 2026. Testnet only. All figures are simulated.</div>
       </div>
     </footer>
   );

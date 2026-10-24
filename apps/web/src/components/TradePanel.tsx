@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Segmented } from "./Segmented";
 import { SlotPicker, type PickableSlot } from "./SlotPicker";
 import { Button } from "./Button";
-import { fmt, txToastLine } from "@/lib/format";
+import { fmt, txToastLine, typedAmount } from "@/lib/format";
 import { hm, timeAt } from "@/lib/schedule";
 import { perSharePerNight, mockSlotPrice } from "@/lib/economics";
 import { buyShares, bookSlots, redeemSlots } from "@/lib/api";
@@ -134,11 +134,11 @@ export function TradePanel({
           <div className="inp">
             <input
               id="qty"
-              type="number"
-              min={1}
+              type="text"
+              autoComplete="off"
               value={qty}
               inputMode="numeric"
-              onChange={(e) => setQty(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+              onChange={(e) => setQty(Number(typedAmount(e.target.value, false)) || 0)}
             />
             <span>{gpuLabel.replace("GPU-", "GP")}</span>
           </div>

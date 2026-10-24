@@ -7,6 +7,15 @@ export function fmt(n: number, d = 2): string {
   });
 }
 
+// Typed-only amount fields (no spinner arrows, no wheel or arrow-key stepping):
+// keep digits, plus one decimal point when decimals are allowed.
+export function typedAmount(raw: string, decimals = true): string {
+  const s = raw.replace(decimals ? /[^0-9.]/g : /[^0-9]/g, "");
+  if (!decimals) return s;
+  const [head, ...rest] = s.split(".");
+  return rest.length ? `${head}.${rest.join("")}` : head;
+}
+
 // "9F3A01…C21E"
 export function shortHash(hash: string): string {
   if (hash.length <= 12) return hash;
