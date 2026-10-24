@@ -1137,3 +1137,144 @@ footer .wrap {
     transform: none;
   }
 }
+
+/* lending (/borrow, /lend) */
+.lend-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.trade.card {
+  padding: 28px;
+}
+.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.two .btn {
+  width: 100%;
+}
+.loans {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 24px;
+}
+.score {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 4px 0 18px;
+}
+.score .grade {
+  font-size: 20px;
+  font-weight: 500;
+}
+.muted {
+  color: var(--ink2);
+  font-size: 14px;
+}
+.factors > div {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 14px;
+  color: var(--ink2);
+}
+.factors b {
+  font-family: var(--mono);
+  font-weight: 500;
+}
+.factors .ev {
+  min-width: 88px;
+  text-align: right;
+}
+.note {
+  font-size: 13px;
+  color: var(--ink2);
+  margin-top: 10px;
+  line-height: 1.5;
+}
+.memo {
+  margin: 18px 0 0;
+  padding: 14px 16px;
+  background: var(--tint);
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.memo span {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ink3);
+}
+.chip {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--tint);
+  color: var(--ink2);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+.chip-open {
+  background: #e7f5ee;
+  color: var(--up);
+}
+.chip-margin_call {
+  background: var(--accent-wash);
+  color: var(--accent-ink);
+}
+.chip-liquidated,
+.chip-defaulted {
+  background: #fbe9e7;
+  color: var(--down);
+}
+.chip-phase {
+  background: var(--accent-wash);
+  color: var(--accent-ink);
+}
+.txl {
+  font-size: 12.5px;
+  color: var(--ink2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+a.txl:hover {
+  color: var(--ink);
+}
+.txlist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 12px 0 4px;
+}
+.stress {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+.trade.card > .stress:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.stress-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+@media (max-width: 900px) {
+  .lend-grid,
+  .two {
+    grid-template-columns: 1fr;
+  }
+}
