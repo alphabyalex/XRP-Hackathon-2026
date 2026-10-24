@@ -23,7 +23,7 @@ from router.catalog import iso, now_utc
 from router.engine import GenEvent, Signal, engine_for
 from router.errors import RouterError
 from router.fleet import FleetEntry
-from router.quoting import OrderIn, to_spec
+from router.quoting import OrderIn, spec_dict, to_spec
 from router.service import Service
 from router.state import LeaseTaken, StateStore
 
@@ -143,6 +143,7 @@ class Orders:
             "maxTokens": req.maxTokens or 256,
             "minutes": spec.total_units * C.SLOT_MINUTES if spec.kind == "rental" else None,
             "assignments": assignments,
+            "constraints": spec_dict(spec)["constraints"],
             "payment": None,
             "segments": [],
             "moves": [],
@@ -284,6 +285,14 @@ class Orders:
     async def _next_gpu(self, order: dict[str, Any], current: FleetEntry, spec: O.OrderSpec) -> FleetEntry:
         """Best other GPU (any provider) for the remaining work, in the order's own mode."""
         views = [v for v in self.service.views(now_utc()) if v.id != current.id]
+        c = order.get("constraints") or {}
+        spec = O.OrderSpec(
+            spec.kind,
+            tokens=spec.tokens,
+            requests=spec.requests,
+            minutes=spec.minutes,
+            constraints=O.Constraints(c.get("gpuModel"), c.get("region"), tuple(c.get("excludeProviders", ()))),
+        )
         choice = O.best_for(spec, order["mode"], views)  # type: ignore[arg-type]
         if choice.plan is None:
             relaxed = O.OrderSpec(spec.kind, tokens=spec.tokens, requests=spec.requests, minutes=spec.minutes)
@@ -370,6 +379,7 @@ class Orders:
                 return entry
             # Resume, don't restart: the next GPU continues from the checkpoint (prompt + partial answer).
             started = asyncio.get_running_loop().time()
+            self._note_worker_reclaim(entry, interrupted.reason)
             self.state.release(entry.id, oid)
             self.service.state.end_job(entry.id, oid)
             remaining = max(1, max_tokens - tokens)
@@ -466,6 +476,40 @@ class Orders:
             )
             entry, reason = nxt, moved_reason
 
+    def _note_worker_reclaim(self, entry: FleetEntry, reason: str) -> None:
+        """A worker that saw a provider notice (EC2 IMDS, Azure, GCP) reports it in the stream."""
+        if reason in ("RECLAIMED", "CAPACITY_BLOCK_ENDING") and not self.service.state.reclaimed(entry.id, now_utc()):
+            self.service.state.reclaim(entry.id, now_utc(), C.DEFAULT_RECLAIM_DURATION_SECONDS, reason)
+
+    def check_drains(self, now: datetime | None = None) -> list[str]:
+        """Booking trigger: a booked window about to start on a GPU running our work (compute's drain window)."""
+        now = now or now_utc()
+        moved: list[str] = []
+        for gpu_id, sigs in list(self.signals.items()):
+            entry = self.service.entry(gpu_id)
+            if entry is None or not sigs or self.service.state.reclaimed(gpu_id, now):
+                continue
+            running = {oid for oid, _ in sigs}
+            for start, end, _ in self.service.state.windows(entry, exclude=running):
+                if end > now and (start - now).total_seconds() <= C.BOOKING_DRAIN_SECONDS:
+                    moved += self.reclaim(
+                        gpu_id,
+                        max(0.0, (start - now).total_seconds()),
+                        "BOOKING",
+                        duration_s=(end - now).total_seconds(),
+                    )
+                    break
+        return sorted(set(moved))
+
+    async def drain_loop(self) -> None:
+        while True:
+            try:
+                await self.service.state.refresh_compute(self.service.entries, self.compute_transport)
+                self.check_drains()
+            except Exception as e:  # noqa: BLE001 (keep watching)
+                log.warning("drain check failed: %s", type(e).__name__)
+            await asyncio.sleep(C.DRAIN_CHECK_SECONDS)
+
     # ---- reclaim ----
 
     def reclaim(
@@ -490,6 +534,31 @@ class Orders:
         return sorted(set(affected))
 
     # ---- settle ----
+
+    async def _report_usage(self, order: dict[str, Any], lines: list[dict[str, Any]]) -> None:
+        """apps/api POST /internal/usage, one row per GPU with the work it served and what its pool earned."""
+        if C.SETTLEMENT == "off":
+            return
+        headers = {"X-MS-Internal-Key": C.INTERNAL_API_KEY} if C.INTERNAL_API_KEY else {}
+        for line in lines:
+            segs = [x for x in order["segments"] if x["gpuId"] == line["gpuId"]]
+            body = {
+                "request_id": f"{order['orderId']}-{line['gpuId']}",
+                "gpu_id": line["pool"],
+                "buyer": order["buyer"],
+                "booking_id": None,
+                "input_tokens": 0,
+                "output_tokens": int(line["served"]) if order["kind"] == "inference" else 0,
+                "charge": line["toPoolUsdc"],
+                "started_at": segs[0]["startedAt"],
+                "finished_at": segs[-1]["endedAt"] or iso(now_utc()),
+                "simulated": False,
+            }
+            try:
+                async with httpx.AsyncClient(transport=S.TRANSPORT, timeout=5, headers=headers) as http:
+                    await http.post(f"{C.API_URL}/internal/usage", json=body)
+            except httpx.HTTPError as e:
+                log.info("usage report for %s failed: %s", order["orderId"], type(e).__name__)
 
     async def settle(self, order_id: str) -> dict[str, Any]:
         order = self.get(order_id)
@@ -521,6 +590,7 @@ class Orders:
                 "explorerUrl": S.explorer(tx),
             }
         order["status"] = "settled"
+        await self._report_usage(order, done_lines)
         self.emit(
             order,
             "settled",

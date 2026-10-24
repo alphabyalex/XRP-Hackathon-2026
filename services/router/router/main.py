@@ -14,8 +14,8 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
+from router import aws_events, scheduler
 from router import config as C
-from router import scheduler
 from router.catalog import iso, now_utc
 from router.dispatch import make_dispatcher
 from router.errors import RouterError
@@ -41,6 +41,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     app.state.orders = Orders(service, state_store())
     app.state.dispatcher = make_dispatcher(app.state.orders)
     app.state.dispatcher.start()
+    watchers = [
+        asyncio.create_task(app.state.orders.drain_loop()),
+        asyncio.create_task(aws_events.consume_queue(lambda: service.entries, app.state.orders.reclaim)),
+    ]
     log.info(
         "router up: fleet=%s state=%s queue=%s orchestrator=%s offers=%d gpus=%d",
         C.FLEET_SOURCE,
@@ -53,6 +57,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     yield
     collector_task.cancel()
     app.state.dispatcher.stop()
+    for w in watchers:
+        w.cancel()
 
 
 app = FastAPI(title="Moonshift router", version="0.1.0", lifespan=lifespan)
@@ -179,3 +185,9 @@ async def order_events(order_id: str) -> StreamingResponse:
                 yield f"event: {kind}\ndata: {json.dumps(data, separators=(',', ':'))}\n\n"
 
     return StreamingResponse(sse(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
+
+
+@app.post("/internal/aws-events", dependencies=[Depends(internal_key)])
+def post_aws_event(event: dict) -> dict:
+    """EventBridge interruption events (Spot warning, rebalance, Capacity Block expiry) -> reclaim."""
+    return aws_events.handle(event, service.entries, app.state.orders.reclaim)

@@ -93,6 +93,8 @@ CHECKPOINT_EVERY_TOKENS = int(_env("CHECKPOINT_EVERY_TOKENS", "16"))
 CHECKPOINT_FLUSH_SECONDS = 1.0
 RENTAL_CHECKPOINT_SECONDS = 60.0
 BOOKING_GUARD_SECONDS = 30.0
+BOOKING_DRAIN_SECONDS = 20.0  # matches services/compute DRAIN_LEAD_SECONDS
+DRAIN_CHECK_SECONDS = 2.0
 QUOTE_VALID_SECONDS = 60
 
 # ---- Execution --------------------------------------------------------------------------

@@ -13,6 +13,7 @@ from .config import Settings
 from .models import BookingRequest, ChatCompletionRequest, ChatMessage, ComputeError
 from .pricing import RateClient
 from .providers import MockProvider, VllmProvider
+from .resume import install as install_resume
 from .router import ComputeRouter, sse_events
 from .scheduler import Scheduler, parse_bucket
 from .usage import UsageReporter
@@ -199,6 +200,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             },
         }
 
+    install_resume(app, scheduler, providers, settings, router)  # order router hook (compute/resume.py)
     return app
 
 

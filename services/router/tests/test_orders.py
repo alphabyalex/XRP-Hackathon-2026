@@ -26,10 +26,14 @@ class FakeApi:
 
     def __init__(self, fail_memo: str | None = None):
         self.payments: list[dict] = []
+        self.usage: list[dict] = []
         self.fail_memo = fail_memo
 
     def handler(self, req: httpx.Request) -> httpx.Response:
         body = json.loads(req.content)
+        if req.url.path.endswith("/internal/usage"):
+            self.usage.append(body)
+            return httpx.Response(200, json={"ok": True})
         if body["memoType"] == self.fail_memo:
             return httpx.Response(502, json={"error": {"code": "PAYMENT_FAILED", "message": "tecUNFUNDED_PAYMENT"}})
         self.payments.append(body)

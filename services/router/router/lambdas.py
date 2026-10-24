@@ -39,3 +39,20 @@ def order_step_handler(event: dict[str, Any], context: Any = None) -> dict[str, 
     else:
         raise ValueError(f"unknown step {step}")
     return {"ok": True, "orderId": order_id, "status": order.get("status")}
+
+
+def forward_aws_events(event: dict[str, Any], context: Any = None) -> dict[str, Any]:
+    """SQS-triggered: post each EventBridge interruption event to the router's POST /internal/aws-events."""
+    import os
+
+    import httpx
+
+    url = os.environ["ROUTER_URL"].rstrip("/") + "/internal/aws-events"
+    headers = {"X-MS-Internal-Key": os.environ.get("INTERNAL_API_KEY", "")}
+    sent = 0
+    with httpx.Client(timeout=10) as http:
+        for record in event.get("Records", []):
+            r = http.post(url, content=record["body"], headers={**headers, "Content-Type": "application/json"})
+            r.raise_for_status()  # a failure returns the batch to SQS for retry
+            sent += 1
+    return {"forwarded": sent}

@@ -79,8 +79,33 @@
   Found and fixed: reading an order over HTTP mid-run stripped fields the
   settlement needed (regression test added). 97 tests; api typecheck clean.
 
+- Phase 5: resume, don't restart. services/compute/compute/resume.py (new
+  module) + two hooks in Tharun's files: one install() line in main.py and
+  GpuSupervisor.set_offline() (3 lines) in scheduler.py. resume.py streams
+  token-level SSE (POST /v1/resume/stream), checkpoints every N tokens and at
+  the signal, continues a reply on another GPU from prompt + partial answer
+  (vLLM continue_final_message; deterministic stream in compute's mock mode),
+  admits through the existing scheduler (runway and drain respected), stops
+  on POST /v1/resume/interrupt or when its GPU enters DRAINING (booking),
+  and polls EC2 IMDS spot/instance-action + rebalance, Azure Scheduled
+  Events Preempt and GCP preempted metadata behind opt-in flags. Router: one
+  reclaim(gpuId, warningSeconds, reason) for every trigger: manual reclaim,
+  booking drain monitor, POST /internal/aws-events (EventBridge Spot warning,
+  rebalance = checkpoint only, Capacity Block expiry, capacity reservation
+  interruption; both detail-type spellings), SQS consumer for the events
+  queue, forwarder Lambda, and reclaims reported by workers in the stream.
+  Moves keep the order's constraints, record segments, moves and per-GPU
+  usage (api /internal/usage at settlement). Tests: interrupted at exactly
+  60% resumes as one continuous reply, no token billed twice, restarts 0;
+  cross-provider move (Azure to another provider); documented spot warning
+  sample moves the job; rebalance checkpoints without moving; Capacity Block
+  expiry; booking drain; rental resume; plus an integration test against the
+  real compute service over HTTP. Router 107 tests, compute 17 (13 existing
+  + 4 new).
+
 ## Next
-- Phase 5: resume, don't restart (compute resume.py, triggers, AWS events).
+- Phase 6: checkout UI (three options), order view, developers page,
+  /admin/router.
 
 ## Blockers
 - No AWS credentials on this machine (no AWS CLI either). All AWS adapters
