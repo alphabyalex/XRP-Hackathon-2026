@@ -117,3 +117,38 @@ def test_credit_memo_number_guard_triggers_fallback_on_bad_bedrock_output(monkey
     assert "99999" not in res.memo
     assert "42.7" not in res.memo
     assert "rTestBorrower" in res.memo
+
+
+def test_credit_memo_scrubs_one_bad_sentence_instead_of_falling_back(monkeypatch):
+    profile = {"score": 80, "grade": "A"}
+    quote = {"principal": "100.000000", "apr": "0.080000", "ltv": "0.300000"}
+    req = {"borrower": "rTestBorrower", "gpuId": "gpu-a"}
+    text = (
+        "Borrower holds grade A credit with a score of 80. "
+        "The loan carries an APR of 8% at an LTV of 30%. "
+        "The term is 13.8 days."
+    )
+    monkeypatch.setattr(bedrock, "_converse_custom", lambda s, u: json.dumps({"memo": text}))
+    monkeypatch.setattr(C, "MOCK", False)
+    res = bedrock.generate_credit_memo(profile, quote, req)
+    assert res.fell_back is False and res.outcome == "ok_scrubbed"
+    assert "13.8" not in res.memo and "score of 80" in res.memo
+
+
+def test_credit_memo_retries_once_when_nothing_survives(monkeypatch):
+    profile = {"score": 80, "grade": "A"}
+    quote = {"principal": "100.000000", "apr": "0.080000", "ltv": "0.300000"}
+    req = {"borrower": "rTestBorrower", "gpuId": "gpu-a"}
+    calls = []
+
+    def fake(sys_prompt, user_msg):
+        calls.append(user_msg)
+        if len(calls) == 1:
+            return json.dumps({"memo": "Approved for 99999 TDX."})
+        return json.dumps({"memo": "Borrower holds grade A credit with a score of 80. The APR is 8% at an LTV of 30%."})
+
+    monkeypatch.setattr(bedrock, "_converse_custom", fake)
+    monkeypatch.setattr(C, "MOCK", False)
+    res = bedrock.generate_credit_memo(profile, quote, req)
+    assert len(calls) == 2 and "Use only numbers" in calls[1]
+    assert res.fell_back is False and res.outcome == "ok_retry"

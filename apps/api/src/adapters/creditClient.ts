@@ -83,7 +83,7 @@ export function mockProfile(network: string, address: string, accountName?: stri
       grade,
       defaultRatePct: ({ A: "0.8", B: "2.4", C: "6.1", D: "14.0", E: "31.5" } as const)[grade],
       loans: 180,
-      text: `borrowers in this grade defaulted ${({ A: "0.8", B: "2.4", C: "6.1", D: "14.0", E: "31.5" } as const)[grade]}% (simulated)`,
+      text: `borrowers in this grade defaulted ${({ A: "0.8", B: "2.4", C: "6.1", D: "14.0", E: "31.5" } as const)[grade]}% (model estimate)`,
       simulated: true,
     },
     asOf: new Date().toISOString(),

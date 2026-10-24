@@ -176,13 +176,16 @@ export async function creditMemo(req: { creditProfile: any; quote: any; loanRequ
   const fallback = (source: AgentText["source"]): AgentText => ({ text: fallbackCreditMemo(req), modelId: null, latencyMs: 0, fellBack: true, source });
   if (MOCK) return fallback("mock");
   try {
-    const res = await serviceJson<{ memo: string; modelId?: string; latencyMs?: number; fellBack?: boolean }>(
+    const res = await serviceJson<{ memo: string; modelId?: string; latencyMs?: number; fellBack?: boolean; outcome?: string }>(
       "pricing",
       `${PRICING_URL}/agent/credit-memo`,
-      { body: req, timeoutMs: 12000 }
+      // Longer than pricing's own 12 s Bedrock budget, so pricing always answers first.
+      { body: req, timeoutMs: 15000 }
     );
-    return { text: res.memo, modelId: res.modelId ?? null, latencyMs: res.latencyMs ?? 0, fellBack: Boolean(res.fellBack), source: "live" };
-  } catch {
+    if (res.fellBack) console.warn(`credit memo fell back: ${res.outcome ?? "unknown"} after ${res.latencyMs ?? 0} ms`);
+    return { text: res.memo, modelId: res.modelId ?? null, latencyMs: res.latencyMs ?? 0, fellBack: Boolean(res.fellBack), source: "live", outcome: res.outcome };
+  } catch (e) {
+    console.warn(`credit memo: pricing unreachable (${(e as Error).message})`);
     return fallback("mock-fallback");
   }
 }

@@ -64,7 +64,7 @@ export function BorrowPanel({
           inputMode="numeric"
           onChange={(e) => setCollateral(Number(typedAmount(e.target.value, false)) || 0)}
         />
-        <span>{gpuLabel.replace("GPU-", "GP")}</span>
+        <span>shares</span>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 28, gap: 12, flexWrap: "wrap" }}>
         <div>
@@ -105,7 +105,7 @@ export function BorrowPanel({
         <b>10.00%</b>
       </div>
       <Button disabled={!amount || busy} onClick={doBorrow}>
-        {amount ? `Lock ${c} ${gpuLabel.replace("GPU-", "GP")}, borrow ${fmt(amount, 2)} USDC` : "Choose an amount"}
+        {amount ? `Lock ${c} ${gpuLabel} shares, borrow ${fmt(amount, 2)} USDC` : "Choose an amount"}
       </Button>
     </div>
   );

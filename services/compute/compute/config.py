@@ -10,6 +10,13 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(Path(__file__).resolve().parent.parent.parent.parent / ".env")
+except ImportError:
+    pass
+
 
 def _bool(name: str, default: bool) -> bool:
     value = os.getenv(name)

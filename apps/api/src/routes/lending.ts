@@ -97,6 +97,12 @@ lendingRouter.get(
 
 lendingRouter.post("/loans/quote", handle(async (req) => svc.buildQuote(req.body as LoanQuoteApiRequest)));
 
+// The quote's Bedrock memo, written in the background. ?wait=ms long-polls up to 14 s.
+lendingRouter.get(
+  "/loans/quote/:id/memo",
+  handle(async (req) => svc.quoteMemo(req.params.id, Math.min(14_000, Number(req.query.wait ?? 0) || 0)))
+);
+
 // { borrower, gpuId, collateralShares } -> { maxPrincipal, collateralValue, termSeconds }
 lendingRouter.post("/loans/max", handle(async (req) => svc.maxApprovedPrincipal(req.body)));
 

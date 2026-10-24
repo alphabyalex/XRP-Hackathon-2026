@@ -203,6 +203,7 @@ export interface AgentText {
   latencyMs: number;
   fellBack: boolean; // true = deterministic fallback, not Bedrock
   source: DataSource;
+  outcome?: string; // pricing's reason: ok | timeout | unverified_numbers | invalid_json | error:<Type>
 }
 
 // --- api routes ------------------------------------------------------------
@@ -238,9 +239,10 @@ export interface LoanQuoteApiResponse {
   quote: RiskQuote;
   terms: Xls66Terms;
   credit: CreditProfile;
-  memo: AgentText;
+  memo: AgentText | null; // null while Bedrock is still writing it (memoStatus "pending")
+  memoStatus: "ready" | "pending";
   revenue24h: DecimalString;
-  sources: { credit: DataSource; risk: DataSource; memo: DataSource; revenue: DataSource; oracle: DataSource };
+  sources: { credit: DataSource; risk: DataSource; memo: DataSource | "pending"; revenue: DataSource; oracle: DataSource };
 }
 
 export interface XlsLoanRecord {

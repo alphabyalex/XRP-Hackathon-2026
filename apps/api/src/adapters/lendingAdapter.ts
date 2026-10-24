@@ -173,7 +173,7 @@ export async function vaultDeposit(lender: AccountName, amount: string, round?: 
     return { tx: mockTx(), round: r.state.round };
   }
   const r = round ? realXrpl.findRound(round) : realXrpl.currentRound("subscription");
-  if (!r) throw new Error("NO_SUBSCRIBING_ROUND: no round is open for deposits. Run demo-reset.");
+  if (!r) throw new Error("NO_SUBSCRIBING_ROUND: no round is open for deposits right now.");
   return { tx: await realXrpl.depositToVault({ lender, vaultId: r.vaultId, amount }), round: r.round };
 }
 
