@@ -50,6 +50,7 @@ checked-in files.
 | `CURE_SECONDS` | `120` | Demo cure window after a margin call. |
 | `KEEPER_DRY_RUN` | `1` | Log proposed actions without calling API action routes. |
 | `DEMO_SHOCK_ENABLED` | `0` | Allow the stress endpoint outside mock mode. |
+| `DEMO_SHOCK_SECONDS` | `120` | How long the keeper sees a stress price override. |
 | `DEFAULT_TERM_SECONDS` | `600` | Demo quote term when a request omits the term. |
 | `PAYMENT_INTERVAL_SECONDS` | `60` | Demo payment interval. |
 | `FIRST_LOSS_COVER_USDC` | `250.000000` | Configured demo first-loss cover. |

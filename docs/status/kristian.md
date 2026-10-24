@@ -16,10 +16,14 @@
   margin-call and liquidation actions, dry-run behavior, the mock loan/oracle
   source, loan-health endpoint, and bounded persisted SSE event log.
 - Phase 3 checks: 14 service tests pass and Python compile checks pass.
+- Phase 4: added gated stress scenarios for price, utilization, and default
+  shocks. The mock stress applies a temporary keeper price override, records
+  margin-call and liquidation events, and never calls the API action routes.
+- Phase 4 checks: 16 service tests pass; the scenario response matches its
+  contract example exactly.
 
 ## Next
 
-- Phase 4: add gated simulated stress scenarios.
 - Phase 5: add the seeded 30-day loan-book simulator.
 - Phase 6 and stretch: complete docs, rate curve, and vault health summary.
 

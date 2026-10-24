@@ -30,6 +30,8 @@ class Keeper:
         self.state_path = settings.state_dir / "keeper_state.json"
         self._state: dict[str, dict[str, Any]] = self._load_state()
         self._lock = asyncio.Lock()
+        self._demo_price_multipliers: dict[str, Decimal] | None = None
+        self._demo_shock_until: datetime | None = None
         self._last_health: dict[str, object] = {
             "checkedAt": None,
             "loans": [],
@@ -60,6 +62,16 @@ class Keeper:
     ) -> dict[str, object]:
         async with self._lock:
             now = datetime.now(UTC)
+            demo_shock_active = False
+            if price_multipliers is None and self._demo_shock_until is not None:
+                if now < self._demo_shock_until:
+                    price_multipliers = self._demo_price_multipliers
+                    force_dry_run = True
+                    demo_shock_active = True
+                else:
+                    self.events.publish("scenario_shock_expired", simulated=True)
+                    self._demo_price_multipliers = None
+                    self._demo_shock_until = None
             loans = await self.data.list_open_loans()
             results: list[dict[str, object]] = []
             for loan in loans:
@@ -147,7 +159,7 @@ class Keeper:
                     "liquidationLtv": ratio6(loan.liquidation_ltv),
                     "outstandingBalance": format(loan.outstanding_balance.quantize(D("0.000001")), ".6f"),
                     "collateralValue": format(collateral_value.quantize(D("0.000001")), ".6f"),
-                    "simulated": loan.simulated or self.settings.mock or bool(price_multipliers),
+                    "simulated": loan.simulated or self.settings.mock or bool(price_multipliers) or demo_shock_active,
                 }
                 self.events.publish("loan_check", **row, reason=state_name)
                 results.append(row)
@@ -158,6 +170,19 @@ class Keeper:
                 "simulated": self.settings.mock or any(bool(row["simulated"]) for row in results),
             }
             return self._last_health
+
+    def apply_demo_shock(self, multipliers: dict[str, Decimal]) -> datetime:
+        now = datetime.now(UTC)
+        expires_at = now + timedelta(seconds=self.settings.demo_shock_seconds)
+        self._demo_price_multipliers = multipliers
+        self._demo_shock_until = expires_at
+        self.events.publish(
+            "scenario_shock_started",
+            priceMultipliers={key: ratio6(value) for key, value in multipliers.items()},
+            expiresAt=_iso(expires_at),
+            simulated=True,
+        )
+        return expires_at
 
     async def _action(
         self,

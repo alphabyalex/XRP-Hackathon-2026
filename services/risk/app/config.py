@@ -35,6 +35,7 @@ class Settings:
     cure_seconds: int = 120
     keeper_dry_run: bool = True
     demo_shock_enabled: bool = False
+    demo_shock_seconds: int = 120
     default_term_seconds: int = 600
     payment_interval_seconds: int = 60
     first_loss_cover_usdc: str = "250.000000"
@@ -53,6 +54,7 @@ class Settings:
             cure_seconds=_int("CURE_SECONDS", 120),
             keeper_dry_run=_bool("KEEPER_DRY_RUN", True),
             demo_shock_enabled=_bool("DEMO_SHOCK_ENABLED", False),
+            demo_shock_seconds=_int("DEMO_SHOCK_SECONDS", 120),
             default_term_seconds=_int("DEFAULT_TERM_SECONDS", 600),
             payment_interval_seconds=_int("PAYMENT_INTERVAL_SECONDS", 60),
             first_loss_cover_usdc=_decimal("FIRST_LOSS_COVER_USDC", "250.000000"),

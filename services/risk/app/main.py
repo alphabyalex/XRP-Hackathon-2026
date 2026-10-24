@@ -14,6 +14,8 @@ from app.events import EventLog
 from app.keeper import Keeper
 from app.models import QuoteRequest
 from app.risk import calculate_quote
+from app.models import ScenarioRequest
+from app.scenarios import ScenarioDisabled, run_scenario
 
 
 def create_app(
@@ -79,6 +81,17 @@ def create_app(
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
+
+    @app.post("/scenarios/run")
+    async def scenarios_run(
+        request: ScenarioRequest,
+        x_ms_internal_key: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        require_internal_key(x_ms_internal_key)
+        try:
+            return await run_scenario(request, settings, data_client, keeper, event_log)
+        except ScenarioDisabled as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from None
 
     return app
 

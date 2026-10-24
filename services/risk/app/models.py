@@ -73,6 +73,7 @@ class OpenLoan(ContractModel):
     margin_call_ltv: Decimal = Field(alias="marginCallLtv", gt=Decimal("0"))
     liquidation_ltv: Decimal = Field(alias="liquidationLtv", gt=Decimal("0"))
     apr: Decimal = Field(default=Decimal("0.080000"), ge=Decimal("0"))
+    pd: Decimal = Field(default=Decimal("0.050000"), alias="pd", ge=Decimal("0"), le=Decimal("1"))
     status: str = "open"
     margin_call_at: datetime | None = Field(default=None, alias="marginCallAt")
     simulated: bool = False
