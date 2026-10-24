@@ -17,6 +17,7 @@ from typing import Any
 import httpx
 
 from router import config as C
+from router import metrics
 from router import optimizer as O
 from router import settle as S
 from router.catalog import iso, now_utc
@@ -157,6 +158,7 @@ class Orders:
         if spec.kind == "inference":  # size by what the GPUs will actually be asked for
             order["progress"]["total"] = order["maxTokens"] * len(requests)
         self.save(order)
+        metrics.ordered(order_id, req.mode, float(plan["priceUsdc"]))
         self.emit(
             order,
             "quoted",
@@ -319,6 +321,7 @@ class Orders:
             "resumedAt": at_work,
             "resumeSeconds": round(resume_s, 2),
         }
+        metrics.moved(order["orderId"], reason, resume_s, frm.offer.provider, to.offer.provider)
         order["moves"].append(move)
         self.emit(order, "moved", move)
 
@@ -590,6 +593,8 @@ class Orders:
                 "explorerUrl": S.explorer(tx),
             }
         order["status"] = "settled"
+        actual = sum(float(x["served"]) * float(x["unitPriceUsdc"]) for x in order["segments"])
+        metrics.settled(order_id, order["mode"], float(order["priceUsdc"]), actual)
         await self._report_usage(order, done_lines)
         self.emit(
             order,

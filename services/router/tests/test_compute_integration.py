@@ -33,10 +33,31 @@ def compute(tmp_path):
     sock.bind(("127.0.0.1", 0))
     port = sock.getsockname()[1]
     sock.close()
-    env = {**os.environ, "MOCK": "1", "INTERNAL_API_KEY": KEY, "RESUME_MOCK_TIME_SCALE": "2",
-           "COMPUTE_STATE_DIR": str(tmp_path), "STATE_DIR": str(tmp_path), "API_URL": "http://127.0.0.1:9"}
-    proc = subprocess.Popen([str(PY), "-m", "uvicorn", "compute.main:app", "--host", "127.0.0.1", "--port",
-                             str(port), "--log-level", "warning"], cwd=COMPUTE, env=env)
+    env = {
+        **os.environ,
+        "MOCK": "1",
+        "INTERNAL_API_KEY": KEY,
+        "RESUME_MOCK_TIME_SCALE": "2",
+        "COMPUTE_STATE_DIR": str(tmp_path),
+        "STATE_DIR": str(tmp_path),
+        "API_URL": "http://127.0.0.1:9",
+    }
+    proc = subprocess.Popen(
+        [
+            str(PY),
+            "-m",
+            "uvicorn",
+            "compute.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(port),
+            "--log-level",
+            "warning",
+        ],
+        cwd=COMPUTE,
+        env=env,
+    )
     url = f"http://127.0.0.1:{port}"
     for _ in range(100):
         try:
@@ -55,8 +76,9 @@ async def test_reclaim_on_compute_worker_resumes_on_the_other_gpu(compute, tmp_p
     svc = Service()
     svc.collect(ctx=CollectContext())
     # Point the two Moonshift GPUs at the running compute worker.
-    svc.entries = [dataclasses.replace(e, endpoint=compute) if e.offer.provider == "moonshift" else e
-                   for e in svc.entries]
+    svc.entries = [
+        dataclasses.replace(e, endpoint=compute) if e.offer.provider == "moonshift" else e for e in svc.entries
+    ]
     orders = Orders(svc, SqliteState(tmp_path / "s.db"))
     real_emit = orders.emit
     fired = []
@@ -68,8 +90,15 @@ async def test_reclaim_on_compute_worker_resumes_on_the_other_gpu(compute, tmp_p
             orders.reclaim(fired[0], 5, "RECLAIMED")
 
     orders.emit = emit
-    order = await orders.create(OrderCreate(kind="inference", mode="balanced", maxTokens=200, requests=[MSGS],
-                                            constraints={"excludeProviders": ["aws", "azure", "vast"]}))
+    order = await orders.create(
+        OrderCreate(
+            kind="inference",
+            mode="balanced",
+            maxTokens=200,
+            requests=[MSGS],
+            constraints={"excludeProviders": ["aws", "azure", "vast"]},
+        )
+    )
     await orders.pay(order["orderId"])
     order = await orders.execute(order["orderId"])
     assert order["status"] == "completed", order["events"][-1]
@@ -77,8 +106,12 @@ async def test_reclaim_on_compute_worker_resumes_on_the_other_gpu(compute, tmp_p
     assert {first["gpuId"], second["gpuId"]} == {"gpu-a1", "gpu-b1"}
     assert order["moves"][0]["resumedAt"] == first["served"] >= 8
     # One continuous reply: identical to an uninterrupted run on compute.
-    r = httpx.post(f"{compute}/v1/resume/stream", headers={"X-MS-Internal-Key": KEY},
-                   json={"gpuId": "gpu-b", "messages": MSGS, "maxTokens": 200}, timeout=30)
+    r = httpx.post(
+        f"{compute}/v1/resume/stream",
+        headers={"X-MS-Internal-Key": KEY},
+        json={"gpuId": "gpu-b", "messages": MSGS, "maxTokens": 200},
+        timeout=30,
+    )
     whole = [line for line in r.text.splitlines() if '"kind": "done"' in line][0]
     assert order["output"][0] in whole and len(order["output"][0]) > 20
     assert first["served"] + second["served"] == order["progress"]["done"]

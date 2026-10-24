@@ -14,7 +14,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-from router import aws_events, scheduler
+from router import aws_events, metrics, scheduler
 from router import config as C
 from router.catalog import iso, now_utc
 from router.dispatch import make_dispatcher
@@ -138,6 +138,7 @@ async def post_quote(req: OrderIn) -> dict:
     alternatives = Counter(o.provider for o in service.catalog())
     body, _ = quote(spec, service.views(now), alternatives, service.catalog_as_of, now)
     body["why"] = explain(body)
+    metrics.quoted(body["plansEvaluated"], service.catalog_as_of)
     return body
 
 

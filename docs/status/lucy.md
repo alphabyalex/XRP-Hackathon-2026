@@ -126,8 +126,19 @@
   A7BA417BD9A48E14BE9C50372A46C33A3A6217C3A6613B01A2A1117F8105BDFA),
   refund 7A11B3BE97C508A95D8941A308BA4C72713E60F4B028D491D6C4F3B6BC386BF2.
 
+- Phase 7: router/metrics.py (one JSON log line per quote, order, move and
+  settlement; CloudWatch custom metrics in Moonshift/Router when
+  CLOUDWATCH=1: Quotes, Orders, Moves, ResumeLatency, Predicted/Actual cost,
+  CostErrorPct). router/launch.py tags every launched instance and volume
+  moonshift:orderId (refuses without AWS_LAUNCH=1, IMDSv2 required). CloudWatch
+  agent config with nvidia_gpu metrics (infra/cloudwatch-agent.json).
+  Dockerfile for ECR. docs/ROUTER.md: metrics table, tags, CUR 2.0 join query,
+  ECR push commands. Tests with moto (CloudWatch metrics, tagged spot launch).
+  111 router tests.
+
 ## Next
-- Phase 7: CloudWatch metrics and logs, cost tags, CUR join, ECR.
+- Phase 8: npm run demo starts the router, docs/DEMO.md flow, full
+  docs/ROUTER.md, request for Tharun in docs/CONTRACTS.md.
 
 ## Blockers
 - No AWS credentials on this machine (no AWS CLI either). All AWS adapters
@@ -144,6 +155,10 @@
   file, so left as is.
 - apps/api needs Node 22.13+ (node:sqlite); on Node 22.12 run it with
   NODE_OPTIONS=--experimental-sqlite. Local environment only.
+- Cost truth needs a human in the AWS Billing console: activate the cost
+  allocation tag moonshift:orderId and create a CUR 2.0 Data Export (Parquet,
+  resource IDs, Athena). Steps in docs/ROUTER.md. Pushing the router image to
+  ECR needs AWS_DEPLOY=1 approval.
 - No BRAND.md in the repo or on disk; UI follows packages/shared/src/brand.ts
   and apps/web/app/globals.css plus the prompt's rules.
 
