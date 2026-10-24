@@ -147,3 +147,87 @@
 - Keep `MOCK=1` and `KEEPER_DRY_RUN=1` as the defaults. The service will not
   submit ledger transactions.
 
+
+## Portfolio phase 1
+- Merged origin/alex. Nav order: Borrow, Lend, Market, Portfolio, Developers, How it earns. Open app remains on the right.
+- BRAND.md is absent from the checkout; following the explicit brand rules supplied in the request.
+
+
+## Portfolio phase 2
+- Added isolated /account/:account route, shared response types and contract snapshot.
+- Reuses balances, compute, pricing, oracle and lending services. Added 15-second cache and event invalidation.
+- Historical payment amounts are absent from tx_log, so those activity amounts are null. Revenue source split uses documented compute rate weights because upstream returns combined revenue only.
+- Current running stack uses the existing adapter's in-memory ledger mode. Snapshot is recorded as returned, without changing configuration or reading environment values.
+
+## Portfolio phase 3
+- Replaced /portfolio with account header, holdings, SVG earnings chart, loan panels and activity. Reuses DataMoon, PriceFlash, Segmented, Button, Toast and HealthMeter.
+- Extended Segmented for any option count. Added SSE refresh, polling fallback, reduced motion, viewport-triggered bar animation, page-scoped light palette and mobile table containment.
+- npm run typecheck passed across all four workspaces.
+
+
+## Portfolio phase 4 (2026-10-24)
+
+- Final `npm run typecheck`: PASS in web, api, shared and xrpl.
+- `git diff --check`: PASS.
+- Added `scripts/check-portfolio.mjs`. Uses installed Playwright, or PLAYWRIGHT_MODULE pointing to index.mjs, with Edge by default (PLAYWRIGHT_CHANNEL may override).
+- Ran against the existing stack on ports 3000 and 4000. Actual account screenshots are empty holdings/loans because that is the current account state. Populated browser fixtures additionally cover holdings, both GPU tabs plus All, seven bars, keyboard tooltip, Show more, repayment request/toast/refetch and mobile containment. No ledger writes were submitted by verification.
+- Visual review completed for mobile and desktop. Mobile LTV labels now use three columns to avoid overlap. DataMoon avatars use the existing compute calendar. Screenshot capture hides only the Next development toolbar.
+
+Final check output:
+
+```
+PASS warm /account/ALICE 2ms (<500ms)
+PASS 1280px: net worth 752ms, no horizontal scroll, production copy, nav order, screenshot saved
+PASS 400px: net worth 617ms, no horizontal scroll, production copy, nav order, screenshot saved
+PASS populated 1280px: holdings, seven bars, GPU selection, tooltip, pagination, repayment route and refresh, no overflow
+PASS populated 400px: holdings, seven bars, GPU selection, tooltip, pagination, repayment route and refresh, no overflow
+PASS no console errors
+```
+
+Artifacts:
+- `contracts/api/account.json`: full current /account/ALICE response, including activity. Net worth 1000.000000 USDC, USDC 1000.000000, XRP 1000.000000, no held shares or open loans, earned7d and earned30d both 0.000000.
+- `docs/screens/portfolio-1280.png`
+- `docs/screens/portfolio-400.png`
+
+Remaining upstream limitations:
+- The running API uses its existing in-memory XRPL adapter mode. The XRP value returned by that mode is not a live ledger balance. No configuration was changed and no environment values were opened or printed. Running with the real ledger adapter makes the same getBalances call use the ledger.
+- The compute response has combined revenue only, so source totals are allocated using its documented rate weights, rather than independently measured source receipts.
+- Historical loan payment log rows lack amounts. Those activity amounts remain null, shown blank. Share trade quantities are displayed in shares; their logs do not include cash consideration.
+- BRAND.md does not exist in the checkout. Explicit supplied brand rules and existing brand tokens were used.
+
+## Portfolio follow-up: returns and live GPU rental prices (2026-10-24)
+
+### Data
+- User selected cloud GPU rental rates in USD per hour. Added read-only /gpu-prices and /account/:account/returns?days=7|30|90.
+- Verified GPU Economy's public JSON feed and documentation. The live feed returned 79 GPU models. Uses published provider rate-card medians, explicit USD/hour units, source timestamps, CC BY 4.0 attribution and per-model source links.
+- Upstream polling defaults to 900 seconds with conditional ETag requests, 10-second timeouts, request coalescing, persistent last-good data, separate history/current failure handling and stale flags. GPU_PRICE_REFRESH_SECONDS can increase the interval; the minimum remains 900 seconds as requested by the source. No keys or environment-file edits are needed.
+- Weekly history includes only the source's own observations. Reconstructed history is excluded. Local observations use publication timestamps, survive restarts, retain 366 days and return the latest seven days to bound payload size.
+- Returns are actual received dividends per GPU, zero-filled over UTC calendar days, with cumulative cash distributions. They exclude unrealized gains and do not claim ROI percentages without cost basis. The receipt transaction timestamp takes precedence when available.
+- Validation: all four workspace typechecks and six unit tests pass, including return boundaries, missing prices, source isolation, ETag 304 and failed/malformed feed handling.
+
+### Portfolio UI and final verification
+- /portfolio now includes USDC and GPU shares, actual cash return charts over 7/30/90 days with per-GPU selection, and live cloud GPU rental comparison with price histories. Hardware models are selectable from the full feed; the default table compares T4, L4, RTX 4090, A100, H100 and H200.
+- Applied the user's clarification: rental rates only. Purchase-price functionality was removed before delivery.
+- Prices refresh in the browser every 60 seconds. Weekly provider medians and the latest seven days of tracked source snapshots have separate views. Current external prices remain separate from Moonshift share valuations and collateral prices.
+- Reuses PriceFlash and Segmented; SVG histories have keyboard cursors and date/value readouts. Both rental-rate and per-GPU return tables fit on 400px screens; the existing holdings table keeps its contained scroll.
+- Reviewed updated screenshots at 1280px and 400px. No changes to Borrow, Market, GPU detail or Developers pages. Environment values were neither opened nor printed; verification submitted no ledger transactions.
+
+Final results:
+```
+PASS npm run typecheck (web, api, shared, xrpl)
+PASS 6 market-data unit tests
+PASS warm /account/ALICE 5ms (<500ms)
+PASS 1280px: net worth 1453ms, no horizontal scroll, production copy, nav order
+PASS 400px: net worth 852ms, no horizontal scroll, production copy, nav order
+PASS populated holdings, seven revenue bars, GPU selection, tooltip, pagination, repayment route and refresh at both widths
+PASS real GPU Economy feed: 79 models, source timestamp, shared cache, persistent observations, 7/30/90-day returns
+PASS 1280px: USDC/shares, return ranges and GPU filter, rental models, weekly/tracked history, keyboard cursor, no overflow, screenshot
+PASS 400px: USDC/shares, return ranges and GPU filter, rental models, weekly/tracked history, keyboard cursor, no overflow, screenshot
+PASS automatic 60-second browser refresh updates the displayed quote
+PASS no browser errors
+PASS git diff --check
+```
+
+Scripts: scripts/check-portfolio.mjs and scripts/check-portfolio-market.mjs. Both accept PLAYWRIGHT_MODULE and PLAYWRIGHT_CHANNEL for the installed browser runtime. Unit checks: node --import tsx --test apps/api/tests/marketData.test.ts.
+
+Updated artifacts: contracts/api/account.json, contracts/api/account-returns.json, contracts/api/gpu-prices.json, docs/screens/portfolio-1280.png and docs/screens/portfolio-400.png.

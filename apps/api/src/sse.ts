@@ -2,6 +2,8 @@ import type { Request, Response } from "express";
 import type { SseEventType } from "@moonshift/shared";
 
 const clients = new Set<Response>();
+const accountListeners = new Set<() => void>();
+export function onAccountEvent(listener: () => void): void { accountListeners.add(listener); }
 
 export function sseHandler(req: Request, res: Response): void {
   res.setHeader("Content-Type", "text/event-stream");
@@ -15,6 +17,9 @@ export function sseHandler(req: Request, res: Response): void {
 }
 
 export function broadcast(type: SseEventType, data: unknown): void {
+  if (["dividend", "tx", "loan", "risk", "calendar"].includes(type)) {
+    for (const listener of accountListeners) listener();
+  }
   const payload = `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;
   for (const client of clients) {
     client.write(payload);

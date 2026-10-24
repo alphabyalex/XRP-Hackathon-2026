@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { MoonMark } from "./MoonMark";
 
 export function Footer() {

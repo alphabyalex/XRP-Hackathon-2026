@@ -7,11 +7,12 @@ import { Button } from "./Button";
 import { ThemeToggle } from "./ThemeToggle";
 
 const LINKS = [
-  { href: "/market", label: "Market" },
-  { href: "/#schedule", label: "How it earns" },
   { href: "/borrow", label: "Borrow" },
   { href: "/lend", label: "Lend" },
+  { href: "/market", label: "Market" },
+  { href: "/portfolio", label: "Portfolio" },
   { href: "/playground", label: "Developers" },
+  { href: "/#schedule", label: "How it earns" },
 ];
 
 export function Nav() {
