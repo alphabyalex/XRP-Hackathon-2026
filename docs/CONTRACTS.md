@@ -381,3 +381,13 @@ route for an explicitly requested devnet oracle transaction demo.
 - `POST /watch` returns `feeds[]`.
 - Credit events carry `via: "websocket (public devnet)"` or `"websocket (quicknode)"`.
 
+
+## Account portfolio
+
+`GET /account/:account` is a read-only account snapshot. Accepts a session account name or a known ledger address. Example: `contracts/api/account.json`. Decimal monetary amounts and fractional ownership are strings. `ownershipPct` is shares / 1,000; multiply by 100 to display a percentage. `change24h` is percentage points, or null without an oracle observation at least 24 hours old. XRP comes directly from the existing getBalances adapter, with its configured ledger mode. No environment configuration is changed by this endpoint.
+
+Balances include free tokens and escrow shares. Holdings include both; net worth is USDC plus all share value less open loan outstanding. XRP is displayed separately and is not added to USDC net worth. Payouts with a transaction hash are joined to dividend runs for GPU and time attribution. Loans and their ledger payment schedules and health come from the existing lending service. An unavailable open loan ledger fails the snapshot instead of understating debt.
+
+Compute history is fetched through GET /gpus/{id}/revenue for 168 hours, grouped into the latest seven UTC dates. The upstream contract exposes total revenue and minutes, not separate source revenue. Source allocation uses compute's existing 4.95/hour booked and 1.80/hour inference weights, scaled to preserve each returned bucket total. This is an allocation, not separately metered source revenue. Revenue24h and utilization24h use the last 24 hourly buckets.
+
+Activity is account scoped, deduplicated by hash, newest first, limited to 50. Amount is nullable when the historical transaction log does not record it; the UI leaves it blank. Trade entries use recorded share quantities, not invented cash proceeds. Cache TTL is 15 seconds with concurrent request coalescing and invalidation on dividend, transaction, loan, risk and calendar broadcasts. Upstream reads run in parallel. Only the existing repayment action writes to the ledger from Portfolio.

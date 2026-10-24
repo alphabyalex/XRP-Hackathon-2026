@@ -152,3 +152,9 @@
 - Merged origin/alex. Nav order: Borrow, Lend, Market, Portfolio, Developers, How it earns. Open app remains on the right.
 - BRAND.md is absent from the checkout; following the explicit brand rules supplied in the request.
 
+
+## Portfolio phase 2
+- Added isolated /account/:account route, shared response types and contract snapshot.
+- Reuses balances, compute, pricing, oracle and lending services. Added 15-second cache and event invalidation.
+- Historical payment amounts are absent from tx_log, so those activity amounts are null. Revenue source split uses documented compute rate weights because upstream returns combined revenue only.
+- Current running stack uses the existing adapter's in-memory ledger mode. Snapshot is recorded as returned, without changing configuration or reading environment values.

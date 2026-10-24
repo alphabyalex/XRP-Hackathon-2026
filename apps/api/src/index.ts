@@ -6,6 +6,7 @@ import cors from "cors";
 import { PORTS } from "@moonshift/shared";
 import { gpusRouter } from "./routes/gpus.js";
 import { portfolioRouter } from "./routes/portfolio.js";
+import { accountRouter } from "./routes/account.js";
 import { txRouter } from "./routes/tx.js";
 import { sharesRouter } from "./routes/shares.js";
 import { contractsRouter } from "./routes/contracts.js";
@@ -28,6 +29,7 @@ app.use(express.json());
 // public reads
 app.use(gpusRouter);
 app.use(portfolioRouter);
+app.use(accountRouter);
 app.use(txRouter);
 
 // public writes
