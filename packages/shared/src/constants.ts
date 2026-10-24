@@ -22,7 +22,7 @@ export const GPUS = [
   {
     id: "gpu-b",
     label: "GPU B",
-    hw: "NVIDIA T4 16GB (simulated second worker)",
+    hw: "NVIDIA T4 16GB (AWS g4dn.xlarge)",
     model: "Qwen/Qwen3-1.7B",
     shareCode: "GPB",
     contractCode: "HRB",

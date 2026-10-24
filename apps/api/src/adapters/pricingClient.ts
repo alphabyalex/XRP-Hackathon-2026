@@ -3,6 +3,7 @@
 // service at PRICING_URL (owner Lucy).
 
 import { HOSTING_FEE_BPS, RESERVE_BPS, LOAN, type GpuId } from "@moonshift/shared";
+import { navInputs } from "../marketHistory.js";
 import type { AgentText } from "@moonshift/shared";
 import { serviceJson } from "./serviceFetch.js";
 import type {
@@ -60,7 +61,9 @@ export async function getContractPrice(gpuId: GpuId, slotStart: string): Promise
 
 export async function getNav(gpuId: GpuId): Promise<NavResponse> {
   if (!MOCK) {
-    const res = await fetch(`${PRICING_URL}/nav?gpu_id=${gpuId}`, { headers: AUTH });
+    // Trailing revenue and dividends from the api's own records drive yield.
+    const q = new URLSearchParams({ gpu_id: gpuId, ...navInputs(gpuId) });
+    const res = await fetch(`${PRICING_URL}/nav?${q}`, { headers: AUTH });
     return (await res.json()) as NavResponse;
   }
   return {

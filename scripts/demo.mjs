@@ -221,6 +221,18 @@ if (!args.has("--no-web")) {
   } catch {
     log("demo", "prewarm skipped (api not reachable yet)");
   }
+  // The last 24 hours of GPU activity and a dividend, so yield, schedules and
+  // avatars are live before anyone opens the market (idempotent).
+  try {
+    const t2 = Date.now();
+    const seeded = await (await fetch(`${api}/internal/seed-history`, { method: "POST", headers: json })).json();
+    const line = Object.entries(seeded)
+      .map(([g, v]) => `${g}: +${v.inference ?? 0} inference, +${v.booked ?? 0} bookings, dividend ${typeof v.dividend === "string" ? v.dividend : v.dividend?.status ?? "?"}`)
+      .join("; ");
+    log("demo", `market history ready in ${Math.round((Date.now() - t2) / 1000)} s (${line})`);
+  } catch {
+    log("demo", "market history seed skipped (api not reachable)");
+  }
   setInterval(() => void warm().catch(() => {}), 4 * 60_000);
   if (args.has("--no-web")) return;
   for (let i = 0; i < 60; i++) {

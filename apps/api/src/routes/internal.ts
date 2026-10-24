@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { seedHistory } from "../marketHistory.js";
 import { recordUsage } from "../db/helpers.js";
 import { broadcast } from "../sse.js";
 import type { CreditEvent, KeeperActionBody, UsageEvent } from "@moonshift/shared";
@@ -47,6 +48,9 @@ internalRouter.get(
     prices: svc.oracleHistory(req.params.gpuId, req.query.from as string | undefined, req.query.to as string | undefined),
   }))
 );
+
+// npm run demo and demo:reset: the last 24 hours of GPU activity and a dividend, then the live simulator.
+internalRouter.post("/seed-history", handle(async () => seedHistory()));
 
 // Credit events (Lucy, services/credit). Duplicate ids are ignored.
 internalRouter.post(
