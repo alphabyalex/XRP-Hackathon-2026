@@ -1,4 +1,5 @@
 "use client";
+import { AccountBalance } from "./AccountBalance";
 import dynamic from "next/dynamic";
 import { GPUS } from "@moonshift/shared";
 import { useLiveGpus, useApiUnreachable } from "@/lib/liveData";
@@ -80,7 +81,7 @@ export function HomeContent() {
               <p>Each one is an NVIDIA T4 running on AWS. Prices come from the order book on the XRP Ledger DEX. Yield is last 24 hours of payouts, annualized.</p>
             </div>
           </Reveal>
-          <AppWindow tabs={["Market", "Portfolio", "Borrow", "Playground"]} activeTab="Market" acct={<>{ACCOUNT_DISPLAY}&nbsp;&nbsp;<b>1,284.20</b> USDC</>}>
+          <AppWindow tabs={["Market", "Portfolio", "Borrow", "Playground"]} activeTab="Market" acct={<>{ACCOUNT_DISPLAY}&nbsp;&nbsp;<AccountBalance /> USDC</>}>
             <div className="tbl">
               <MarketTable views={views} />
             </div>

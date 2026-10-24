@@ -51,8 +51,9 @@ gpusRouter.get("/gpus/:id", async (req, res) => {
   try {
     const summary = await buildSummary(gpuId);
     const now = new Date();
-    const from = now.toISOString();
-    const to = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+    // Same window the web schedule draws: 20 hours back, 4 hours ahead.
+    const from = new Date(now.getTime() - 21 * 60 * 60 * 1000).toISOString();
+    const to = new Date(now.getTime() + 5 * 60 * 60 * 1000).toISOString();
     const [calendar, holders] = await Promise.all([
       compute.getCalendar(gpuId, from, to),
       xrpl.getHolders(gpuId),

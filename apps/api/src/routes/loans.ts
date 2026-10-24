@@ -29,6 +29,15 @@ loansRouter.post("/loans/open", async (req, res) => {
       principal: quote.max_principal,
       dueAt,
     });
+    if (escrowTx.result !== "tesSUCCESS") {
+      res.status(409).json({
+        error: {
+          code: "INSUFFICIENT_COLLATERAL",
+          message: `Not enough ${gpuId.toUpperCase()} shares to lock ${collateralShares} as collateral.`,
+        },
+      });
+      return;
+    }
 
     db.prepare(
       `INSERT INTO loans (id, borrower, gpu_id, collateral_shares, principal, due_at, status, escrow_tx, disburse_tx, settle_tx)

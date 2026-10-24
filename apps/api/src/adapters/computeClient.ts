@@ -80,9 +80,52 @@ export async function getCalendar(gpuId: GpuId, from: string, to: string): Promi
     const res = await fetch(`${COMPUTE_URL}/gpus/${gpuId}/calendar?from=${from}&to=${to}`);
     return (await res.json()) as CalendarEntry[];
   }
-  return bookings
+  const fromMs = new Date(from).getTime();
+  const toMs = new Date(to).getTime();
+  const booked = bookings
     .filter((b) => b.gpu_id === gpuId)
     .map((b) => ({ start: b.slot_start, end: b.slot_end, kind: "BOOKED" as const, ref: b.redemption_id }));
+  return [...mockHistory(gpuId, fromMs, Math.min(toMs, Date.now())), ...booked].filter(
+    (e) => new Date(e.end).getTime() > fromMs && new Date(e.start).getTime() < toMs
+  );
+}
+
+// Simulated past schedule so mock mode looks like a working GPU instead of a
+// day of idle time. Deterministic per GPU and 30 minute block, so it does not
+// jump around between refreshes. Rough targets: GPU-A about 18% utilized,
+// GPU-B about 9%, matching getGpus() above. Only used when MOCK_COMPUTE=1.
+function blockHash(gpuId: string, block: number): number {
+  let h = 2166136261;
+  const s = gpuId + ":" + block;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  // Final mix so neighbouring blocks get unrelated values.
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+
+function mockHistory(gpuId: GpuId, fromMs: number, toMs: number): CalendarEntry[] {
+  const SLOT_MS = 5 * 60 * 1000;
+  const BLOCK_MS = 6 * SLOT_MS;
+  const [pBooked, pInference] = gpuId === "gpu-a" ? [0.09, 0.18] : [0.04, 0.1];
+  const out: CalendarEntry[] = [];
+  for (let block = Math.floor(fromMs / BLOCK_MS); block * BLOCK_MS < toMs; block++) {
+    const r = blockHash(gpuId, block);
+    if (r >= pBooked + pInference) continue;
+    const kind = r < pBooked ? ("BOOKED" as const) : ("INFERENCE" as const);
+    const len = 2 + Math.floor(blockHash(gpuId, block + 0.5) * 5); // 2 to 6 slots
+    const start = block * BLOCK_MS;
+    const end = Math.min(start + len * SLOT_MS, toMs);
+    if (end <= start) continue;
+    out.push({ start: new Date(start).toISOString(), end: new Date(end).toISOString(), kind, ref: "simulated" });
+  }
+  return out;
 }
 
 export async function createBooking(req: BookingRequest): Promise<BookingResponse> {

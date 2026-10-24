@@ -31,7 +31,10 @@ export function buildSchedule(
   pastHours = 20,
   futureHours = 4
 ): BuiltSchedule {
-  const windowStart = new Date(now.getTime() - pastHours * 60 * 60 * 1000);
+  // Start on a whole hour so row labels read 16:00, 19:00 and slots sit on
+  // 5 minute boundaries (12:25, 12:30) instead of drifting with the clock.
+  const hourStart = Math.floor(now.getTime() / (60 * 60 * 1000)) * 60 * 60 * 1000;
+  const windowStart = new Date(hourStart - (pastHours - 1) * 60 * 60 * 1000);
   const slotCount = ((pastHours + futureHours) * 60) / 5;
   const nowIndex = Math.floor((now.getTime() - windowStart.getTime()) / SLOT_MS);
 

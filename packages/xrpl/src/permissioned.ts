@@ -9,7 +9,6 @@ import {
 } from "./wallets.js";
 
 export const MS_KYC_CREDENTIAL_TYPE = Buffer.from("MS_KYC", "utf8").toString("hex").toUpperCase();
-export const GB_KYC_CREDENTIAL_TYPE = MS_KYC_CREDENTIAL_TYPE;
 
 export async function issueCredential(
   issuerName: "SHARE_ISSUER",
@@ -83,9 +82,9 @@ export async function setupPermissionedShares(): Promise<{ domainId: string }> {
 
   for (const persona of personas) {
     const address = getAccountAddress(persona);
-    console.log(`Issuing GB_KYC to ${persona} (${address})...`);
+    console.log(`Issuing MS_KYC to ${persona} (${address})...`);
     await issueCredential("SHARE_ISSUER", address);
-    console.log(`${persona} accepting GB_KYC credential...`);
+    console.log(`${persona} accepting MS_KYC credential...`);
     await acceptCredential(persona, shareIssuerWallet.address);
   }
 

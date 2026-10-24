@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
-import { ECDSA, BatchFlags, xrpToDrops, dropsToXrp } from "xrpl";
+import { BatchFlags, xrpToDrops, dropsToXrp } from "xrpl";
 import {
   getSigningAlgorithm,
   getSeedEnvKey,
@@ -14,15 +14,15 @@ import {
 } from "../src/errors.js";
 import { signChannelClaim, verifyChannelClaim } from "../src/paychan.js";
 import { TARGET_FEATURES } from "../src/features.js";
-import { MS_KYC_CREDENTIAL_TYPE, GB_KYC_CREDENTIAL_TYPE } from "../src/permissioned.js";
+import { MS_KYC_CREDENTIAL_TYPE } from "../src/permissioned.js";
 
 async function runTests() {
   console.log("Running @moonshift/xrpl unit and integration test suite...\n");
 
   // 1. Wallet algorithm selection (Guard against secp256k1 derivation bug)
   console.log("Test 1: Wallet algorithm selection guard");
-  assert.equal(getSigningAlgorithm("sEdVjYjgktToeRESyijEd4Mt1tvp1UB"), ECDSA.ed25519);
-  assert.equal(getSigningAlgorithm("sn3nxiW7v8KXzPzAKNcubZiWC9MqG"), ECDSA.secp256k1);
+  assert.equal(getSigningAlgorithm("sEdVjYjgktToeRESyijEd4Mt1tvp1UB"), "ed25519");
+  assert.equal(getSigningAlgorithm("sn3nxiW7v8KXzPzAKNcubZiWC9MqG"), "ecdsa-secp256k1");
   console.log("  Passed: sEd prefix correctly selects ed25519, standard seed selects secp256k1");
 
   // 2. Account names and environment keys
@@ -86,8 +86,7 @@ async function runTests() {
   // 7. Credentials format
   console.log("\nTest 7: Credentials encoding");
   assert.equal(MS_KYC_CREDENTIAL_TYPE, Buffer.from("MS_KYC").toString("hex").toUpperCase());
-  assert.ok(GB_KYC_CREDENTIAL_TYPE);
-  console.log("  Passed: MS_KYC and GB_KYC hex encoding is valid");
+  console.log("  Passed: MS_KYC hex encoding is valid");
 
   // 8. Money conversions
   console.log("\nTest 8: Drops and XRP string utilities");
