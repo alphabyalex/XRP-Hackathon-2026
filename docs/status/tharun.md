@@ -12,7 +12,11 @@ Updated after each phase. Newest phase first in Done.
   - Built `ResourcePricingBreakdown.tsx` and updated `MarketTable.tsx`, `MarketContent.tsx`, and `GpuDetailContent.tsx` on the web frontend. The Market table now displays hardware spec badges (`1x T4 16GB`, `4 vCPU`, `16 GB RAM`, `100/125 GB NVMe`) and a transparent component pricing table.
 - **Akash Deployment & Lifecycle CLI (`akash_manager.py`)**:
   - Authored `infra/akash/akash_manager.py` with actions: `screen` (audit online providers), `rent` / `deploy` (open GPU lease via `akt deploy`), `status` (query active lease and provider gateway), `kill` / `close` (close lease to stop spend immediately and save funds), and `pricing` (compare indexed resource costs).
-  - Tested provider screening matching audited provider `akash1hgulk6aekakqzc0v6wukrd3dy9n90f5gkl4ezk` (`eu-southwest`).
+  - Tested provider screening matching audited provider `akash1hgulk6aekakqzc0v6wukrd3dy9n90f5gkl4ezk`.
+  - Configured unmasked Console API key into gitignored `.env` and authenticated `akt` CLI session.
+  - Successfully broadcast deployment and opened live GPU lease on Akash Network (DSEQ `1792883508772`, rate $117.50/month / $0.16/hour).
+  - Wired live provider endpoint (`http://provider.h4i-dedicated.eu-sw-2.digitalfrontier.so:30151`) into `GPU_B_VLLM_URL`.
+  - Removed all geographic provider origins from display per specifications.
 
 ### Akash CLI & Instant Workload Switch Engine (2026-10-24)
 - **Akash Network CLI (`akt`) Integration**:

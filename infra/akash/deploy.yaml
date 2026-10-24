@@ -42,7 +42,7 @@ profiles:
         host: akash
       pricing:
         moonshift-gpu:
-          denom: uakt
+          denom: uact
           amount: 100000
 
 deployment:

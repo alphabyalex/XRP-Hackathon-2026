@@ -70,6 +70,8 @@ def cmd_screen() -> None:
     if code == 0:
         print("[+] Providers matching specification (1x T4, 4 vCPU, 16Gi RAM, 100Gi SSD):")
         for line in output.splitlines()[:20]:
+            if "location:" in line.lower() or "ip region" in line.lower():
+                continue
             print(f"    {line}")
     else:
         print(f"[-] Screen error: {output}")
@@ -134,7 +136,7 @@ def cmd_kill(api_key: str | None) -> None:
     dseq = data.get("dseq")
     print(f"[*] Closing lease for dseq {dseq}...")
     env_extra = {"AKT_CONSOLE_API_KEY": api_key} if api_key else None
-    code, output = run_cmd(["close", str(dseq)], env_extra=env_extra)
+    code, output = run_cmd(["console", "deployment", "close", str(dseq)], env_extra=env_extra)
     print(output)
     STATE_FILE.unlink(missing_ok=True)
     print("[+] Lease closed and deployment killed. Funds returned to escrow balance.")

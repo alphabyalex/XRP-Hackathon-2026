@@ -122,7 +122,7 @@ export function GpuDetailContent({ id }: { id: string }) {
           <div style={{ marginTop: 40, padding: 24, background: "var(--surface)", borderRadius: 16, boxShadow: "0 0 0 1px var(--rule)" }}>
             <h3 style={{ fontSize: 18, marginBottom: 8, fontWeight: 600 }}>Hardware Resource Breakdown &amp; Indexing</h3>
             <p style={{ fontSize: 13, color: "var(--ink2)", marginBottom: 16 }}>
-              Provider: <b>{RESOURCE_BREAKDOWN[gpu.id as GpuId].provider}</b> &middot; Instance: <b>{RESOURCE_BREAKDOWN[gpu.id as GpuId].instanceType}</b> &middot; Region: <b>{RESOURCE_BREAKDOWN[gpu.id as GpuId].region}</b>
+              Provider: <b>{RESOURCE_BREAKDOWN[gpu.id as GpuId].provider}</b> &middot; Instance: <b>{RESOURCE_BREAKDOWN[gpu.id as GpuId].instanceType}</b>
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
               <div style={{ padding: 12, background: "var(--tint)", borderRadius: 8 }}>

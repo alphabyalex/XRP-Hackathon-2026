@@ -308,7 +308,7 @@ def resources_breakdown() -> dict[str, dict]:
         "gpu-b": {
             "provider": "Akash Network (akt CLI)",
             "instance_type": "dCloud SDL (Audited Provider)",
-            "region": "Decentralized (eu-southwest)",
+            "region": "Decentralized Cloud",
             "components": {
                 "gpu": {"label": "GPU Compute", "spec": "1x NVIDIA T4 16GB VRAM", "hourly_usd": "0.110000"},
                 "cpu": {"label": "vCPU Compute", "spec": "4 vCPUs (AMD EPYC / Intel)", "hourly_usd": "0.024000"},
