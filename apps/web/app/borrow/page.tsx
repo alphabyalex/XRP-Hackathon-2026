@@ -1,4 +1,4 @@
-import type { LoanQuoteApiResponse } from "@moonshift/shared";
+import type { CreditProfile } from "@moonshift/shared";
 import { apiFetch, getPortfolio, ApiUnreachableError } from "@/lib/api";
 import { fetchAllGpus } from "@/lib/fetchAllGpus";
 import { ACCOUNT } from "@/lib/session";
@@ -8,26 +8,33 @@ import { ApiErrorNotice } from "@/components/ApiErrorNotice";
 const DEFAULT_SHARES = "100";
 const GPU_ID = "gpu-a";
 
-// The opening quote (largest approved amount for the default shares) is
-// rendered on the server, so the score and terms are in the first paint.
-// The api serves it from cache; if it is slow, the page fetches it instead.
-async function initialQuote(): Promise<LoanQuoteApiResponse | null> {
-  // lendingApi is client-only (hooks), so call the api directly.
-  return apiFetch<LoanQuoteApiResponse>("/loans/quote", {
+// The credit profile and the largest approved amount are rendered on the
+// server, so the score is in the first paint. The api serves both from cache;
+// if one is slow, the page fetches it instead. (lendingApi is client-only, so
+// these call the api directly.)
+const fast = () => ({ signal: AbortSignal.timeout(1500) });
+
+function initialProfile() {
+  return apiFetch<CreditProfile>(`/loans/profile/${ACCOUNT}`, fast()).catch(() => null);
+}
+
+function initialMax() {
+  return apiFetch<{ maxPrincipal: string; collateralValue: string; termSeconds: number }>("/loans/max", {
+    ...fast(),
     method: "POST",
-    body: JSON.stringify({ borrower: ACCOUNT, gpuId: GPU_ID, collateralShares: DEFAULT_SHARES, principal: "max" }),
-    signal: AbortSignal.timeout(1500),
+    body: JSON.stringify({ borrower: ACCOUNT, gpuId: GPU_ID, collateralShares: DEFAULT_SHARES }),
   }).catch(() => null);
 }
 
 export default async function BorrowPage() {
   try {
-    const [portfolio, { gpus }, quote] = await Promise.all([getPortfolio(ACCOUNT), fetchAllGpus(), initialQuote()]);
+    const [portfolio, { gpus }, profile, max] = await Promise.all([getPortfolio(ACCOUNT), fetchAllGpus(), initialProfile(), initialMax()]);
     const gpu = gpus[GPU_ID] ?? Object.values(gpus)[0];
     return (
       <BorrowContent
         initialPortfolio={portfolio}
-        initialQuote={quote?.gpuId === gpu.id ? quote : null}
+        initialProfile={profile}
+        initialMax={gpu.id === GPU_ID ? max : null}
         defaultShares={DEFAULT_SHARES}
         gpuId={gpu.id}
         gpuLabel={gpu.id.toUpperCase()}

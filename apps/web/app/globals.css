@@ -684,7 +684,7 @@ section.tinted .nowline span {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  padding: 16px 0;
+  padding: 11px 0;
   border-bottom: 1px solid var(--rule);
 }
 .facts > div:first-child {
@@ -692,12 +692,12 @@ section.tinted .nowline span {
 }
 .facts span {
   color: var(--ink2);
-  font-size: 15px;
+  font-size: 14px;
 }
 .facts b {
   font-family: var(--mono);
   font-weight: 500;
-  font-size: 17px;
+  font-size: 15px;
 }
 
 /* trade */
@@ -1005,7 +1005,7 @@ input[type="range"]::-moz-range-thumb {
 .bignum {
   font-family: var(--sans);
   font-variant-numeric: lining-nums;
-  font-size: clamp(44px, 5.4vw, 68px);
+  font-size: clamp(32px, 3.6vw, 46px);
   letter-spacing: -0.035em;
   font-weight: 600;
   line-height: 1;
@@ -1287,7 +1287,7 @@ footer .wrap {
   align-items: start;
 }
 .trade.card {
-  padding: 28px;
+  padding: 24px;
 }
 .two {
   display: grid;
@@ -1349,39 +1349,39 @@ footer .wrap {
   line-height: 1.55;
   color: var(--ink);
 }
-.memo span {
-  display: block;
-  margin-top: 8px;
-  font-size: 12px;
+.max-hint {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
   color: var(--ink3);
+  cursor: pointer;
+  text-align: left;
 }
+.max-hint:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* Status labels are plain text: no tinted pill backgrounds. */
 .chip {
   display: inline-block;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--tint);
   color: var(--ink2);
   text-transform: capitalize;
   white-space: nowrap;
 }
 .chip-open {
-  background: #e7f5ee;
-  color: var(--up);
+  color: var(--ink);
 }
 .chip-margin_call {
-  background: var(--accent-wash);
   color: var(--accent-ink);
 }
 .chip-liquidated,
 .chip-defaulted {
-  background: #fbe9e7;
   color: var(--down);
-}
-.chip-phase {
-  background: var(--accent-wash);
-  color: var(--accent-ink);
 }
 .txl {
   font-size: 12.5px;
