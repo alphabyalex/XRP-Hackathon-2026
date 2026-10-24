@@ -71,3 +71,20 @@ def test_changes_report_value_moves_even_when_points_hold():
     assert diff[0]["delta"] == -8
     assert diff[1] == {"feature": "distinctCounterparties", "before": 1, "after": 2, "pointsBefore": 0, "pointsAfter": 0, "delta": 0}
     assert changes(None, prof(1, 0.05, 4)) == []
+
+
+def test_blend_thin_wallet_nudges_and_live_changes_show():
+    from credit.combine import blend
+
+    base = {"score": 75, "confidence": "high"}
+
+    def wallet(score, conf="low"):
+        return {"score": score, "confidence": conf, "grade": "E", "features": {}, "components": [{"part": "Connected wallet"}]}
+
+    at_connect = blend(base, wallet(28), 28)
+    assert at_connect["score"] == 66 and at_connect["grade"] == "B"
+    assert at_connect["components"][0]["weight"] == 0.2
+    assert blend(base, wallet(32), 28)["score"] == 68  # a payment moves it up
+    assert blend(base, wallet(27), 28)["score"] == 65  # an outflow moves it down (65.1)
+    # A long history moves it visibly: high confidence, score 90.
+    assert blend(base, wallet(90, "high"), 90)["score"] == 87

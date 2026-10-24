@@ -65,7 +65,10 @@ CREATE TABLE IF NOT EXISTS wallets (
 """
 
 # Columns added after the first release; ALTER fails harmlessly once they exist.
-MIGRATIONS = ["ALTER TABLE link_challenges ADD COLUMN network TEXT NOT NULL DEFAULT 'mainnet'"]
+MIGRATIONS = [
+    "ALTER TABLE link_challenges ADD COLUMN network TEXT NOT NULL DEFAULT 'mainnet'",
+    "ALTER TABLE wallets ADD COLUMN connect_score INTEGER",  # the wallet's own combined score when connected
+]
 
 
 class Store:
