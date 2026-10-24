@@ -151,9 +151,18 @@ export function BorrowContent({
   useEffect(() => {
     if (initialProfile && requote === 0) return;
     let alive = true;
-    borrowerProfile()
-      .then((p) => alive && setProfile(p))
-      .catch(() => {});
+    // A new wallet's first score can take a few seconds: retry rather than give up.
+    (async () => {
+      for (let i = 0; i < 5 && alive; i++) {
+        try {
+          const p = await borrowerProfile();
+          if (alive) setProfile(p);
+          return;
+        } catch {
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+      }
+    })();
     return () => {
       alive = false;
     };

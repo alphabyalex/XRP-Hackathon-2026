@@ -113,11 +113,14 @@ async function readProfile(network: string, address: string, accountName?: strin
     return { profile: mockProfile(network, address, accountName), source: "mock" };
   }
   try {
-    const profile = await serviceJson<CreditProfile>("credit", `${CREDIT_URL()}/profile/${network}/${address}`);
+    // A new wallet's first score reads its whole history through Quicknode: allow it time.
+    const profile = await serviceJson<CreditProfile>("credit", `${CREDIT_URL()}/profile/${network}/${address}`, { timeoutMs: 20_000 });
     noteSource("credit", "live");
     return { profile, source: "live" };
   } catch (e) {
     if (!(e instanceof ServiceUnavailable)) throw e;
+    // A user's score is never made up: their quote waits for the credit service.
+    if (accountName?.startsWith("U_")) throw e;
     noteSource("credit", "mock-fallback");
     return { profile: { ...mockProfile(network, address, accountName), source: "mock-fallback" }, source: "mock-fallback" };
   }
