@@ -17,6 +17,8 @@ TEXT = {
     "msRepaysLate": "{v} Moonshift loans repaid late or overdue",
     "msMarginCalls": "{v} Moonshift margin calls received",
     "msLiquidations": "{v} Moonshift collateral escrows liquidated",
+    "msDividendsReceived": "Received {v} Moonshift GPU dividend payments",
+    "msShareTrades": "Placed {v} Moonshift GPU share or contract trades",
 }
 
 

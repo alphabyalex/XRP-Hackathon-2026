@@ -58,3 +58,9 @@ def test_mock_explain_endpoint_matches_contract():
     expected = contract("explain")["response"]
     assert set(body) == set(expected)
     assert body["address"] == BORROWER and body["simulated"] is True
+
+
+def test_every_scorecard_feature_has_explain_text():
+    from credit import scoring
+
+    assert set(scoring.scorecard()["features"]) == set(explain.TEXT)
