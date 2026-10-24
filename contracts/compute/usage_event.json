@@ -1,5 +1,5 @@
 {
-  "endpoint": "POST /internal/usage (compute -> apps/api, header X-GB-Internal-Key)",
+  "endpoint": "POST /internal/usage (compute -> apps/api, header X-MS-Internal-Key)",
   "request": {
     "request_id": "req_abc123",
     "gpu_id": "gpu-a",

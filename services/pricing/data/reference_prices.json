@@ -1,0 +1,69 @@
+{
+  "as_of": "2026-10-24",
+  "basis": "AWS EC2 on-demand, Linux, us-east-1 (Vantage instance pages default view). Per-GPU price = instance price / GPU count.",
+  "gpus": [
+    {
+      "gpu": "T4",
+      "instance": "g4dn.xlarge",
+      "gpus_per_instance": 1,
+      "instance_usd_per_hour": "0.526",
+      "usd_per_gpu_hour": "0.526000",
+      "source_url": "https://instances.vantage.sh/aws/ec2/g4dn.xlarge",
+      "retrieved": "2026-10-24"
+    },
+    {
+      "gpu": "A10G",
+      "instance": "g5.xlarge",
+      "gpus_per_instance": 1,
+      "instance_usd_per_hour": "1.006",
+      "usd_per_gpu_hour": "1.006000",
+      "source_url": "https://instances.vantage.sh/aws/ec2/g5.xlarge",
+      "retrieved": "2026-10-24"
+    },
+    {
+      "gpu": "L4",
+      "instance": "g6.xlarge",
+      "gpus_per_instance": 1,
+      "instance_usd_per_hour": "0.8048",
+      "usd_per_gpu_hour": "0.804800",
+      "source_url": "https://instances.vantage.sh/aws/ec2/g6.xlarge",
+      "retrieved": "2026-10-24"
+    },
+    {
+      "gpu": "A100",
+      "instance": "p4d.24xlarge",
+      "gpus_per_instance": 8,
+      "instance_usd_per_hour": "21.957642",
+      "usd_per_gpu_hour": "2.744705",
+      "source_url": "https://instances.vantage.sh/aws/ec2/p4d.24xlarge",
+      "retrieved": "2026-10-24"
+    },
+    {
+      "gpu": "H100",
+      "instance": "p5.48xlarge",
+      "gpus_per_instance": 8,
+      "instance_usd_per_hour": "55.04",
+      "usd_per_gpu_hour": "6.880000",
+      "source_url": "https://instances.vantage.sh/aws/ec2/p5.48xlarge",
+      "retrieved": "2026-10-24"
+    },
+    {
+      "gpu": "H200",
+      "instance": "p5en.48xlarge",
+      "gpus_per_instance": 8,
+      "instance_usd_per_hour": "63.296",
+      "usd_per_gpu_hour": "7.912000",
+      "source_url": "https://instances.vantage.sh/aws/ec2/p5en.48xlarge",
+      "retrieved": "2026-10-24"
+    },
+    {
+      "gpu": "B200",
+      "instance": "p6-b200.48xlarge",
+      "gpus_per_instance": 8,
+      "instance_usd_per_hour": "113.9328",
+      "usd_per_gpu_hour": "14.241600",
+      "source_url": "https://instances.vantage.sh/aws/ec2/p6-b200.48xlarge",
+      "retrieved": "2026-10-24"
+    }
+  ]
+}

@@ -14,7 +14,7 @@ export async function redeemContracts(
   const contractIssuer = getAccountAddress("CONTRACT_ISSUER");
 
   const memoData = JSON.stringify({
-    type: "GB_REDEEM",
+    type: "MS_REDEEM",
     gpuId: p.gpuId,
     slotStart: p.slotStart,
     slots: p.qty,

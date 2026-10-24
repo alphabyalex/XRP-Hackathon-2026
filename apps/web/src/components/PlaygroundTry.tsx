@@ -28,10 +28,10 @@ export function PlaygroundTry() {
       const text = res.choices[0]?.message.content ?? "";
       const finish = () => {
         setMeta({
-          gpu: res.x_gb.gpu_id.toUpperCase().replace("GPU-", "GPU-"),
-          tokens: res.x_gb.output_tokens,
-          charge: res.x_gb.charge,
-          simulated: res.x_gb.simulated,
+          gpu: res.x_ms.gpu_id.toUpperCase().replace("GPU-", "GPU-"),
+          tokens: res.x_ms.output_tokens,
+          charge: res.x_ms.charge,
+          simulated: res.x_ms.simulated,
         });
         setRunning(false);
       };

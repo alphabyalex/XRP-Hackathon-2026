@@ -1,6 +1,6 @@
 {
   "endpoint": "POST /v1/chat/completions",
-  "headers": { "X-GB-Buyer": "ALICE", "X-GB-Booking": "optional, redemption id for a booked slot" },
+  "headers": { "X-MS-Buyer": "ALICE", "X-MS-Booking": "optional, redemption id for a booked slot" },
   "request": {
     "model": "Qwen/Qwen3-1.7B",
     "messages": [{ "role": "user", "content": "Say hello in one sentence." }],
@@ -18,7 +18,7 @@
         "finish_reason": "stop"
       }
     ],
-    "x_gb": {
+    "x_ms": {
       "request_id": "req_abc123",
       "gpu_id": "gpu-a",
       "model": "Qwen/Qwen3-1.7B",

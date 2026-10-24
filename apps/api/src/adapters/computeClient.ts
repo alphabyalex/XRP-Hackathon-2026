@@ -89,7 +89,7 @@ export async function createBooking(req: BookingRequest): Promise<BookingRespons
   if (!MOCK) {
     const res = await fetch(`${COMPUTE_URL}/bookings`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-MS-Internal-Key": process.env.INTERNAL_API_KEY ?? "" },
       body: JSON.stringify(req),
     });
     if (!res.ok) throw new ComputeError("UPSTREAM_ERROR", "booking failed upstream", res.status);
@@ -128,8 +128,8 @@ export async function chatCompletions(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-GB-Buyer": buyer,
-        ...(bookingId ? { "X-GB-Booking": bookingId } : {}),
+        "X-MS-Buyer": buyer,
+        ...(bookingId ? { "X-MS-Booking": bookingId } : {}),
       },
       body: JSON.stringify(body),
     });
@@ -179,7 +179,7 @@ export async function chatCompletions(
         finish_reason: "stop",
       },
     ],
-    x_gb: {
+    x_ms: {
       request_id: "req_" + randomBytes(8).toString("hex"),
       gpu_id: gpuId,
       model: gpu.model,

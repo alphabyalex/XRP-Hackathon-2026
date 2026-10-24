@@ -12,7 +12,7 @@
     "created": 1761072000,
     "model": "Qwen/Qwen3-1.7B",
     "choices": [{ "index": 0, "message": { "role": "assistant", "content": "Hello there!" }, "finish_reason": "stop" }],
-    "x_gb": {
+    "x_ms": {
       "request_id": "req_abc123",
       "gpu_id": "gpu-a",
       "model": "Qwen/Qwen3-1.7B",

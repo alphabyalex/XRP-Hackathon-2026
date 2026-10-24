@@ -10,7 +10,7 @@ export async function payForInference(p: PayForInferenceParams): Promise<TxResul
   const tdxIssuer = getAccountAddress("TDX_ISSUER");
 
   const memoData = JSON.stringify({
-    type: "GB_CREDITS",
+    type: "MS_CREDITS",
     gpuId: p.gpuId,
     note: p.memo,
   });

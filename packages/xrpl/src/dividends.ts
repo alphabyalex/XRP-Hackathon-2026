@@ -28,7 +28,7 @@ export async function payDividends(p: PayDividendsParams): Promise<TxResult[]> {
     items.push({
       destination: protocolFeesAddress,
       amount: p.hostingFee,
-      memoType: "GB_HOSTING_FEE",
+      memoType: "MS_HOSTING_FEE",
     });
   }
 
@@ -38,7 +38,7 @@ export async function payDividends(p: PayDividendsParams): Promise<TxResult[]> {
       items.push({
         destination: payout.account,
         amount: payout.amount,
-        memoType: "GB_DIVIDEND",
+        memoType: "MS_DIVIDEND",
       });
     }
   }

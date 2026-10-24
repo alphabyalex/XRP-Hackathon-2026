@@ -106,7 +106,7 @@ export async function openLoan(p: OpenLoanParams): Promise<OpenLoanResult> {
         Memo: {
           MemoType: Buffer.from("text/plain", "utf8").toString("hex").toUpperCase(),
           MemoData: Buffer.from(
-            JSON.stringify({ type: "GB_LOAN_DISBURSE", loanId: escrowTx.hash }),
+            JSON.stringify({ type: "MS_LOAN_DISBURSE", loanId: escrowTx.hash }),
             "utf8"
           )
             .toString("hex")
@@ -168,7 +168,7 @@ export async function repayLoan(p: { loanId: string }): Promise<TxResult> {
         Memo: {
           MemoType: Buffer.from("text/plain", "utf8").toString("hex").toUpperCase(),
           MemoData: Buffer.from(
-            JSON.stringify({ type: "GB_REPAY", loanId: p.loanId }),
+            JSON.stringify({ type: "MS_REPAY", loanId: p.loanId }),
             "utf8"
           )
             .toString("hex")
