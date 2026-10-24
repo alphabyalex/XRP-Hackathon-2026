@@ -7,7 +7,9 @@
 // 3. Restores both GPU oracle prices to the opening NAV.
 // 4. Gives ALICE a fresh devnet account (clean Moonshift credit history for
 //    the pitch; skip with --keep-borrower) and makes sure she holds GPU-A
-//    shares to pledge.
+//    shares to pledge, then tops every account up to 1,000 XRP from the
+//    faucet (setupNetwork tops TDX up: BOB and CAROL 60,000, ALICE and DEV
+//    15,000; the subscribing round starts with BOB 20,000 + CAROL 1,000).
 // 5. Clears the api's loan, quote and keeper tables (stop the api first if
 //    you want a fully clean SSE stream; it is safe either way).
 // Prints addresses and tx hashes only, never seeds.
@@ -16,6 +18,32 @@ process.env.NETWORK = "devnet";
 
 const OPENING_NAV = "5.000000";
 const ALICE_MIN_GPA = 300;
+const XRP_TARGET = 1000;
+const XRP_REFILL_BELOW = 900;
+
+// Faucet top-ups (about 100 XRP per call on devnet) until each account
+// holds XRP_TARGET. Accounts above XRP_REFILL_BELOW are left alone.
+async function topUpXrp(x: typeof import("@moonshift/xrpl")) {
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const client = await x.getClient();
+  const accounts = JSON.parse(fs.readFileSync(path.join(process.cwd(), "contracts", "accounts.devnet.json"), "utf8"));
+  for (const name of Object.keys(accounts).filter((k) => !k.startsWith("_"))) {
+    const wallet = x.getAccountWallet(name as any);
+    const before = Number(await client.getXrpBalance(wallet.address).catch(() => "0"));
+    let now = before;
+    for (let i = 0; i < 15 && now < XRP_TARGET && before < XRP_REFILL_BELOW; i++) {
+      try {
+        await client.fundWallet(wallet);
+      } catch (e) {
+        console.log(`  faucet: ${name} ${(e as Error).message}`);
+        break;
+      }
+      now = Number(await client.getXrpBalance(wallet.address));
+    }
+    console.log(`  ${name} ${wallet.address} XRP ${before.toFixed(2)} -> ${now.toFixed(2)}`);
+  }
+}
 
 async function main() {
   const x = await import("@moonshift/xrpl");
@@ -70,6 +98,8 @@ async function main() {
   } else {
     console.log(`  ALICE holds ${gpa} GPA`);
   }
+  console.log(`  XRP top-ups to ${XRP_TARGET}...`);
+  await topUpXrp(x);
 
   console.log("5/5 clearing api lending tables...");
   const dbPath = path.join(process.cwd(), "apps", "api", "moonshift.db");
