@@ -204,3 +204,30 @@ Remaining upstream limitations:
 - Weekly history includes only the source's own observations. Reconstructed history is excluded. Local observations use publication timestamps, survive restarts, retain 366 days and return the latest seven days to bound payload size.
 - Returns are actual received dividends per GPU, zero-filled over UTC calendar days, with cumulative cash distributions. They exclude unrealized gains and do not claim ROI percentages without cost basis. The receipt transaction timestamp takes precedence when available.
 - Validation: all four workspace typechecks and six unit tests pass, including return boundaries, missing prices, source isolation, ETag 304 and failed/malformed feed handling.
+
+### Portfolio UI and final verification
+- /portfolio now includes USDC and GPU shares, actual cash return charts over 7/30/90 days with per-GPU selection, and live cloud GPU rental comparison with price histories. Hardware models are selectable from the full feed; the default table compares T4, L4, RTX 4090, A100, H100 and H200.
+- Applied the user's clarification: rental rates only. Purchase-price functionality was removed before delivery.
+- Prices refresh in the browser every 60 seconds. Weekly provider medians and the latest seven days of tracked source snapshots have separate views. Current external prices remain separate from Moonshift share valuations and collateral prices.
+- Reuses PriceFlash and Segmented; SVG histories have keyboard cursors and date/value readouts. Both rental-rate and per-GPU return tables fit on 400px screens; the existing holdings table keeps its contained scroll.
+- Reviewed updated screenshots at 1280px and 400px. No changes to Borrow, Market, GPU detail or Developers pages. Environment values were neither opened nor printed; verification submitted no ledger transactions.
+
+Final results:
+```
+PASS npm run typecheck (web, api, shared, xrpl)
+PASS 6 market-data unit tests
+PASS warm /account/ALICE 5ms (<500ms)
+PASS 1280px: net worth 1453ms, no horizontal scroll, production copy, nav order
+PASS 400px: net worth 852ms, no horizontal scroll, production copy, nav order
+PASS populated holdings, seven revenue bars, GPU selection, tooltip, pagination, repayment route and refresh at both widths
+PASS real GPU Economy feed: 79 models, source timestamp, shared cache, persistent observations, 7/30/90-day returns
+PASS 1280px: USDC/shares, return ranges and GPU filter, rental models, weekly/tracked history, keyboard cursor, no overflow, screenshot
+PASS 400px: USDC/shares, return ranges and GPU filter, rental models, weekly/tracked history, keyboard cursor, no overflow, screenshot
+PASS automatic 60-second browser refresh updates the displayed quote
+PASS no browser errors
+PASS git diff --check
+```
+
+Scripts: scripts/check-portfolio.mjs and scripts/check-portfolio-market.mjs. Both accept PLAYWRIGHT_MODULE and PLAYWRIGHT_CHANNEL for the installed browser runtime. Unit checks: node --import tsx --test apps/api/tests/marketData.test.ts.
+
+Updated artifacts: contracts/api/account.json, contracts/api/account-returns.json, contracts/api/gpu-prices.json, docs/screens/portfolio-1280.png and docs/screens/portfolio-400.png.

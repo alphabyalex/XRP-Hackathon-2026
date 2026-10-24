@@ -67,7 +67,7 @@ try {
     await page.route('**/loans/*/repay',route=>{repayments++;return route.fulfill({json:{txs:{pay:'B'.repeat(64)}}});});
     await page.goto(`${base}/portfolio`);
     await page.getByTestId('net-worth').waitFor();
-    assert.equal(await page.locator('.account-table tbody tr').count(),2);
+    assert.equal(await page.locator('section[aria-labelledby="holdings-heading"] .account-table tbody tr').count(),2);
     await page.getByRole('button',{name:'GPU-B',exact:true}).click();
     await page.locator('.account-chart').scrollIntoViewIfNeeded();
     await page.locator('.account-bars-visible').waitFor();

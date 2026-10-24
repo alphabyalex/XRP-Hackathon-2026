@@ -12,6 +12,8 @@ import { PriceFlash } from "./PriceFlash";
 import { Segmented } from "./Segmented";
 import { HealthMeter } from "./LendingBits";
 import { useToast } from "./Toast";
+import { PortfolioReturns } from "./PortfolioReturns";
+import { GpuMarketPrices } from "./GpuMarketPrices";
 
 const short = (s: string) => { const value=s.replace(/^MOCK(?:_ADDR_)?/, ""); return value.length>14 ? `${value.slice(0,6)}…${value.slice(-4)}` : value; };
 const money = (s: string | number) => fmt(Number(s),2);
@@ -74,7 +76,9 @@ export function AccountPortfolio() {
         <td>{money(h.yield)}%</td><td className="account-income">+{money(h.earned7d)}</td>
       </tr>)}</tbody></table></div>:<div className="account-empty"><span>No GPU shares yet</span><Button href="/market" size="sm">Browse GPUs</Button></div>}
     </section>
-    <section aria-labelledby="earnings-heading"><div className="account-section-head"><h2 id="earnings-heading">Earnings</h2>{!!options.length && <Segmented options={options} value={selected} onChange={setSelection}/>}</div>
+    <PortfolioReturns/>
+    <GpuMarketPrices/>
+    <section aria-labelledby="earnings-heading"><div className="account-section-head"><h2 id="earnings-heading">GPU revenue</h2>{!!options.length && <Segmented options={options} value={selected} onChange={setSelection}/>}</div>
       {!deferred?<div className="account-skeleton account-chart-skeleton"/>:!held.length?<p className="account-muted">No GPU earnings yet</p>:<div className="account-earnings" ref={chart}>
         <div className="account-chart"><div className="account-chart-legend"><span><i/>Booked</span><span><i/>Inference</span></div>
           <svg viewBox="0 0 700 245" role="img" aria-label="GPU revenue over seven days" className={inView?"account-bars-visible":""}>

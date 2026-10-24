@@ -71,3 +71,26 @@ body:has(.account-portfolio) .theme-toggle {display:none}
 .account-table tbody tr {position:relative}
 .account-gpu::after {content:"";position:absolute;inset:0}
 .account-table tbody tr:focus-within {outline:1px solid var(--rule2);outline-offset:-1px}
+.portfolio-controls {display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:20px}
+.portfolio-controls label {display:flex;align-items:center;gap:12px;color:var(--ink3);font-size:12px;min-width:0}
+.portfolio-controls select {font:inherit;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:9px 28px 9px 12px;max-width:320px;min-width:0}
+.portfolio-return-total {font-size:32px;letter-spacing:-.035em;margin:12px 0 20px}
+.portfolio-return-total>span {font-size:14px;letter-spacing:0}
+.portfolio-history {min-width:0;margin:0 0 20px}
+.portfolio-history svg {width:100%;height:auto;display:block;touch-action:pan-y;font-family:var(--sans);outline-offset:3px}
+.portfolio-history-readout {display:flex;gap:10px 28px;flex-wrap:wrap;font-size:12px;color:var(--ink3);min-height:22px;margin:8px 0 16px}
+.portfolio-history-readout b {font-weight:400;color:var(--ink);margin-left:8px}
+.portfolio-return-table {min-width:580px}
+.portfolio-price-top {display:flex;align-items:center;justify-content:space-between;gap:24px;margin:20px 0}
+.portfolio-price-top .seg {width:280px;margin:0;flex-shrink:0}
+.portfolio-price-quote h3 {font-weight:400;font-size:14px;color:var(--ink2);margin:0 0 12px}
+.portfolio-price-quote p {font-size:32px;letter-spacing:-.035em;margin:0}
+.portfolio-price-quote p>span:last-child {font-size:14px;letter-spacing:0;margin-left:8px}
+.portfolio-price-meta,.portfolio-source {display:flex;gap:12px 24px;flex-wrap:wrap;justify-content:space-between;color:var(--ink3);font-size:12px;margin:16px 0 24px}
+.portfolio-price-meta a,.portfolio-source a {text-decoration:underline;text-underline-offset:3px}
+.portfolio-market-table {min-width:600px}
+.portfolio-market-table td button {font:inherit;color:var(--ink);border:0;background:none;padding:0;cursor:pointer;text-align:left}
+.portfolio-market-table .portfolio-selected-row td:first-child button {text-decoration:underline;text-underline-offset:5px}
+.portfolio-price-notice {font-size:13px;color:var(--ink2);display:flex;gap:16px;align-items:center;margin:16px 0}
+@media(max-width:700px){.portfolio-return-table,.portfolio-market-table {min-width:0;font-size:13px}.portfolio-return-table th:nth-child(2),.portfolio-return-table td:nth-child(2),.portfolio-market-table th:nth-child(2),.portfolio-market-table td:nth-child(2) {display:none}.portfolio-market-table td,.portfolio-market-table th {padding-left:8px;padding-right:8px}.portfolio-market-table td:first-child {white-space:normal;max-width:150px}.portfolio-market-table th {font-size:11px}.portfolio-market-table td button {font-size:12px}.portfolio-return-table th {font-size:11px}}
+@media(max-width:700px){.portfolio-controls {align-items:stretch;flex-direction:column;gap:10px}.portfolio-controls label {justify-content:space-between}.portfolio-controls select {max-width:270px;width:80%}.portfolio-price-top {align-items:flex-start;flex-direction:column;gap:18px}.portfolio-price-top .seg {width:100%}.portfolio-source {justify-content:flex-start;gap:10px 18px}.portfolio-history-readout {gap:8px 16px}.portfolio-price-quote p {font-size:30px}.portfolio-history svg {min-height:180px}}
