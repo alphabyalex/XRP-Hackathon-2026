@@ -7,6 +7,25 @@ history tells us what the collateral earns. The borrower's own on-chain history,
 read through Quicknode, tells us how the borrower behaves with money. This file
 records what we verified about Quicknode's XRPL support and exactly how we use it.
 
+## At a glance (for judges)
+
+| Quicknode product | What Moonshift uses it for | Code |
+|---|---|---|
+| XRPL Mainnet RPC (archive) | Score a borrower's real, years-long payment history, read-only. Devnet and testnet accounts are new, so real credit history lives on mainnet. | `services/credit/credit/xrpl_client.py` |
+| XRPL Testnet RPC | Score borrowers' Moonshift activity (loans, repayments, dividends, share trades) | same |
+| Streams (XRPL Ledger dataset + JS filter) | Watch borrowers live: repayments, missed payments, margin calls, liquidations, large outflows | `services/credit/quicknode/streams_filter.js`, `credit/streams.py` |
+| Key-Value Store | The borrower watchlist the Streams filter reads; updated by the credit service as loans open | `credit/streams.py` (`kv_add`) |
+| XRPL WebSocket | Fallback live feed (`subscribe` on accounts) when Streams is unavailable | `credit/ws.py` |
+
+Why it matters: Moonshift underwrites with data nobody else has, the cash flow
+of the GPU behind the collateral and the borrower's own payment behavior.
+The second half only exists on-chain, and only a full-history, rate-limited,
+dedicated node makes it practical to read thousands of transactions per
+applicant and keep watching them after the loan is made.
+
+Every profile says `source: "quicknode"` or `source: "public"`, so it is
+always visible which data came through Quicknode.
+
 ## 1. What we verified (Phase 0, checked 2026-10-24)
 
 | Question | Answer | Source |
@@ -45,6 +64,13 @@ on `account_tx`, which we do not use).
   SQLite, so repeat demo calls cost zero credits. Rate limit errors (HTTP 429,
   or rippled `slowDown`) are retried with exponential backoff.
 
+Observed on 2026-10-24 while building: the public mainnet server answered a
+burst of paged `account_tx` calls (2,000 transactions of history) with
+`tooBusy` and `slowDown`, and the fetch failed until we paced it to one call
+per second. Deep history is exactly what underwriting needs, which is why the
+scorer reads it through a dedicated Quicknode endpoint (15 rps on the free
+plan, full archive) rather than shared public servers.
+
 ## 3. Configuration
 
 Endpoints come only from environment variables. They contain an auth token, so
@@ -76,4 +102,84 @@ Further verified facts for the Streams design:
 | Webhook signature | Headers `X-QN-Nonce`, `X-QN-Timestamp`, `X-QN-Signature`; HMAC-SHA256 with the stream's security token over `nonce + timestamp + payload`, hex digest | [validating Streams webhook messages](https://www.quicknode.com/guides/quicknode-products/streams/validating-incoming-streams-webhook-messages) |
 | Delivery | POST JSON, optional gzip, any non-2xx is retried, stream pauses after 3 failed retries by default | [docs/streams/destinations/webhooks](https://www.quicknode.com/docs/streams/destinations/webhooks) |
 
-Implementation details are filled in by Phase 5.
+### How it is wired
+
+```
+Quicknode Stream (XRP Ledger, dataset: Ledger, network: STREAMS_NETWORK)
+  -> filter services/credit/quicknode/streams_filter.js
+       reads every tx in each ledger, keeps those whose Account, Destination
+       or Owner is in the Key-Value Store list "moonshift-borrowers"
+  -> webhook POST <public credit URL>/streams/xrpl   (signed, X-QN-Signature)
+  -> services/credit verifies the HMAC, classifies each tx, emits credit events
+       -> GET /events (SSE) and api POST /internal/credit-events
+```
+
+- **Watchlist.** `POST /watch {network, address, loans?}` adds a borrower.
+  The credit service adds the address to the Quicknode KV list (REST, needs
+  `QUICKNODE_API_KEY`), so the Stream's filter starts matching it with no
+  redeploy. It also loads the borrower's open Moonshift loans from history so
+  it can raise MISSED_PAYMENT.
+- **Events.** LARGE_OUTFLOW (one payment of at least 50% of the balance
+  before it), MS_LOAN_DISBURSE, MS_REPAY, MARGIN_CALL (memo MS_MARGIN_CALL),
+  LIQUIDATION (lender finishes the collateral escrow), and MISSED_PAYMENT
+  (a loan passes its due time with no MS_REPAY; checked every 15 s). Event ids
+  are derived from kind, network, address and tx hash, so a Streams retry
+  never produces a duplicate.
+- **Security.** Deliveries without a valid `X-QN-Signature` get 401, unless
+  `STREAMS_ALLOW_UNSIGNED=1` (local testing only).
+- **Fallback.** `MONITOR_MODE=websocket` subscribes to the watched accounts
+  over the Quicknode WSS endpoint (public WSS if unset), reconnecting with
+  backoff and resubscribing when the watchlist changes. Same classifier.
+- **Demo helper.** `POST /monitor/simulate` emits an event labeled
+  `simulated: true, via: "simulated"` for rehearsals.
+
+### Which network the Stream reads
+
+Moonshift's XLS-65/66 lending runs on devnet, and Quicknode's docs list only
+Mainnet and Testnet for XRPL (Streams included). The receiver is network
+agnostic: it takes the network from the delivery's metadata, else
+`STREAMS_NETWORK`.
+
+- If the Quicknode dashboard offers an XRPL Devnet endpoint and Stream, set
+  `STREAMS_NETWORK=devnet` and `QUICKNODE_XRPL_DEVNET_URL`. Nothing else changes.
+- Otherwise run the Stream on Testnet. The current packages/xrpl loan flow
+  (escrowed shares, MS_REPAY memos) already runs on testnet, so repayments,
+  margin calls and liquidations there are caught live by Quicknode Streams.
+
+### Setting up the Stream (about 5 minutes, done by a human)
+
+1. Set `QUICKNODE_API_KEY` (Quicknode dashboard, API keys) and start the
+   credit service. `POST /watch` creates the `moonshift-borrowers` list on
+   first use.
+2. Dashboard, Streams, Create Stream: chain XRP Ledger, network Testnet (or
+   Devnet if offered), dataset Ledger, start from latest.
+3. Filter: paste `services/credit/quicknode/streams_filter.js`. Use the test
+   button on a recent ledger after watching an active address.
+4. Destination: Webhook, URL `https://<public host>/streams/xrpl`. The credit
+   service must be reachable from the internet (deploy next to compute on EC2,
+   or a tunnel such as `ngrok http 7100` for a laptop demo).
+5. Copy the Stream's security token into `QUICKNODE_STREAMS_TOKEN` and
+   restart the credit service. `GET /health` shows `streamsTokenSet: true`.
+
+## 5. Reproduce it
+
+1. Quicknode dashboard: create XRPL Mainnet and Testnet endpoints. Put the
+   HTTPS URLs in the repo root `.env` as `QUICKNODE_XRPL_MAINNET_URL` and
+   `QUICKNODE_XRPL_TESTNET_URL` (never paste them anywhere else).
+2. Run the service with live data:
+   ```
+   cd services/credit && python3.11 -m venv .venv && source .venv/bin/activate
+   pip install -r requirements.txt
+   MOCK=0 uvicorn credit.main:app --port 7100
+   ```
+3. `curl localhost:7100/health` shows `"quicknode": {"mainnet": true, "testnet": true, ...}`.
+4. Score a real mainnet account, read-only:
+   `curl localhost:7100/profile/mainnet/rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh`
+   (`source: "quicknode"`, `readOnly: true`, history back to 2013).
+5. Score a Moonshift testnet borrower (real loans, repayments and dividends):
+   `curl localhost:7100/profile/testnet/rHu4dJcC3DALsgvprvekBt9dG3poU95Rzb`
+   and `curl localhost:7100/explain/testnet/rHu4dJcC3DALsgvprvekBt9dG3poU95Rzb`.
+6. Live monitoring: follow section 4 to create the Stream, then
+   `curl -X POST localhost:7100/watch -H 'content-type: application/json' -d '{"network":"testnet","address":"<borrower>"}'`
+   and `curl -N localhost:7100/events`. Any repayment or large payment by the
+   borrower appears as a `credit_event` with `via: "streams"`.

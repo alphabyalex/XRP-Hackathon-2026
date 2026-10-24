@@ -47,10 +47,11 @@ NETWORKS: dict[str, Network] = {
         "wss://s.altnet.rippletest.net:51233/",
         False,
     ),
-    # Quicknode does not offer XRPL devnet (verified, see docs/QUICKNODE.md).
+    # Quicknode's docs list only mainnet and testnet for XRPL (checked 2026-10-24). If the dashboard
+    # offers a devnet endpoint, setting QUICKNODE_XRPL_DEVNET_URL routes devnet through it.
     "devnet": Network(
         "devnet",
-        None,
+        "QUICKNODE_XRPL_DEVNET_URL",
         "https://s.devnet.rippletest.net:51234/",
         "wss://s.devnet.rippletest.net:51233/",
         False,
@@ -96,6 +97,9 @@ ACCOUNT_TX_MAX_PAGES = int(os.getenv("ACCOUNT_TX_MAX_PAGES", "10"))  # 2,000 new
 HTTP_TIMEOUT_SECONDS = float(os.getenv("HTTP_TIMEOUT_SECONDS", "15"))
 RETRY_ATTEMPTS = 5
 RETRY_BASE_SECONDS = 0.5  # exponential backoff: 0.5, 1, 2, 4 s
+QUICKNODE_MIN_INTERVAL_SECONDS = 0.07  # stays under the free plan's 15 requests per second
+# Public servers answer paged account_tx bursts with slowDown/tooBusy (seen on mainnet, 2026-10-24).
+PUBLIC_MIN_INTERVAL_SECONDS = float(os.getenv("PUBLIC_MIN_INTERVAL_SECONDS", "1.0"))
 BATCH_MAX_ITEMS = 20
 
 # ---- Live monitoring (Phase 5) --------------------------------------------------------
@@ -105,6 +109,11 @@ QUICKNODE_STREAMS_TOKEN = os.getenv("QUICKNODE_STREAMS_TOKEN", "")
 QUICKNODE_API_KEY = os.getenv("QUICKNODE_API_KEY", "")
 QUICKNODE_KV_URL = "https://api.quicknode.com/kv/rest/v1"
 QUICKNODE_KV_LIST = os.getenv("QUICKNODE_KV_LIST", "moonshift-borrowers")
+# Network the Quicknode Stream reads, used when a delivery does not name one.
+STREAMS_NETWORK = os.getenv("STREAMS_NETWORK", "testnet").strip().lower()
+# Local testing only: accept Streams deliveries without a valid X-QN-Signature.
+STREAMS_ALLOW_UNSIGNED = _env_bool("STREAMS_ALLOW_UNSIGNED", "0")
+CREDIT_EVENT_POST_ATTEMPTS = 3
 LARGE_OUTFLOW_RATIO = float(os.getenv("LARGE_OUTFLOW_RATIO", "0.5"))
 MISSED_PAYMENT_CHECK_SECONDS = 15
 SSE_PING_SECONDS = 15
@@ -114,6 +123,9 @@ SSE_PING_SECONDS = 15
 MEMO_REPAY = "MS_REPAY"
 MEMO_LOAN_DISBURSE = "MS_LOAN_DISBURSE"
 MEMO_MARGIN_CALL = "MS_MARGIN_CALL"  # proposed, see request in docs/CONTRACTS.md
+MEMO_DIVIDEND = "MS_DIVIDEND"
+# GPU share and slot contract tokens (packages/shared GPUS: shareCode, contractCode).
+MOONSHIFT_TOKEN_CODES = frozenset({"GPA", "GPB", "HRA", "HRB"})
 # packages/xrpl sets CancelAfter = dueAt + 120 s on the collateral escrow.
 LOAN_CANCEL_GRACE_SECONDS = 120
 RIPPLE_EPOCH_OFFSET = 946684800

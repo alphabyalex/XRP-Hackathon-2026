@@ -1,0 +1,6 @@
+{
+  "endpoint": "GET {RISK_URL}/book/stats?grade=B (implemented by services/risk, called by credit)",
+  "note": "What credit expects from Kristian's loan book simulator. Header X-MS-Internal-Key. Credit also accepts default_rate_pct, or computes the rate from defaults / loans. Until risk answers, credit uses its own mock table and says source: mock. The rate is from the simulated book, so it is always labeled simulated.",
+  "request": { "grade": "B" },
+  "response": { "grade": "B", "loans": 180, "defaults": 4, "defaultRatePct": "2.2", "simulated": true }
+}

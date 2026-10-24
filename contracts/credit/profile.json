@@ -23,7 +23,9 @@
       "msRepaysOnTime": { "value": 0, "points": 0, "reason": "NO_MS_REPAYS", "txHashes": [] },
       "msRepaysLate": { "value": 0, "points": 0, "reason": "NO_LATE_REPAYS", "txHashes": [] },
       "msMarginCalls": { "value": 0, "points": 0, "reason": "NO_MARGIN_CALLS", "txHashes": [] },
-      "msLiquidations": { "value": 0, "points": 0, "reason": "NO_LIQUIDATIONS", "txHashes": [] }
+      "msLiquidations": { "value": 0, "points": 0, "reason": "NO_LIQUIDATIONS", "txHashes": [] },
+      "msDividendsReceived": { "value": 0, "points": 0, "reason": "NO_MS_DIVIDENDS", "txHashes": [] },
+      "msShareTrades": { "value": 0, "points": 0, "reason": "NO_MS_SHARE_TRADES", "txHashes": [] }
     },
     "reasons": [
       "ACCOUNT_AGE_3Y_PLUS",
@@ -35,7 +37,7 @@
       "VOLUME_OUT_1K_PLUS",
       "TRUSTLINES_1_PLUS"
     ],
-    "scorecard": { "version": "2026-10-24.1", "basePoints": 50, "rawPoints": 74, "cap": null },
+    "scorecard": { "version": "2026-10-24.2", "basePoints": 50, "rawPoints": 74, "cap": null },
     "history": {
       "txFetched": 640,
       "pages": 4,
