@@ -15,8 +15,8 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from credit import config as C
+from credit import explain, mock, portfolio, profile, streams, ws
 from credit import features as F
-from credit import mock, portfolio, profile, streams, ws
 from credit.errors import CreditError
 from credit.events import bus
 from credit.link import linker
@@ -153,6 +153,14 @@ def health() -> dict:
 @app.get("/profile/{network}/{address}", dependencies=[Depends(internal_key)])
 async def get_profile(network: str, address: str, refresh: bool = False) -> dict:
     return await build_profile(network, address, refresh)
+
+
+@app.get("/explain/{network}/{address}", dependencies=[Depends(internal_key)])
+async def get_explain(network: str, address: str, refresh: bool = False) -> dict:
+    if C.MOCK:
+        check_target(network, address)
+        return mock.explain(network, address)
+    return explain.factors(await build_profile(network, address, refresh))
 
 
 @app.post("/profiles", dependencies=[Depends(internal_key)])

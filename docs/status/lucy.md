@@ -49,8 +49,16 @@
   60 s cache), falling back to a mock table labeled `source: "mock"`.
   Expected risk shape in contracts/credit/risk_book_stats.json.
 
+- Phase 7: docs/QUICKNODE.md has a judges' summary (which Quicknode products,
+  for what, why) and a reproduce-it section; services/credit/README.md has
+  run steps, every env var, all endpoints and the full scorecard table
+  generated from scorecard.json.
+- Stretch 1: GET /explain/{network}/{address}, the top three positive and
+  negative factors with their tx hashes, computed from the same profile.
+
 ## Next
-- Phase 7: docs for the judges (docs/QUICKNODE.md, README with scorecard table).
+- Stretch 2: score a testnet address with Moonshift share trades and
+  dividends, so our own protocol activity feeds credit.
 
 ## Blockers
 - Streams needs a human in the Quicknode dashboard: create the Stream, paste
