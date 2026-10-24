@@ -45,6 +45,13 @@ on `account_tx`, which we do not use).
   SQLite, so repeat demo calls cost zero credits. Rate limit errors (HTTP 429,
   or rippled `slowDown`) are retried with exponential backoff.
 
+Observed on 2026-10-24 while building: the public mainnet server answered a
+burst of paged `account_tx` calls (2,000 transactions of history) with
+`tooBusy` and `slowDown`, and the fetch failed until we paced it to one call
+per second. Deep history is exactly what underwriting needs, which is why the
+scorer reads it through a dedicated Quicknode endpoint (15 rps on the free
+plan, full archive) rather than shared public servers.
+
 ## 3. Configuration
 
 Endpoints come only from environment variables. They contain an auth token, so

@@ -13,6 +13,7 @@ os.environ.update(
         "QUICKNODE_STREAMS_TOKEN": "",
         "QUICKNODE_API_KEY": "",
         "MONITOR_MODE": "off",
+        "PUBLIC_MIN_INTERVAL_SECONDS": "0",
         "CREDIT_DB_PATH": os.path.join(_tmp, "credit.db"),
         "API_URL": "http://api.test",
         "RISK_URL": "http://risk.test",

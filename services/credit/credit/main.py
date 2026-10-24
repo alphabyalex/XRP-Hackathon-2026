@@ -10,8 +10,9 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from credit import config as C
-from credit import mock
+from credit import mock, profile
 from credit.events import bus
+from credit.xrpl_client import AccountNotFound, UpstreamError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 # httpx logs full request URLs at INFO, and Quicknode URLs carry a token.
@@ -50,7 +51,17 @@ async def build_profile(network: str, address: str, refresh: bool = False) -> di
     check_target(network, address)
     if C.MOCK:
         return mock.profile(network, address)
-    raise CreditError(503, "NOT_IMPLEMENTED", "live scoring lands in Phase 2 and 3; run with MOCK=1")
+    try:
+        body, _ = await profile.build(network, address, refresh)
+    except AccountNotFound:
+        raise CreditError(404, "ACCOUNT_NOT_FOUND", f"{address} does not exist on {network}") from None
+    except UpstreamError as e:
+        raise CreditError(502, "UPSTREAM_ERROR", str(e)) from None
+    bus.publish(
+        "profile",
+        {k: body[k] for k in ("network", "address", "score", "grade", "confidence", "source", "asOf")},
+    )
+    return body
 
 
 # ---- Request bodies ---------------------------------------------------------------------

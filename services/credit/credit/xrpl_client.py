@@ -25,6 +25,19 @@ RATE_LIMIT_ERRORS = frozenset({"slowDown", "tooBusy"})
 RETRY_STATUS = frozenset({429, 502, 503, 504})
 
 
+_last_call: dict[tuple[str, str], float] = {}
+
+
+async def _pace(network: str, source: str) -> None:
+    """Space upstream calls: Quicknode free plan allows 15 rps, public servers throttle much sooner."""
+    gap = C.QUICKNODE_MIN_INTERVAL_SECONDS if source == "quicknode" else C.PUBLIC_MIN_INTERVAL_SECONDS
+    loop = asyncio.get_running_loop()
+    wait = _last_call.get((network, source), 0.0) + gap - loop.time()
+    if wait > 0:
+        await asyncio.sleep(wait)
+    _last_call[(network, source)] = loop.time()
+
+
 class AccountNotFound(Exception):
     pass
 
@@ -77,6 +90,7 @@ class XrplClient:
         async with httpx.AsyncClient(transport=self.transport, timeout=C.HTTP_TIMEOUT_SECONDS) as http:
             for attempt in range(C.RETRY_ATTEMPTS):
                 delay = C.RETRY_BASE_SECONDS * (2**attempt)
+                await _pace(self.network, self.source)
                 try:
                     self.calls += 1
                     r = await http.post(self.url, json=body)
