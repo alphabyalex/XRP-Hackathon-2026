@@ -7,6 +7,7 @@ import { AppWindow } from "./AppWindow";
 import { MarketTable } from "./MarketTable";
 import { ResourcePricingBreakdown } from "./ResourcePricingBreakdown";
 import { ApiErrorNotice } from "./ApiErrorNotice";
+import { ComputeCheckout } from "./ComputeCheckout";
 import { ACCOUNT_DISPLAY } from "@/lib/session";
 
 export function MarketContent() {
@@ -28,6 +29,10 @@ export function MarketContent() {
             <MarketTable views={views} />
           </div>
         </AppWindow>
+        <h3 className="sub-h">Rent compute</h3>
+        <div className="trade rent-card" style={{ marginTop: 20 }}>
+          <ComputeCheckout />
+        </div>
         <ResourcePricingBreakdown />
       </div>
     </main>

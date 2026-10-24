@@ -103,9 +103,31 @@
   real compute service over HTTP. Router 107 tests, compute 17 (13 existing
   + 4 new).
 
+- Phase 6: checkout UI. New files: src/lib/routerApi.ts, components
+  RouteOptions (Cheapest / Balanced / Fastest with real price and ETA from
+  /router/quote, Balanced selected by default), ComputeCheckout (duration +
+  options + Rent), OrderStatus (GPUs and provider, price, ETA, payment link,
+  live progress over SSE, "Moved to GPU-X, resumed" with the time),
+  AdminRouter + app/admin/router (fleet with Reclaim, orders, Bedrock why
+  when enabled, live prices across providers; not linked from the nav;
+  admin key kept in localStorage), router.css (brand tokens only). Edited:
+  TradePanel (the Book time tab is now Rent compute with the router checkout,
+  slot picking removed), MarketContent (Rent compute card), PlaygroundTry
+  (three priority buttons, calls /v1/chat/completions with priority),
+  CodeSample (extra_body priority). Web typecheck clean; /market,
+  /gpu/gpu-a, /playground and /admin/router render.
+  End to end through apps/api: quote, Balanced 30 min rental split across
+  Moonshift, AWS and Azure, settled; routed chat with priority. On real
+  devnet: order ord_953c69de paid
+  241C1E9C58E5C1FE673003E3F8EFD5F2124EC4943A9F793B4952E27D44DFFCD3,
+  reclaimed on Azure spot at token 15 and resumed on AWS spot (one reply,
+  0 restarts), settled per GPU
+  (CDCD85755FE7B4BB6A2AEB7D27A90466989CE0007886C92A1CC8B26471110EFB,
+  A7BA417BD9A48E14BE9C50372A46C33A3A6217C3A6613B01A2A1117F8105BDFA),
+  refund 7A11B3BE97C508A95D8941A308BA4C72713E60F4B028D491D6C4F3B6BC386BF2.
+
 ## Next
-- Phase 6: checkout UI (three options), order view, developers page,
-  /admin/router.
+- Phase 7: CloudWatch metrics and logs, cost tags, CUR join, ECR.
 
 ## Blockers
 - No AWS credentials on this machine (no AWS CLI either). All AWS adapters
@@ -117,6 +139,11 @@
   `sam build -t services/router/infra/template.yaml && sam deploy --stack-name ms-router --region us-east-2 --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --resolve-s3 --parameter-overrides RouterUrl=<public router URL>`.
   Then fill secret moonshift/router/providers and set STATE_BACKEND=dynamodb,
   PRICES_BUCKET (stack output) on the router.
+- For Tharun: the playground page shows "Simulated Paths" on the Monte Carlo
+  card (InstantSwitchCard), which breaks the no-"simulated" UI rule. Not my
+  file, so left as is.
+- apps/api needs Node 22.13+ (node:sqlite); on Node 22.12 run it with
+  NODE_OPTIONS=--experimental-sqlite. Local environment only.
 - No BRAND.md in the repo or on disk; UI follows packages/shared/src/brand.ts
   and apps/web/app/globals.css plus the prompt's rules.
 
