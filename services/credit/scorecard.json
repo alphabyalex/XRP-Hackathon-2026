@@ -1,0 +1,125 @@
+{
+  "_note": "Moonshift credit scorecard. Classic points card: start at basePoints, each feature adds the points of the highest band whose min is <= the feature value, missing values score the missing band. Score is clamped to 0..100. Thin files are capped. Edit weights here, not in code. Bump version on any change.",
+  "version": "2026-10-24.1",
+  "basePoints": 50,
+  "grades": [
+    { "grade": "A", "min": 80 },
+    { "grade": "B", "min": 65 },
+    { "grade": "C", "min": 50 },
+    { "grade": "D", "min": 35 },
+    { "grade": "E", "min": 0 }
+  ],
+  "thinFile": { "minTxCount": 20, "minAgeDays": 90, "cap": 60, "reason": "THIN_FILE" },
+  "highConfidence": { "minTxCount": 100, "minAgeDays": 365 },
+  "features": {
+    "accountAgeDays": {
+      "label": "Account age in days",
+      "bands": [
+        { "min": 0, "points": -10, "reason": "ACCOUNT_AGE_UNDER_30D" },
+        { "min": 30, "points": -5, "reason": "ACCOUNT_AGE_UNDER_90D" },
+        { "min": 90, "points": 0, "reason": "ACCOUNT_AGE_90D_PLUS" },
+        { "min": 365, "points": 6, "reason": "ACCOUNT_AGE_1Y_PLUS" },
+        { "min": 1095, "points": 10, "reason": "ACCOUNT_AGE_3Y_PLUS" }
+      ]
+    },
+    "txCount": {
+      "label": "Transactions on record (newest 2,000 max)",
+      "bands": [
+        { "min": 0, "points": -8, "reason": "TX_COUNT_UNDER_10" },
+        { "min": 10, "points": -3, "reason": "TX_COUNT_UNDER_50" },
+        { "min": 50, "points": 2, "reason": "TX_COUNT_50_PLUS" },
+        { "min": 200, "points": 5, "reason": "TX_COUNT_200_PLUS" },
+        { "min": 1000, "points": 8, "reason": "TX_COUNT_1000_PLUS" }
+      ]
+    },
+    "paymentVolumeInXrp": {
+      "label": "XRP received in payments",
+      "bands": [
+        { "min": 0, "points": -3, "reason": "VOLUME_IN_UNDER_100" },
+        { "min": 100, "points": 0, "reason": "VOLUME_IN_100_PLUS" },
+        { "min": 1000, "points": 3, "reason": "VOLUME_IN_1K_PLUS" },
+        { "min": 10000, "points": 5, "reason": "VOLUME_IN_10K_PLUS" }
+      ]
+    },
+    "paymentVolumeOutXrp": {
+      "label": "XRP sent in payments",
+      "bands": [
+        { "min": 0, "points": 0, "reason": "VOLUME_OUT_UNDER_100" },
+        { "min": 100, "points": 1, "reason": "VOLUME_OUT_100_PLUS" },
+        { "min": 1000, "points": 2, "reason": "VOLUME_OUT_1K_PLUS" },
+        { "min": 10000, "points": 3, "reason": "VOLUME_OUT_10K_PLUS" }
+      ]
+    },
+    "distinctCounterparties": {
+      "label": "Distinct payment counterparties",
+      "bands": [
+        { "min": 0, "points": -5, "reason": "COUNTERPARTIES_UNDER_3" },
+        { "min": 3, "points": 0, "reason": "COUNTERPARTIES_3_PLUS" },
+        { "min": 10, "points": 3, "reason": "COUNTERPARTIES_10_PLUS" },
+        { "min": 50, "points": 6, "reason": "COUNTERPARTIES_50_PLUS" }
+      ]
+    },
+    "trustlines": {
+      "label": "Trustlines held",
+      "bands": [
+        { "min": 0, "points": 0, "reason": "NO_TRUSTLINES" },
+        { "min": 1, "points": 2, "reason": "TRUSTLINES_1_PLUS" },
+        { "min": 3, "points": 3, "reason": "TRUSTLINES_3_PLUS" }
+      ]
+    },
+    "balanceStability": {
+      "label": "XRP balance stability, 1 / (1 + coefficient of variation)",
+      "missing": { "points": 0, "reason": "BALANCE_HISTORY_NO_DATA" },
+      "bands": [
+        { "min": 0, "points": -5, "reason": "BALANCE_VOLATILE" },
+        { "min": 0.3, "points": 0, "reason": "BALANCE_MIXED" },
+        { "min": 0.6, "points": 3, "reason": "BALANCE_STABLE" },
+        { "min": 0.8, "points": 6, "reason": "BALANCE_VERY_STABLE" }
+      ]
+    },
+    "largestOutflowRatio": {
+      "label": "Largest XRP payment sent / balance just before it",
+      "missing": { "points": 0, "reason": "NO_OUTFLOWS" },
+      "bands": [
+        { "min": 0, "points": 4, "reason": "OUTFLOWS_SMALL" },
+        { "min": 0.25, "points": 0, "reason": "LARGE_OUTFLOW_25PCT" },
+        { "min": 0.5, "points": -4, "reason": "LARGE_OUTFLOW_50PCT" },
+        { "min": 0.9, "points": -8, "reason": "ACCOUNT_DRAINED" }
+      ]
+    },
+    "msRepaysOnTime": {
+      "label": "Moonshift loans repaid on time (MS_REPAY before due)",
+      "bands": [
+        { "min": 0, "points": 0, "reason": "NO_MS_REPAYS" },
+        { "min": 1, "points": 5, "reason": "MS_REPAID_ON_TIME" },
+        { "min": 3, "points": 10, "reason": "MS_REPAID_ON_TIME_3_PLUS" },
+        { "min": 10, "points": 14, "reason": "MS_REPAID_ON_TIME_10_PLUS" }
+      ]
+    },
+    "msRepaysLate": {
+      "label": "Moonshift loans repaid late or overdue unpaid",
+      "bands": [
+        { "min": 0, "points": 0, "reason": "NO_LATE_REPAYS" },
+        { "min": 1, "points": -8, "reason": "MS_LATE_REPAY" },
+        { "min": 2, "points": -14, "reason": "MS_LATE_REPAYS_2_PLUS" },
+        { "min": 4, "points": -20, "reason": "MS_LATE_REPAYS_4_PLUS" }
+      ]
+    },
+    "msMarginCalls": {
+      "label": "Moonshift margin calls received (MS_MARGIN_CALL)",
+      "bands": [
+        { "min": 0, "points": 0, "reason": "NO_MARGIN_CALLS" },
+        { "min": 1, "points": -4, "reason": "MS_MARGIN_CALL" },
+        { "min": 3, "points": -8, "reason": "MS_MARGIN_CALLS_3_PLUS" }
+      ]
+    },
+    "msLiquidations": {
+      "label": "Moonshift collateral escrows claimed by the lender",
+      "bands": [
+        { "min": 0, "points": 0, "reason": "NO_LIQUIDATIONS" },
+        { "min": 1, "points": -20, "reason": "MS_LIQUIDATED" },
+        { "min": 2, "points": -35, "reason": "MS_LIQUIDATED_2_PLUS" }
+      ]
+    }
+  }
+}

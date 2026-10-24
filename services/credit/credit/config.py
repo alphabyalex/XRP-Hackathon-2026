@@ -96,6 +96,9 @@ ACCOUNT_TX_MAX_PAGES = int(os.getenv("ACCOUNT_TX_MAX_PAGES", "10"))  # 2,000 new
 HTTP_TIMEOUT_SECONDS = float(os.getenv("HTTP_TIMEOUT_SECONDS", "15"))
 RETRY_ATTEMPTS = 5
 RETRY_BASE_SECONDS = 0.5  # exponential backoff: 0.5, 1, 2, 4 s
+QUICKNODE_MIN_INTERVAL_SECONDS = 0.07  # stays under the free plan's 15 requests per second
+# Public servers answer paged account_tx bursts with slowDown/tooBusy (seen on mainnet, 2026-10-24).
+PUBLIC_MIN_INTERVAL_SECONDS = float(os.getenv("PUBLIC_MIN_INTERVAL_SECONDS", "1.0"))
 BATCH_MAX_ITEMS = 20
 
 # ---- Live monitoring (Phase 5) --------------------------------------------------------
