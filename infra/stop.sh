@@ -2,6 +2,10 @@
 # Stop the Moonshift GPU instance when it is not actively being used.
 set -euo pipefail
 
+if ! command -v aws >/dev/null 2>&1 && [[ -x "$(dirname "${BASH_SOURCE[0]}")/../.venv/bin/aws" ]]; then
+  export PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.venv/bin:$PATH"
+fi
+
 : "${MS_INSTANCE_ID:?Set MS_INSTANCE_ID to the pre-created g4dn.xlarge instance ID}"
 AWS_REGION="${AWS_REGION:-us-east-2}"
 AWS_PROFILE="${AWS_PROFILE:-}"

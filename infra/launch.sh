@@ -6,6 +6,10 @@
 # Running instance costs against the $100 hackathon credit.
 set -euo pipefail
 
+if ! command -v aws >/dev/null 2>&1 && [[ -x "$(dirname "${BASH_SOURCE[0]}")/../.venv/bin/aws" ]]; then
+  export PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.venv/bin:$PATH"
+fi
+
 AWS_REGION="${AWS_REGION:-us-east-2}"
 AWS_PROFILE="${AWS_PROFILE:-}"
 INSTANCE_TYPE="${INSTANCE_TYPE:-g4dn.xlarge}"
