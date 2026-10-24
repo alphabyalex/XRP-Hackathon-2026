@@ -15,6 +15,7 @@ export interface CreditFeature {
   points: number;
   reason: string;
   txHashes: string[];
+  from?: string; // combined profiles: which network this feature was read on
 }
 
 export interface CreditProfile {
@@ -30,6 +31,39 @@ export interface CreditProfile {
   reasons: string[];
   portfolio?: { grade: string; defaultRatePct: string; loans: number; text: string; simulated: boolean } | null;
   asOf: IsoDateTime;
+  // Combined profile: Moonshift history from the borrower's network, payment history from a linked
+  // mainnet address. Each component says where it was read.
+  combined?: boolean;
+  components?: CreditComponent[];
+  ownership?: { verified: boolean; status: string; [k: string]: unknown } | null;
+}
+
+export interface CreditComponent {
+  part: string;
+  network: string;
+  address: string;
+  source: string; // "public" | "quicknode"
+  features: string[];
+  ownScore: { score: number; grade: string; confidence: string };
+  ownership?: { verified: boolean; status: string } | null;
+}
+
+// GET /credit/stats (proxy of services/credit GET /stats)
+export interface CreditStats {
+  since: IsoDateTime;
+  quicknode: {
+    calls: number;
+    creditsUsed: number;
+    creditsPerCall: number;
+    p50LatencyMs: number | null;
+    cacheHitRate: number;
+    byNetwork: Record<string, number>;
+    byMethod: Record<string, number>;
+  };
+  totals: { upstreamCalls: number; cacheHits: number; cacheHitRate: number };
+  quicknodeConfigured?: Record<string, boolean>;
+  simulated: boolean;
+  dataSource?: DataSource;
 }
 
 export interface CreditEvent {

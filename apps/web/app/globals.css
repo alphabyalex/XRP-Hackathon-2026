@@ -1425,3 +1425,28 @@ a.txl:hover {
 .hero + section.s {
   padding-top: clamp(40px, 5vw, 64px);
 }
+
+/* credit card: where each part of the score was read */
+.factors .from {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--ink3);
+  margin-left: 8px;
+}
+.sources {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+}
+.sources > div {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+}
+.sources b {
+  font-weight: 500;
+}
+.sources span,
+.note.qn {
+  color: var(--ink2);
+}

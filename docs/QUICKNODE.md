@@ -1,11 +1,65 @@
 # Quicknode in Moonshift
 
-Owner: Lucy. Service: `services/credit` (port 7100).
+Owner: Lucy (round 2 finished by Alex). Service: `services/credit` (port 7100).
 
 Moonshift underwrites loans against fractional GPU shares. The GPU's revenue
 history tells us what the collateral earns. The borrower's own on-chain history,
 read through Quicknode, tells us how the borrower behaves with money. This file
 records what we verified about Quicknode's XRPL support and exactly how we use it.
+
+## Pitch (read this out, five sentences)
+
+1. Quicknode is how Moonshift reads a borrower's real payment history on the XRP Ledger: mainnet read-only and testnet, through our own Quicknode endpoints.
+2. A bank sees a credit file; we see every payment the borrower ever made on-chain, how old the account is, how stable the balance is and whether they ever paid us back late, and every one of those factors links to the transaction behind it.
+3. That is better underwriting data than a form, because it cannot be typed in, only earned, and our score turns it into a grade, an APR and a loan-to-value limit in under two seconds.
+4. In our last live run, Quicknode scored four profiles (plus their re-reads and an explanation) with 26 calls and 1,040 credits at a 76 ms median latency, and 71% of reads came from our cache, so a judge can refresh the page without burning credits.
+5. Because Quicknode does not offer devnet, where XLS-66 loans live, the borrower's Moonshift loan record comes from the public devnet node and is combined with the mainnet history Quicknode reads, and the card says which part came from where.
+
+## 30-second click path (Quicknode part)
+
+1. Open **/borrow**. Point at the credit card: score, grade, confidence.
+2. Point at the two source lines: "Moonshift loan history: devnet, public devnet node" and "Linked payment history: mainnet, read through Quicknode, link unverified, demo".
+3. Point at the line under it: "Read through Quicknode: N calls, X credits, p50 Y ms". Change the Borrow amount and watch the counter (the quote re-reads the profile, mostly from cache).
+4. Click a factor's tx link: it opens the mainnet or devnet transaction the factor was computed from.
+
+## ALICE's combined profile (the demo borrower)
+
+| Part | Network | Read through | Address | Own score |
+|---|---|---|---|---|
+| Moonshift loan history (ms* features) | devnet | public devnet node (Quicknode has no devnet) | ALICE in `contracts/accounts.devnet.json` | D, low (fresh account, thin file) |
+| Linked payment history (age, volume, counterparties, stability) | mainnet, read-only | Quicknode | `rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh` (XRPL genesis), link **unverified, demo** | 74 B, high |
+| **Combined** | | | | **75 B, high confidence** |
+
+- Nobody on the team holds the key to a mainnet address with real history, so the demo link is configured in `services/credit/demo_addresses.json` and always labeled "unverified, demo".
+- The verified link (`POST /link/challenge` then `/link/verify`, signed off-ledger with the account key) is unchanged, and a verified link always wins over a demo one.
+- `npm run demo:reset` gives ALICE a fresh devnet account, so every pitch starts from a clean Moonshift history. A margin call or liquidation in the demo shows up in her score on the next quote.
+
+## Live evidence
+
+`GET /health` on credit reports `"quicknode": {"mainnet": true, "testnet": true, "devnet": false}` (booleans only, never the URLs). Every row below was read live, with `source: "quicknode"`:
+- **Cold:** `refresh=true`, which skips the first-page cache.
+- **Warm:** an immediate second read.
+
+Deep `account_tx` pages are addressed by marker and never change, so they stay cached across cold reads. That is why the genesis account (2000 transactions) needs only 3 calls.
+
+| Profile | Address | Source | Score | Txs read | Quicknode calls | Credits | Cold | Warm |
+|---|---|---|---|---|---|---|---|---|
+| testnet ALICE (old escrow loans) | `rHu4dJcC3D...` | quicknode | 60 C, low | 33 | 4 | 160 | 1.63 s | 0.004 s, 0 calls, 4 cache hits |
+| mainnet genesis (demo link) | `rHb9CJAWyB...` | quicknode | 74 B, high | 2000 | 3 | 120 | 1.59 s | 0.079 s, 0 calls, 13 cache hits |
+| mainnet small long-lived | `rMQ98K56yX...` | quicknode | 83 A, high | 127 | 3 | 120 | 1.25 s | 0.008 s, 0 calls, 4 cache hits |
+| mainnet Bitstamp issuer | `rvYAfWj5gh...` | quicknode | 63 C, high | 2000 | 16 | 640 | 10.2 s | 0.281 s, 0 calls, 17 cache hits |
+| /explain mainnet genesis | `rHb9CJAWyB...` | quicknode | 74 B, high | 2000 | 0 | 0 | 0.129 s (cached history) | n/a |
+
+Totals for this run: **26 Quicknode calls, 1040 credits** (40 per call), p50 latency **75.6 ms**, cache hit rate 71%. Calls by method: account_info 4, account_lines 8, account_tx 14. By network: testnet 4, mainnet 22. Measured 2026-10-24T14:54:36-0400.
+
+`GET /stats` on credit (and `GET /credit/stats` on the api, which the /borrow card polls every 15 s) returns these counters live since start: calls by source, network and method, credits, cache hit rate, p50 latency. Contract: `contracts/credit/stats.json`.
+
+### Live monitoring
+
+- **Devnet borrower events** come from the public devnet WebSocket, because Quicknode has no devnet. They are labeled `via: "websocket (public devnet)"`.
+- **The linked mainnet address** is subscribed through Quicknode's WebSocket (`via: "websocket (quicknode)"`). `POST /watch` returns which feed covers which part.
+- **No Streams yet:** a Stream needs a public webhook URL, and the demo runs on localhost, so `npm run demo` sets `MONITOR_MODE=websocket`. The Streams code path (`credit/streams.py`) is still there for a deployed host.
+- **Delivery:** every event is posted to the api at `POST /internal/credit-events` and appears on the SSE stream as `credit`.
 
 ## At a glance (for judges)
 

@@ -2,10 +2,10 @@
 // /borrow: credit profile, live risk quote, Bedrock memo, then a real XLS-66
 // loan on devnet with GPU shares escrowed. Loan health updates live.
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { LoanQuoteApiResponse, PortfolioResponse, XlsLoanRecord } from "@moonshift/shared";
+import type { CreditStats, LoanQuoteApiResponse, PortfolioResponse, XlsLoanRecord } from "@moonshift/shared";
 import { getPortfolio } from "@/lib/api";
 import { fmt, shortHash, typedAmount } from "@/lib/format";
-import { listLoans, maxPrincipal, openFromQuote, payNext, payOff, pct, quoteLoan, txUrl, useApiEvents } from "@/lib/lendingApi";
+import { creditStats, listLoans, maxPrincipal, openFromQuote, payNext, payOff, pct, quoteLoan, txUrl, useApiEvents } from "@/lib/lendingApi";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
 import { HealthMeter, LoanTxs, StatusChip, StressControls, TxLink } from "./LendingBits";
@@ -62,6 +62,7 @@ export function BorrowContent({
   const [alerts, setAlerts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [qn, setQn] = useState<CreditStats | null>(null);
   const [requote, setRequote] = useState(0);
   const toast = useToast();
   const seq = useRef(0);
@@ -114,6 +115,14 @@ export function BorrowContent({
     }, 450);
     return () => clearTimeout(t);
   }, [shares, principal, gpuId, requote]);
+
+  // Live Quicknode counters from the credit service, next to the profile.
+  useEffect(() => {
+    const load = () => creditStats().then(setQn).catch(() => {});
+    load();
+    const t = setInterval(load, 15_000);
+    return () => clearInterval(t);
+  }, [quote]);
 
   useEffect(() => {
     void refresh();
@@ -206,7 +215,10 @@ export function BorrowContent({
                 <div className="factors">
                   {topFactors.map(([k, f]) => (
                     <div key={k}>
-                      <span>{FACTOR_TEXT[k] ?? k}</span>
+                      <span>
+                        {FACTOR_TEXT[k] ?? k}
+                        {f.from && <em className="from">{f.from}</em>}
+                      </span>
                       <b className={f.points < 0 ? "dn" : "up"}>
                         {f.points > 0 ? "+" : ""}
                         {f.points}
@@ -227,6 +239,25 @@ export function BorrowContent({
                     </div>
                   ))}
                 </div>
+                {credit.components && credit.components.length > 0 && (
+                  <div className="sources">
+                    {credit.components.map((c) => (
+                      <div key={c.part}>
+                        <b>{c.part}</b>
+                        <span>
+                          {c.network}, {c.source === "quicknode" ? "read through Quicknode" : `public ${c.network} node`}
+                          {c.ownership ? ` · link ${c.ownership.status}` : ""}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {qn && qn.dataSource === "live" && (
+                  <p className="note qn">
+                    Read through Quicknode: {qn.quicknode.calls} calls, {fmt(qn.quicknode.creditsUsed, 0)} credits
+                    {qn.quicknode.p50LatencyMs ? `, p50 ${Math.round(qn.quicknode.p50LatencyMs)} ms` : ""}, {Math.round(qn.totals.cacheHitRate * 100)}% served from cache
+                  </p>
+                )}
                 {credit.portfolio && <p className="note">{credit.portfolio.text}</p>}
                 <p className="note">
                   Source: {quote?.sources.credit === "live" ? `credit service, ${credit.network}` : "built-in credit model (simulated)"}

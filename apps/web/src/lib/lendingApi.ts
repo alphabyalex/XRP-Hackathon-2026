@@ -2,6 +2,7 @@
 import { useEffect, useRef } from "react";
 import type {
   BookStats,
+  CreditStats,
   LoanQuoteApiResponse,
   StressResult,
   TxResult,
@@ -22,6 +23,7 @@ export const withdraw = (lender: string, amount: string) => post<{ round: number
 
 export const quoteLoan = (borrower: string, gpuId: string, collateralShares: string, principal: string) =>
   post<LoanQuoteApiResponse>("/loans/quote", { borrower, gpuId, collateralShares, principal });
+export const creditStats = () => apiFetch<CreditStats>("/credit/stats");
 export const maxPrincipal = (borrower: string, gpuId: string, collateralShares: string) =>
   post<{ maxPrincipal: string; collateralValue: string; termSeconds: number }>("/loans/max", { borrower, gpuId, collateralShares });
 export const openFromQuote = (quoteId: string) => post<XlsLoanRecord>("/loans/open", { quoteId });

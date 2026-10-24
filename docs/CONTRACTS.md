@@ -373,3 +373,11 @@ POST `{"preset":"demo","step":1}` then `{"preset":"demo","step":2}` to
 Step 1 crosses margin call; step 2 crosses the emergency liquidation line.
 These do not publish on-ledger prices. Existing API `/demo/stress` remains the
 route for an explicitly requested devnet oracle transaction demo.
+
+**Credit round 2 (Alex, for the record):**
+- `services/credit` adds `GET /stats` (`contracts/credit/stats.json`), and the api proxies it at `GET /credit/stats`.
+- `POST /link/demo` adds a demo link (labeled "unverified, demo"); configured demo links live in `services/credit/demo_addresses.json`.
+- Devnet and testnet profiles with a link come back combined (`combined: true`, `components[]` says which part came from devnet or mainnet).
+- `POST /watch` returns `feeds[]`.
+- Credit events carry `via: "websocket (public devnet)"` or `"websocket (quicknode)"`.
+

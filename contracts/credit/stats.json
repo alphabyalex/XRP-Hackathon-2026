@@ -1,0 +1,23 @@
+{
+  "endpoint": "GET /stats (credit, no key needed: counts only, never URLs); the api proxies it at GET /credit/stats",
+  "response": {
+    "since": "2026-10-24T18:48:56Z",
+    "quicknode": {
+      "calls": 26,
+      "creditsUsed": 1040,
+      "creditsPerCall": 40,
+      "p50LatencyMs": 75.6,
+      "cacheHitRate": 0.708,
+      "byNetwork": { "testnet": 4, "mainnet": 22 },
+      "byMethod": { "account_info": 4, "account_lines": 8, "account_tx": 14 }
+    },
+    "bySource": {
+      "quicknode": { "calls": 26, "byNetwork": { "testnet": 4, "mainnet": 22 }, "byMethod": { "account_info": 4, "account_lines": 8, "account_tx": 14 }, "cacheHits": 63, "cacheHitRate": 0.708, "p50LatencyMs": 75.6, "errors": 0 },
+      "public": { "calls": 4, "byNetwork": { "devnet": 4 }, "byMethod": { "account_info": 1, "account_lines": 1, "account_tx": 2 }, "cacheHits": 2, "cacheHitRate": 0.333, "p50LatencyMs": 180.0, "errors": 0 }
+    },
+    "totals": { "upstreamCalls": 30, "cacheHits": 65, "cacheHitRate": 0.684 },
+    "quicknodeConfigured": { "mainnet": true, "testnet": true, "devnet": false },
+    "mock": false,
+    "simulated": false
+  }
+}

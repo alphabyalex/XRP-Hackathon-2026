@@ -122,3 +122,8 @@
   is a concrete reason the Quicknode endpoint matters, noted in docs/QUICKNODE.md.
 - The service loads services/credit/.env, then the repo root .env, without
   ever printing them. Tests blank the Quicknode vars so they never hit the network.
+
+## Round 2 (finished by Alex, 2026-10-24)
+
+Lucy's round 2 (lunch_prompts/Lucy_prompt_2.md, Jobs 1 to 4) was finished by Alex on the alex branch while Lucy was away. See docs/QUICKNODE.md (pitch, click path, ALICE's combined profile, live evidence) and contracts/credit/stats.json.
+

@@ -4,7 +4,7 @@
 // mock (source "mock-fallback") if the service is unreachable.
 
 import { createHash } from "crypto";
-import type { CreditFeature, CreditProfile, DataSource, RiskCreditProfile } from "@moonshift/shared";
+import type { CreditFeature, CreditProfile, CreditStats, DataSource, RiskCreditProfile } from "@moonshift/shared";
 import { mockFlag } from "../env.js";
 import { serviceJson, noteSource, ServiceUnavailable } from "./serviceFetch.js";
 import { db } from "../db/db.js";
@@ -107,6 +107,22 @@ export async function getProfile(
     if (!(e instanceof ServiceUnavailable)) throw e;
     noteSource("credit", "mock-fallback");
     return { profile: { ...mockProfile(network, address, accountName), source: "mock-fallback" }, source: "mock-fallback" };
+  }
+}
+
+// Quicknode usage counters from the credit service (no URLs). Mock: zeros, simulated.
+export async function getStats(): Promise<CreditStats> {
+  const empty: CreditStats = {
+    since: new Date().toISOString(),
+    quicknode: { calls: 0, creditsUsed: 0, creditsPerCall: 40, p50LatencyMs: null, cacheHitRate: 0, byNetwork: {}, byMethod: {} },
+    totals: { upstreamCalls: 0, cacheHits: 0, cacheHitRate: 0 },
+    simulated: true,
+  };
+  if (mockFlag("MOCK_CREDIT")) return { ...empty, dataSource: "mock" };
+  try {
+    return { ...(await serviceJson<CreditStats>("credit", `${CREDIT_URL()}/stats`, { timeoutMs: 3000 })), dataSource: "live" };
+  } catch {
+    return { ...empty, dataSource: "mock-fallback" };
   }
 }
 

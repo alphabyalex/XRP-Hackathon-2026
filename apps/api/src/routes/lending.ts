@@ -70,6 +70,8 @@ lendingRouter.post(
 // Credit and risk reads
 // ---------------------------------------------------------------------------
 
+lendingRouter.get("/credit/stats", handle(async () => credit.getStats()));
+
 // :address may be a demo account name (ALICE) or an XRPL address.
 lendingRouter.get(
   "/credit/:network/:address",
