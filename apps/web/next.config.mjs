@@ -2,6 +2,7 @@
 const nextConfig = {
   transpilePackages: ["@moonshift/shared"],
   reactStrictMode: true,
+  devIndicators: false,
   async redirects() {
     return [{ source: "/marketplace", destination: "/market", permanent: true }];
   },

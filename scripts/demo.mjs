@@ -177,7 +177,19 @@ if (!mockXrpl) {
 }
 
 start("api", "npm", ["run", "dev", "-w", "apps/api"], { cwd: ROOT, env: apiEnv });
-if (!args.has("--no-web")) start("web", "npm", ["run", "dev", "-w", "apps/web"], { cwd: ROOT, env: baseEnv });
+// --prod (npm run demo:prod): production build of the web app (next build, then next start).
+const prodWeb = args.has("--prod");
+if (!args.has("--no-web")) {
+  if (prodWeb) {
+    log("demo", "building the web app for production (next build)...");
+    const built = spawnSync("npm", ["run", "build", "-w", "apps/web"], { cwd: ROOT, env: baseEnv, stdio: "inherit", shell: true });
+    if (built.status !== 0) {
+      log("demo", "next build failed; stopping");
+      process.exit(1);
+    }
+  }
+  start("web", "npm", ["run", prodWeb ? "start" : "dev", "-w", "apps/web"], { cwd: ROOT, env: baseEnv });
+}
 
 // Prewarm exactly what /borrow asks for on load (ALICE, gpu-a, 100 shares,
 // largest approved amount), so the credit profile, vault read, max search and
@@ -221,7 +233,7 @@ if (!args.has("--no-web")) start("web", "npm", ["run", "dev", "-w", "apps/web"],
   }
   const t1 = Date.now();
   for (const path of ["/", "/borrow", "/lend"]) await fetch(web + path).catch(() => {});
-  log("demo", `compiled /, /borrow and /lend in ${Math.round((Date.now() - t1) / 1000)} s`);
+  log("demo", `${prodWeb ? "warmed" : "compiled"} /, /borrow and /lend in ${Math.round((Date.now() - t1) / 1000)} s`);
 })();
 
 log("demo", `network: ${apiEnv.NETWORK}  ledger: ${mockXrpl ? "in-memory mock" : "real devnet (XLS-65/66)"}`);
