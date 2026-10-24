@@ -181,6 +181,7 @@ def agent_credit_memo(req: CreditMemoRequest) -> dict:
     )
     return {
         "memo": res.memo,
+        "outcome": res.outcome,
         "modelId": res.model_id or C.BEDROCK_MODEL_ID,
         "latencyMs": res.latency_ms,
         "fellBack": res.fell_back,

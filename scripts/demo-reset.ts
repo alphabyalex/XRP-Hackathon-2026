@@ -93,6 +93,7 @@ async function main() {
   console.log(`\nDemo world ready on devnet. Investing round ${inv?.round ?? "none"}, subscribing round ${sub?.round ?? "none"}.`);
   console.log(`Borrower ALICE ${x.getAccountAddress("ALICE")}  Broker ${x.getAccountAddress("LENDING_POOL")}`);
   console.log("Start the demo with: npm run demo");
+  console.log("If npm run demo is already running, restart it: the api loaded the old ALICE at startup.");
   await x.disconnectClient();
 }
 

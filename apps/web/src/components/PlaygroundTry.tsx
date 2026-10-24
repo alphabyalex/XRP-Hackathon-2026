@@ -87,7 +87,7 @@ export function PlaygroundTry() {
           </span>
           <span>
             +{fmt(Number(meta.charge), 6)} USDC to holders
-            {meta.simulated ? " (simulated)" : ""}
+            
           </span>
         </div>
       )}

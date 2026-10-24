@@ -17,7 +17,7 @@ export function TxLink({ network, hash, label }: { network: string; hash?: strin
       {text}
     </a>
   ) : (
-    <span className="txl">{text} (simulated)</span>
+    <span className="txl">{text}</span>
   );
 }
 
@@ -148,13 +148,13 @@ export function StressControls({
             </b>
           </div>
           <div>
-            <span>Scenario (simulated)</span>
+            <span>Scenario (model estimate)</span>
             <b>
               {last.scenario.marginCalls} margin calls, {last.scenario.liquidations} liquidations
             </b>
           </div>
           <div>
-            <span>Vault loss, cover absorbed (simulated)</span>
+            <span>Vault loss, cover absorbed (model estimate)</span>
             <b>
               {fmt(Number(last.scenario.vaultLoss), 2)} / {fmt(Number(last.scenario.firstLossCoverAbsorbed), 2)}
             </b>

@@ -69,7 +69,7 @@ export function TradePanel({
       for (const r of runs) {
         await redeemSlots(ACCOUNT, gpuId, String(r.len), timeAt(windowStart, r.start).toISOString());
       }
-      toast(`Booked ${sel.size * 5} minutes on ${gpuLabel}`, txToastLine(`${sel.size} HRA · ${fmt(pricePerSlot * sel.size, 4)} USDC`, tx.hash));
+      toast(`Booked ${sel.size * 5} minutes on ${gpuLabel}`, txToastLine(`${sel.size} ${gpuLabel} hours · ${fmt(pricePerSlot * sel.size, 4)} USDC`, tx.hash));
       setSel(new Set());
       refreshLive();
       onTraded?.();
@@ -85,7 +85,7 @@ export function TradePanel({
     setBusy(true);
     try {
       const tx = await buyShares(ACCOUNT, gpuId, String(qty));
-      toast(`Bought ${qty} ${gpuLabel.replace("GPU-", "GP")}`, txToastLine(`${fmt(qty * sharePrice, 2)} USDC · OfferCreate`, tx.hash));
+      toast(`Bought ${qty} ${gpuLabel} shares`, txToastLine(`${fmt(qty * sharePrice, 2)} USDC · OfferCreate`, tx.hash));
       refreshLive();
       onTraded?.();
     } catch (err) {
@@ -124,7 +124,7 @@ export function TradePanel({
           <Button disabled={!sel.size || busy} onClick={doBookTime}>
             {sel.size ? `Book ${sel.size * 5} minutes` : "Pick a slot"}
           </Button>
-          <p className="note">Each slot is an HRA token. Hold it for exclusive access, or resell it on the DEX.</p>
+          <p className="note">Each slot is a {gpuLabel} hours token. Hold it for exclusive access, or resell it on the DEX.</p>
         </div>
       ) : (
         <div>
@@ -140,7 +140,7 @@ export function TradePanel({
               inputMode="numeric"
               onChange={(e) => setQty(Number(typedAmount(e.target.value, false)) || 0)}
             />
-            <span>{gpuLabel.replace("GPU-", "GP")}</span>
+            <span>shares</span>
           </div>
           <div className="line" style={{ marginTop: 14 }}>
             <span>Price</span>
@@ -155,9 +155,9 @@ export function TradePanel({
             <b>{fmt(qty * sharePrice, 2)} USDC</b>
           </div>
           <Button disabled={!qty || busy} onClick={doBuyShares}>
-            {qty ? `Buy ${qty} ${gpuLabel.replace("GPU-", "GP")}` : "Enter an amount"}
+            {qty ? `Buy ${qty} ${gpuLabel} shares` : "Enter an amount"}
           </Button>
-          <p className="note">Fills against the {gpuLabel.replace("GPU-", "GP")}/USDC order book on the XRP Ledger DEX.</p>
+          <p className="note">Fills against the {gpuLabel} shares / USDC order book on the XRP Ledger DEX.</p>
         </div>
       )}
     </div>
