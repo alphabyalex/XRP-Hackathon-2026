@@ -16,7 +16,7 @@ export default async function GpuDetailPage({ params }: { params: Promise<{ id: 
   try {
     const gpu = await getGpu(id);
     return (
-      <LiveDataProvider initial={{ [gpu.id]: gpu }}>
+      <LiveDataProvider initial={{ [gpu.id]: gpu }} initialNow={Date.now()}>
         <GpuDetailContent id={id} />
       </LiveDataProvider>
     );

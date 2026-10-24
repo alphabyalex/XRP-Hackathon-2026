@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import clsx from "clsx";
-import { useLiveGpu, useApiUnreachable } from "@/lib/liveData";
+import { useLiveGpu, useApiUnreachable, useNow } from "@/lib/liveData";
 import { gpuView } from "@/lib/gpuView";
 import { fmt } from "@/lib/format";
 import { mockPriceHistory, change24h } from "@/lib/mockPriceHistory";
@@ -13,6 +13,7 @@ import { ApiErrorNotice } from "./ApiErrorNotice";
 
 export function GpuDetailContent({ id }: { id: string }) {
   const gpu = useLiveGpu(id);
+  const now = useNow();
   const unreachable = useApiUnreachable();
 
   if (unreachable) {
@@ -24,7 +25,7 @@ export function GpuDetailContent({ id }: { id: string }) {
   }
   if (!gpu) return null;
 
-  const v = gpuView(gpu);
+  const v = gpuView(gpu, now);
   const price = Number(gpu.sharePrice) || 0;
   const history = mockPriceHistory(gpu.id, price);
   const ch = change24h(history);

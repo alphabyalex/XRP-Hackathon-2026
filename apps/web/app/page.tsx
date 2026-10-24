@@ -15,7 +15,7 @@ export default async function LandingPage() {
   }
 
   return (
-    <LiveDataProvider initial={gpus}>
+    <LiveDataProvider initial={gpus} initialNow={Date.now()}>
       <HomeContent />
     </LiveDataProvider>
   );

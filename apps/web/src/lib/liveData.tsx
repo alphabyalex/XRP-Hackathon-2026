@@ -10,16 +10,35 @@ interface LiveDataValue {
   gpus: GpuMap;
   unreachable: boolean;
   refresh: () => void;
+  now: number;
 }
 
-const LiveDataContext = createContext<LiveDataValue>({ gpus: {}, unreachable: false, refresh: () => {} });
+const LiveDataContext = createContext<LiveDataValue>({ gpus: {}, unreachable: false, refresh: () => {}, now: 0 });
 
 // Subscribes to SSE /events and refetches GPU details on any event, so
 // prices, the schedule and the hero proof row update in place. Debounced so
 // a burst of usage events doesn't fire a refetch per event. No auto-scrolling
 // ticker, no per-field patching, just a simple poll-on-event refresh.
-export function LiveDataProvider({ initial, children }: { initial: GpuMap; children: ReactNode }) {
+export function LiveDataProvider({
+  initial,
+  initialNow,
+  children,
+}: {
+  initial: GpuMap;
+  // The server's clock at render time. Schedules are drawn from this on the
+  // first render so server HTML and client hydration match exactly, then the
+  // client switches to its own clock right after mount.
+  initialNow?: number;
+  children: ReactNode;
+}) {
   const [gpus, setGpus] = useState<GpuMap>(initial);
+  const [now, setNow] = useState<number>(initialNow ?? Date.now());
+
+  useEffect(() => {
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
   const [unreachable, setUnreachable] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const refreshRef = useRef<() => void>(() => {});
@@ -71,7 +90,7 @@ export function LiveDataProvider({ initial, children }: { initial: GpuMap; child
   }, []);
 
   return (
-    <LiveDataContext.Provider value={{ gpus, unreachable, refresh: () => refreshRef.current() }}>
+    <LiveDataContext.Provider value={{ gpus, unreachable, refresh: () => refreshRef.current(), now }}>
       {children}
     </LiveDataContext.Provider>
   );
@@ -83,6 +102,10 @@ export function useLiveGpus(): GpuMap {
 
 export function useLiveGpu(id: string): ApiGpuDetail | undefined {
   return useContext(LiveDataContext).gpus[id];
+}
+
+export function useNow(): Date {
+  return new Date(useContext(LiveDataContext).now || Date.now());
 }
 
 export function useRefreshLive(): () => void {

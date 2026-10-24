@@ -2,7 +2,7 @@
 import { AccountBalance } from "./AccountBalance";
 import dynamic from "next/dynamic";
 import { GPUS } from "@moonshift/shared";
-import { useLiveGpus, useApiUnreachable } from "@/lib/liveData";
+import { useLiveGpus, useApiUnreachable, useNow } from "@/lib/liveData";
 import { gpuView } from "@/lib/gpuView";
 import { fmt } from "@/lib/format";
 import { Button } from "./Button";
@@ -25,8 +25,9 @@ const Hero3DMark = dynamic(() => import("./Hero3DMark").then((m) => m.Hero3DMark
 
 export function HomeContent() {
   const gpus = useLiveGpus();
+  const now = useNow();
   const unreachable = useApiUnreachable();
-  const views = GPUS.map((g) => gpus[g.id]).filter(Boolean).map((g) => gpuView(g));
+  const views = GPUS.map((g) => gpus[g.id]).filter(Boolean).map((g) => gpuView(g, now));
   const featured = views.find((v) => v.gpu.id === "gpu-a") ?? views[0];
 
   const paidLastNight = views.reduce((s, v) => s + v.split.holders, 0);

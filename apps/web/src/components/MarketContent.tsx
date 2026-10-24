@@ -1,7 +1,7 @@
 "use client";
 import { AccountBalance } from "./AccountBalance";
 import { GPUS } from "@moonshift/shared";
-import { useLiveGpus, useApiUnreachable } from "@/lib/liveData";
+import { useLiveGpus, useApiUnreachable, useNow } from "@/lib/liveData";
 import { gpuView } from "@/lib/gpuView";
 import { AppWindow } from "./AppWindow";
 import { MarketTable } from "./MarketTable";
@@ -10,8 +10,9 @@ import { ACCOUNT_DISPLAY } from "@/lib/session";
 
 export function MarketContent() {
   const gpus = useLiveGpus();
+  const now = useNow();
   const unreachable = useApiUnreachable();
-  const views = GPUS.map((g) => gpus[g.id]).filter(Boolean).map((g) => gpuView(g));
+  const views = GPUS.map((g) => gpus[g.id]).filter(Boolean).map((g) => gpuView(g, now));
 
   return (
     <main className="s">

@@ -15,7 +15,7 @@ export default async function MarketPage() {
   }
 
   return (
-    <LiveDataProvider initial={gpus}>
+    <LiveDataProvider initial={gpus} initialNow={Date.now()}>
       <MarketContent />
     </LiveDataProvider>
   );
