@@ -27,6 +27,26 @@ def as_utc(value: datetime) -> datetime:
     return value.astimezone(UTC)
 
 
+def parse_bucket(bucket_str: str) -> timedelta:
+    b = bucket_str.strip().lower()
+    if b.endswith("h"):
+        try:
+            return timedelta(hours=float(b[:-1]))
+        except ValueError:
+            pass
+    elif b.endswith("m"):
+        try:
+            return timedelta(minutes=float(b[:-1]))
+        except ValueError:
+            pass
+    elif b.endswith("d"):
+        try:
+            return timedelta(days=float(b[:-1]))
+        except ValueError:
+            pass
+    return timedelta(hours=1)
+
+
 def overlaps(start: datetime, end: datetime, other_start: datetime, other_end: datetime) -> bool:
     return start < other_end and other_start < end
 
@@ -361,6 +381,76 @@ class GpuSupervisor:
                 "utilization_pct_1h": round(min(seconds_busy / 36.0, 100.0), 2),
             }
 
+    async def revenue(
+        self, start: datetime, end: datetime, bucket_duration: timedelta
+    ) -> list[dict[str, object]]:
+        async with self._lock:
+            buckets: list[dict[str, object]] = []
+            curr = start
+            booked_rate_per_min = 4.95 / 60.0
+            inf_rate_per_min = 1.80 / 60.0
+
+            while curr < end:
+                b_end = min(curr + bucket_duration, end)
+                b_total_minutes = max(1.0, (b_end - curr).total_seconds() / 60.0)
+
+                booked_overlap_sec = 0.0
+                for booking in self._bookings:
+                    o_start = max(curr, booking.start)
+                    o_end = min(b_end, booking.end)
+                    if o_end > o_start:
+                        booked_overlap_sec += (o_end - o_start).total_seconds()
+
+                inf_overlap_sec = 0.0
+                all_inf = [*self._history]
+                all_inf.extend(
+                    {
+                        "start": item.started_at,
+                        "end": utc_now(),
+                    }
+                    for item in self._inflight.values()
+                )
+                for item in all_inf:
+                    item_start = item.get("start")
+                    item_end = item.get("end")
+                    if isinstance(item_start, datetime) and isinstance(item_end, datetime):
+                        o_start = max(curr, item_start)
+                        o_end = min(b_end, item_end)
+                        if o_end > o_start:
+                            inf_overlap_sec += (o_end - o_start).total_seconds()
+
+                booked_min = booked_overlap_sec / 60.0
+                inf_min = inf_overlap_sec / 60.0
+                is_simulated = self.simulated or self.settings.mock
+
+                if booked_min == 0.0 and inf_min == 0.0:
+                    h = (int(curr.timestamp()) // 3600) % 24
+                    util_pct = 60.0 + (h % 5) * 6.5
+                    active_min = b_total_minutes * (util_pct / 100.0)
+                    booked_min = active_min * 0.45
+                    inf_min = active_min * 0.55
+                    is_simulated = True
+
+                idle_min = max(0.0, b_total_minutes - booked_min - inf_min)
+                util_pct = min(100.0, ((booked_min + inf_min) / b_total_minutes) * 100.0)
+                rev = (booked_min * booked_rate_per_min) + (inf_min * inf_rate_per_min)
+
+                buckets.append(
+                    {
+                        "start": curr.isoformat(),
+                        "end": b_end.isoformat(),
+                        "revenue": f"{rev:.6f}",
+                        "bookedMinutes": int(round(booked_min)),
+                        "inferenceMinutes": int(round(inf_min)),
+                        "idleMinutes": int(round(idle_min)),
+                        "utilizationPct": f"{util_pct:.6f}",
+                        "simulated": is_simulated,
+                    }
+                )
+                curr = b_end
+
+            return buckets
+
 
 class Scheduler:
     """Container for the two GPU supervisors and their persisted calendars."""
@@ -403,6 +493,11 @@ class Scheduler:
 
     async def create_booking(self, request: BookingRequest) -> Booking:
         return await self.worker(request.gpu_id).add_booking(request)
+
+    async def revenue(
+        self, gpu_id: str, start: datetime, end: datetime, bucket_duration: timedelta
+    ) -> list[dict[str, object]]:
+        return await self.worker(gpu_id).revenue(as_utc(start), as_utc(end), bucket_duration)
 
     async def booking_worker(self, redemption_id: str, holder: str) -> GpuSupervisor | None:
         for worker in self.workers.values():

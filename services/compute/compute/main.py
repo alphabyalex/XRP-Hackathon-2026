@@ -13,8 +13,24 @@ from .models import BookingRequest, ChatCompletionRequest, ComputeError
 from .pricing import RateClient
 from .providers import MockProvider, VllmProvider
 from .router import ComputeRouter, sse_events
-from .scheduler import Scheduler
+from .scheduler import Scheduler, parse_bucket
 from .usage import UsageReporter
+
+
+def _parse_query_time(val: str | datetime | None, default: datetime) -> datetime:
+    if val is None:
+        return default
+    if isinstance(val, datetime):
+        t = val
+    else:
+        s = str(val).strip().replace(" ", "+").replace("Z", "+00:00")
+        try:
+            t = datetime.fromisoformat(s)
+        except ValueError:
+            raise ComputeError("INVALID_REQUEST", f"Cannot parse ISO datetime: {val}", 400) from None
+    if t.tzinfo is None:
+        raise ComputeError("INVALID_REQUEST", "Times must include a UTC offset.", 400)
+    return t.astimezone(UTC)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -82,6 +98,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if end <= start:
             raise ComputeError("INVALID_REQUEST", "Calendar 'to' must be after 'from'.", 400)
         return await scheduler.calendar(gpu_id, start, end)
+
+    @app.get("/gpus/{gpu_id}/revenue")
+    async def gpu_revenue(
+        gpu_id: str,
+        from_: str | None = Query(default=None, alias="from"),
+        to: str | None = Query(default=None),
+        bucket: str = Query(default="1h"),
+    ) -> list[dict[str, object]]:
+        now = datetime.now(UTC)
+        end = _parse_query_time(to, now)
+        start = _parse_query_time(from_, end - timedelta(hours=24))
+        if end <= start:
+            raise ComputeError("INVALID_REQUEST", "Revenue 'to' must be after 'from'.", 400)
+        bucket_duration = parse_bucket(bucket)
+        return await scheduler.revenue(gpu_id, start, end, bucket_duration)
 
     @app.post("/bookings")
     async def create_booking(
