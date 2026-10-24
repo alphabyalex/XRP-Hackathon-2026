@@ -1,4 +1,4 @@
-"""Bedrock Converse client with an 8s budget and a deterministic fallback.
+"""Bedrock Converse client with a 12 s budget and a deterministic fallback.
 
 Logs model ID, latency and outcome only. Never logs prompt contents or credentials.
 """
@@ -42,6 +42,7 @@ class CreditMemo:
     model_id: str | None
     latency_ms: int
     fell_back: bool
+    outcome: str = "ok"  # ok | timeout | unverified_numbers | invalid_json | error:<Type>
 
 
 @dataclass(frozen=True)
@@ -144,34 +145,43 @@ def generate_credit_memo(credit_profile: dict, quote: dict, loan_request: dict) 
             model_id=C.BEDROCK_MODEL_ID,
             latency_ms=latency,
             fell_back=True,
+            outcome=outcome,
         )
 
+    outcome = "mock"
     if C.MOCK:
         return fallback_result()
 
     outcome = "ok"
+    deadline = started + C.BEDROCK_TIMEOUT_SECONDS
+    user_msg = credit_memo_user_message(credit_profile, quote, loan_request)
     try:
-        user_msg = credit_memo_user_message(credit_profile, quote, loan_request)
-        raw = _pool.submit(
-            _converse_custom, CREDIT_MEMO_SYSTEM_PROMPT, user_msg
-        ).result(timeout=C.BEDROCK_TIMEOUT_SECONDS)
-        parsed_text = guardrails.parse_single_text(raw, ("memo", "text"))
-        if not parsed_text:
-            outcome = "invalid_json"
-            return fallback_result()
-
-        # Number guard: reject if any number is not in inputs
-        if guardrails.has_unverified_numbers(parsed_text, allowed):
+        # Up to two Bedrock attempts inside one budget. A memo the number guard rejects is first
+        # scrubbed (sentences with unverified numbers dropped, kept if at least two verified
+        # sentences remain); only if that fails is Bedrock asked again. The deterministic template
+        # is served only when Bedrock itself fails or both attempts are unusable.
+        for attempt in (1, 2):
+            left = deadline - time.monotonic()
+            if left <= 0.5:
+                outcome = "timeout"
+                return fallback_result()
+            msg = user_msg if attempt == 1 else user_msg + RETRY_REMINDER
+            raw = _pool.submit(_converse_custom, CREDIT_MEMO_SYSTEM_PROMPT, msg).result(timeout=left)
+            parsed_text = guardrails.parse_single_text(raw, ("memo", "text"))
+            if not parsed_text:
+                outcome = "invalid_json"
+                continue
+            bad = guardrails.unknown_numbers(parsed_text, allowed)
+            if not bad:
+                outcome = "ok" if attempt == 1 else "ok_retry"
+                return _memo(parsed_text, started, outcome)
+            log.warning("credit_memo number guard rejected numbers: %s", ", ".join(bad[:8]))
+            scrubbed = guardrails.scrub(parsed_text, allowed)
+            if scrubbed:
+                outcome = "ok_scrubbed"
+                return _memo(scrubbed, started, outcome)
             outcome = "unverified_numbers"
-            return fallback_result()
-
-        latency = int((time.monotonic() - started) * 1000)
-        return CreditMemo(
-            memo=parsed_text.replace("—", ", "),
-            model_id=C.BEDROCK_MODEL_ID,
-            latency_ms=latency,
-            fell_back=False,
-        )
+        return fallback_result()
     except FutureTimeout:
         outcome = "timeout"
         return fallback_result()
@@ -185,6 +195,23 @@ def generate_credit_memo(credit_profile: dict, quote: dict, loan_request: dict) 
             int((time.monotonic() - started) * 1000),
             outcome,
         )
+
+
+RETRY_REMINDER = (
+    "\n\nYour previous memo used a number that is not in the input. Use only numbers that appear"
+    " in the JSON above, copied exactly; do not compute new ones (no day counts, totals or"
+    " percentages that are not given)."
+)
+
+
+def _memo(text: str, started: float, outcome: str) -> CreditMemo:
+    return CreditMemo(
+        memo=text.replace("—", ", "),
+        model_id=C.BEDROCK_MODEL_ID,
+        latency_ms=int((time.monotonic() - started) * 1000),
+        fell_back=False,
+        outcome=outcome,
+    )
 
 
 def generate_risk_alert(event: dict) -> RiskAlert:

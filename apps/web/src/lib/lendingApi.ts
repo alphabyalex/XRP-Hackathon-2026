@@ -1,7 +1,9 @@
 // apps/api lending routes (XLS-65 vault, XLS-66 loans). See docs/CONTRACTS.md.
 import { useEffect, useRef } from "react";
 import type {
+  AgentText,
   BookStats,
+  CreditProfile,
   CreditStats,
   LoanQuoteApiResponse,
   StressResult,
@@ -21,11 +23,26 @@ export const getPositions = (account: string) =>
 export const deposit = (lender: string, amount: string) => post<{ round: number; tx: TxResult }>("/vault/deposit", { lender, amount });
 export const withdraw = (lender: string, amount: string) => post<{ round: number; tx: TxResult }>("/vault/withdraw", { lender, amount });
 
-export const quoteLoan = (borrower: string, gpuId: string, collateralShares: string, principal: string) =>
-  post<LoanQuoteApiResponse>("/loans/quote", { borrower, gpuId, collateralShares, principal });
+// principal "max" quotes the largest amount risk approves.
+export const quoteLoan = (borrower: string, gpuId: string, collateralShares: string, principal: string, init?: RequestInit) =>
+  apiFetch<LoanQuoteApiResponse>("/loans/quote", { ...init, method: "POST", body: JSON.stringify({ borrower, gpuId, collateralShares, principal }) });
 export const creditStats = () => apiFetch<CreditStats>("/credit/stats");
+// The borrower's cached credit profile, so the score can show before the quote.
+export const borrowerProfile = (borrower: string) => apiFetch<CreditProfile & { dataSource: string }>(`/loans/profile/${encodeURIComponent(borrower)}`);
 export const maxPrincipal = (borrower: string, gpuId: string, collateralShares: string) =>
   post<{ maxPrincipal: string; collateralValue: string; termSeconds: number }>("/loans/max", { borrower, gpuId, collateralShares });
+// Long-polls the quote's Bedrock memo (the api holds the request up to waitMs).
+export const quoteMemo = (quoteId: string, waitMs = 12_000) =>
+  apiFetch<{ status: "ready" | "pending"; memo: AgentText | null }>(`/loans/quote/${quoteId}/memo?wait=${waitMs}`);
+// Connected testnet wallet (Crossmark sign-in or a pasted address).
+export type ConnectedWallet = { borrower: string; network: string; address: string; verified: boolean; status: string; connectedAt: string };
+export const walletGet = (borrower: string) => apiFetch<{ borrower: string; wallet: ConnectedWallet | null }>(`/wallet/${encodeURIComponent(borrower)}`);
+export const walletChallenge = (borrower: string) =>
+  post<{ challengeId: string; message: string; messageHex: string; expiresAt: string }>("/wallet/challenge", { borrower });
+export const walletVerify = (borrower: string, b: { challengeId: string; publicKey: string; signature: string; address?: string }) =>
+  post<ConnectedWallet>("/wallet/verify", { borrower, ...b });
+export const walletConnect = (borrower: string, address: string) => post<ConnectedWallet>("/wallet/connect", { borrower, address });
+export const walletDisconnect = (borrower: string) => apiFetch<{ wallet: null }>(`/wallet/${encodeURIComponent(borrower)}`, { method: "DELETE" });
 export const openFromQuote = (quoteId: string) => post<XlsLoanRecord>("/loans/open", { quoteId });
 export const listLoans = (borrower?: string) =>
   apiFetch<{ loans: XlsLoanRecord[] }>(`/loans${borrower ? `?borrower=${encodeURIComponent(borrower)}` : ""}`);
@@ -41,7 +58,7 @@ export const bookStats = (grade?: string) =>
 // Explorer link for a hash on the loan's network; mock hashes have none.
 export function txUrl(network: string, hash?: string | null): string | null {
   if (!hash || hash.startsWith("MOCK") || network === "mock") return null;
-  const base = network === "testnet" ? "https://testnet.xrpl.org" : "https://devnet.xrpl.org";
+  const base = network === "mainnet" ? "https://livenet.xrpl.org" : network === "testnet" ? "https://testnet.xrpl.org" : "https://devnet.xrpl.org";
   return `${base}/transactions/${hash}`;
 }
 

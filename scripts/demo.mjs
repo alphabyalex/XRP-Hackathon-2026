@@ -177,7 +177,64 @@ if (!mockXrpl) {
 }
 
 start("api", "npm", ["run", "dev", "-w", "apps/api"], { cwd: ROOT, env: apiEnv });
-if (!args.has("--no-web")) start("web", "npm", ["run", "dev", "-w", "apps/web"], { cwd: ROOT, env: baseEnv });
+// --prod (npm run demo:prod): production build of the web app (next build, then next start).
+const prodWeb = args.has("--prod");
+if (!args.has("--no-web")) {
+  if (prodWeb) {
+    log("demo", "building the web app for production (next build)...");
+    const built = spawnSync("npm", ["run", "build", "-w", "apps/web"], { cwd: ROOT, env: baseEnv, stdio: "inherit", shell: true });
+    if (built.status !== 0) {
+      log("demo", "next build failed; stopping");
+      process.exit(1);
+    }
+  }
+  start("web", "npm", ["run", prodWeb ? "start" : "dev", "-w", "apps/web"], { cwd: ROOT, env: baseEnv });
+}
+
+// Prewarm exactly what /borrow asks for on load (ALICE, gpu-a, 100 shares,
+// largest approved amount), so the credit profile, vault read, max search and
+// Bedrock memo are cached before anyone opens the page. Then compile the web
+// pages (next dev builds a route on its first request) and re-warm every
+// 4 minutes so nothing expires during a pitch.
+(async () => {
+  const api = "http://localhost:4000";
+  const web = "http://localhost:3000";
+  for (let i = 0; i < 90; i++) {
+    try {
+      if ((await fetch(`${api}/health`)).ok) break;
+    } catch {
+      // api still starting
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  const json = { "Content-Type": "application/json" };
+  const warm = async () => {
+    await Promise.all([fetch(`${api}/loans/profile/ALICE`), fetch(`${api}/vault`), fetch(`${api}/vault/positions/BOB`)]);
+    const q = await (await fetch(`${api}/loans/quote`, { method: "POST", headers: json, body: JSON.stringify({ borrower: "ALICE", gpuId: "gpu-a", collateralShares: "100", principal: "max" }) })).json();
+    const m = q.quoteId ? await (await fetch(`${api}/loans/quote/${q.quoteId}/memo?wait=14000`)).json() : null;
+    return m?.memo ? (m.memo.fellBack ? `fallback (${m.memo.outcome ?? "?"})` : `Bedrock ${m.memo.latencyMs} ms`) : "not ready";
+  };
+  const t0 = Date.now();
+  try {
+    const memo = await warm();
+    log("demo", `prewarmed ALICE's credit profile, quote and memo (${memo}) in ${Math.round((Date.now() - t0) / 1000)} s`);
+  } catch {
+    log("demo", "prewarm skipped (api not reachable yet)");
+  }
+  setInterval(() => void warm().catch(() => {}), 4 * 60_000);
+  if (args.has("--no-web")) return;
+  for (let i = 0; i < 60; i++) {
+    try {
+      await fetch(web);
+      break;
+    } catch {
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+  const t1 = Date.now();
+  for (const path of ["/", "/borrow", "/lend"]) await fetch(web + path).catch(() => {});
+  log("demo", `${prodWeb ? "warmed" : "compiled"} /, /borrow and /lend in ${Math.round((Date.now() - t1) / 1000)} s`);
+})();
 
 log("demo", `network: ${apiEnv.NETWORK}  ledger: ${mockXrpl ? "in-memory mock" : "real devnet (XLS-65/66)"}`);
 log("demo", "open http://localhost:3000/borrow  (lenders: http://localhost:3000/lend)");

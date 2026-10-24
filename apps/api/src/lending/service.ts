@@ -3,7 +3,7 @@
 // and liquidations (idempotent, callable by Kristian's keeper or the
 // built-in keeper), the demo stress control, and the background defaulter.
 
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import {
   GPUS,
   explorerUrl,
@@ -30,6 +30,8 @@ import * as credit from "../adapters/creditClient.js";
 import * as risk from "../adapters/riskClient.js";
 import * as pricing from "../adapters/pricingClient.js";
 import * as compute from "../adapters/computeClient.js";
+import { swr, timed } from "./swr.js";
+import { ServiceUnavailable } from "../adapters/serviceFetch.js";
 
 export class LendingError extends Error {
   constructor(
@@ -72,8 +74,11 @@ export function oracleHistory(gpuId: string, from?: string, to?: string): PriceP
   return rows.map((r) => ({ timestamp: r.ts, price: r.price }));
 }
 
+// Quotes read the oracle through a 5 s cache; stress and restore drop it.
+const oracleCache = swr<Awaited<ReturnType<typeof lending.oraclePrice>>>("oracle", 5_000, 5_000);
+
 async function collateralPrice(gpuId: GpuId) {
-  const o = await lending.oraclePrice(gpuId);
+  const o = await oracleCache.get(gpuId, () => lending.oraclePrice(gpuId));
   const hist = oracleHistory(gpuId, new Date(Date.now() - 7 * 86400e3).toISOString());
   if (!hist.length || hist[hist.length - 1].price !== o.price) recordOracle(gpuId, o.price, o.source === "live" ? "ledger" : "mock");
   const history = oracleHistory(gpuId, new Date(Date.now() - 7 * 86400e3).toISOString());
@@ -95,28 +100,54 @@ export function xls66Terms(termSeconds: number, riskInterval: number, aprFractio
   };
 }
 
+// The borrower's credit profile on its own (cached), so /borrow can show the
+// score before the quote is back.
+export async function borrowerProfile(borrower: string) {
+  const { profile, source } = await credit.getProfile(CREDIT_NETWORK(), lending.addressOf(borrower), lending.nameOf(borrower));
+  return { ...profile, dataSource: source };
+}
+
+// A loan must mature before its vault round's redemption date (the ledger
+// rejects LoanSet with tecNO_PERMISSION otherwise), so cap the term. The cap
+// is rounded down to the hour: a term that moved every second made every
+// quote (and its memo cache key) unique.
+async function lendingTerm(requested?: number) {
+  const round = (await timed("vault", lending.vaultOverview())).investing;
+  if (!round) throw new LendingError("NO_LENDING_ROUND", "No vault round is lending right now. The next round opens shortly.", 409);
+  const roundLeft = Math.floor((new Date(round.redemptionDate).getTime() - Date.now()) / 1000) - 3 * 3600;
+  const termSeconds = Math.max(120, Math.min(Math.floor(requested ?? DEFAULT_TERM_SECONDS), Math.floor(roundLeft / 3600) * 3600));
+  return { round, termSeconds };
+}
+
+// Everything risk needs besides the principal, read in parallel.
+async function riskInputs(gpuId: GpuId, address: string, name: AccountName | undefined) {
+  const [{ profile, source: creditSource }, oracle, nav] = await Promise.all([
+    timed("credit profile", credit.getProfile(CREDIT_NETWORK(), address, name)),
+    timed("oracle", collateralPrice(gpuId)),
+    timed("nav", pricing.getNav(gpuId).catch(() => null)),
+  ]);
+  const revenue24h = Number(nav?.trailing_revenue_24h ?? 48.2);
+  const { buckets, source: revenueSource } = await timed("revenue", compute.getRevenueHistory(gpuId, 24, revenue24h));
+  return { profile, creditSource, oracle, buckets, revenueSource };
+}
+
 export async function buildQuote(req: LoanQuoteApiRequest): Promise<LoanQuoteApiResponse> {
   const gpu = GPUS.find((g) => g.id === req.gpuId);
   if (!gpu) throw new LendingError("BAD_REQUEST", `unknown gpuId ${req.gpuId}`);
+  // principal "max": quote the largest amount risk approves (what /borrow opens on).
+  if (req.principal === "max" && Number(req.collateralShares) > 0) {
+    const { maxPrincipal } = await timed("max", maxApprovedPrincipal(req));
+    req = { ...req, principal: Number(maxPrincipal) > 0 ? maxPrincipal : "1.00" };
+  }
   if (!(Number(req.collateralShares) > 0) || !(Number(req.principal) > 0)) {
     throw new LendingError("BAD_REQUEST", "collateralShares and principal must be positive");
   }
   const name = lending.nameOf(req.borrower);
   const address = lending.addressOf(req.borrower);
-  // A loan must mature before its vault round's redemption date (the ledger
-  // rejects LoanSet with tecNO_PERMISSION otherwise), so cap the term.
-  const round = (await lending.vaultOverview()).investing;
-  if (!round) throw new LendingError("NO_LENDING_ROUND", "no vault round is lending right now; run npm run demo:reset", 409);
-  const roundLeft = Math.floor((new Date(round.redemptionDate).getTime() - Date.now()) / 1000) - 3 * 3600;
-  const termSeconds = Math.max(120, Math.min(Math.floor(req.termSeconds ?? DEFAULT_TERM_SECONDS), roundLeft));
-
-  const [{ profile, source: creditSource }, oracle, nav] = await Promise.all([
-    credit.getProfile(CREDIT_NETWORK(), address, name),
-    collateralPrice(gpu.id),
-    pricing.getNav(gpu.id).catch(() => null),
+  const [{ termSeconds }, { profile, creditSource, oracle, buckets, revenueSource }] = await Promise.all([
+    lendingTerm(req.termSeconds),
+    riskInputs(gpu.id, address, name),
   ]);
-  const revenue24h = Number(nav?.trailing_revenue_24h ?? 48.2);
-  const { buckets, source: revenueSource } = await compute.getRevenueHistory(gpu.id, 24, revenue24h);
 
   const riskReq = {
     borrower: address,
@@ -129,12 +160,18 @@ export async function buildQuote(req: LoanQuoteApiRequest): Promise<LoanQuoteApi
     collateralPrice: oracle.price,
     collateralPriceHistory: oracle.history,
   };
-  const { quote, source: riskSource } = await risk.quote(riskReq);
-  const memo = await pricing.creditMemo({
+  const { quote, source: riskSource } = await timed("risk quote", risk.quote(riskReq));
+  // The memo is written in the background: the quote returns now and /borrow
+  // shows APR, LTV and the lines immediately, then picks the memo up from
+  // GET /loans/quote/:id/memo. Identical inputs reuse one Bedrock call.
+  const memoReq = {
     creditProfile: { address, network: profile.network, score: profile.score, grade: profile.grade, confidence: profile.confidence, features: profile.features, reasons: profile.reasons },
     quote,
-    loanRequest: { borrower: address, gpuId: gpu.id, collateralShares: riskReq.collateralShares, principal: riskReq.principal, termSeconds },
-  });
+    // currency is explicit so the model never guesses XRP for the principal.
+    loanRequest: { borrower: address, gpuId: gpu.id, collateralShares: riskReq.collateralShares, principal: riskReq.principal, currency: "USDC", termSeconds },
+  };
+  const memoPromise = memoFor(memoReq);
+  const ready = memoReady.get(memoKey(memoReq)) ?? null;
 
   const quoteId = randomUUID();
   const expiresAt = new Date(Date.now() + QUOTE_TTL_SECONDS * 1000).toISOString();
@@ -151,17 +188,77 @@ export async function buildQuote(req: LoanQuoteApiRequest): Promise<LoanQuoteApi
     quote,
     terms: xls66Terms(termSeconds, quote.paymentIntervalSeconds, Number(quote.apr)),
     credit: profile,
-    memo,
+    memo: ready,
+    memoStatus: ready ? "ready" : "pending",
     revenue24h: fix6(buckets.reduce((s, b) => s + Number(b.revenue), 0)),
-    sources: { credit: creditSource, risk: riskSource, memo: memo.source, revenue: revenueSource, oracle: oracle.source === "live" ? "live" : "mock" },
+    sources: { credit: creditSource, risk: riskSource, memo: ready?.source ?? "pending", revenue: revenueSource, oracle: oracle.source === "live" ? "live" : "mock" },
   };
   db.prepare(`INSERT INTO loan_quotes (id, created_at, expires_at, body, used) VALUES (?, ?, ?, ?, 0)`).run(quoteId, new Date().toISOString(), expiresAt, JSON.stringify(out));
+  memoByQuote.set(quoteId, memoPromise);
+  void memoPromise.then((memo) => {
+    const row = db.prepare(`SELECT body FROM loan_quotes WHERE id = ?`).get(quoteId) as { body: string } | undefined;
+    if (!row) return;
+    const body = JSON.parse(row.body) as LoanQuoteApiResponse;
+    body.memo = memo;
+    body.memoStatus = "ready";
+    body.sources.memo = memo.source;
+    db.prepare(`UPDATE loan_quotes SET body = ? WHERE id = ?`).run(JSON.stringify(body), quoteId);
+  });
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Credit memo cache: one Bedrock call per distinct (profile, quote, request).
+// Fallback results are not cached, so the next quote tries Bedrock again.
+// ---------------------------------------------------------------------------
+
+type MemoReq = Parameters<typeof pricing.creditMemo>[0];
+const MEMO_TTL_MS = 60 * 60 * 1000;
+const memoInflight = new Map<string, { at: number; p: Promise<AgentText> }>();
+const memoReady = new Map<string, AgentText>();
+const memoByQuote = new Map<string, Promise<AgentText>>();
+
+function memoKey(req: MemoReq): string {
+  const p = req.creditProfile as any;
+  return createHash("sha256")
+    .update(JSON.stringify([p.address, p.score, p.grade, p.confidence, req.quote, req.loanRequest]))
+    .digest("hex");
+}
+
+function memoFor(req: MemoReq): Promise<AgentText> {
+  const key = memoKey(req);
+  const hit = memoInflight.get(key);
+  if (hit && Date.now() - hit.at < MEMO_TTL_MS) return hit.p;
+  const p = pricing.creditMemo(req).then((memo) => {
+    if (memo.fellBack) memoInflight.delete(key);
+    else memoReady.set(key, memo);
+    return memo;
+  });
+  memoInflight.set(key, { at: Date.now(), p });
+  return p;
+}
+
+// GET /loans/quote/:id/memo. With wait, holds the request until the memo is
+// ready (or waitMs passes) so the page needs only one or two calls.
+export async function quoteMemo(quoteId: string, waitMs = 0): Promise<{ status: "ready" | "pending"; memo: AgentText | null }> {
+  const pending = memoByQuote.get(quoteId);
+  if (pending) {
+    const memo = waitMs > 0 ? await Promise.race([pending, new Promise<null>((r) => setTimeout(() => r(null), waitMs))]) : null;
+    if (memo) return { status: "ready", memo };
+  }
+  const row = db.prepare(`SELECT body FROM loan_quotes WHERE id = ?`).get(quoteId) as { body: string } | undefined;
+  if (!row) throw new LendingError("QUOTE_NOT_FOUND", "unknown quoteId", 404);
+  const body = JSON.parse(row.body) as LoanQuoteApiResponse;
+  return body.memo ? { status: "ready", memo: body.memo } : { status: "pending", memo: null };
 }
 
 // Largest principal risk approves for this collateral. Approval depends on
 // the principal itself (dividend coverage falls as the loan grows), so this
-// searches the risk model directly; no memo, no stored quote.
+// searches the risk model directly; no memo, no stored quote. The search is
+// about 15 risk calls, so its result is kept per exact set of risk inputs
+// (any change in profile, price, revenue or vault gives a new key).
+const maxCache = swr<{ maxPrincipal: string; collateralValue: string; termSeconds: number }>("max", 30 * 60_000, 30 * 60_000);
+
 export async function maxApprovedPrincipal(req: { borrower: string; gpuId: string; collateralShares: string; termSeconds?: number }) {
   const gpu = GPUS.find((g) => g.id === req.gpuId);
   if (!gpu) throw new LendingError("BAD_REQUEST", `unknown gpuId ${req.gpuId}`);
@@ -169,16 +266,7 @@ export async function maxApprovedPrincipal(req: { borrower: string; gpuId: strin
   if (!(shares > 0)) throw new LendingError("BAD_REQUEST", "collateralShares must be positive");
   const name = lending.nameOf(req.borrower);
   const address = lending.addressOf(req.borrower);
-  const round = (await lending.vaultOverview()).investing;
-  if (!round) throw new LendingError("NO_LENDING_ROUND", "no vault round is lending right now; run npm run demo:reset", 409);
-  const roundLeft = Math.floor((new Date(round.redemptionDate).getTime() - Date.now()) / 1000) - 3 * 3600;
-  const termSeconds = Math.max(120, Math.min(Math.floor(req.termSeconds ?? DEFAULT_TERM_SECONDS), roundLeft));
-  const [{ profile }, oracle, nav] = await Promise.all([
-    credit.getProfile(CREDIT_NETWORK(), address, name),
-    collateralPrice(gpu.id),
-    pricing.getNav(gpu.id).catch(() => null),
-  ]);
-  const { buckets } = await compute.getRevenueHistory(gpu.id, 24, Number(nav?.trailing_revenue_24h ?? 48.2));
+  const [{ round, termSeconds }, { profile, oracle, buckets }] = await Promise.all([lendingTerm(req.termSeconds), riskInputs(gpu.id, address, name)]);
   const base = {
     borrower: address,
     gpuId: gpu.id,
@@ -189,11 +277,16 @@ export async function maxApprovedPrincipal(req: { borrower: string; gpuId: strin
     collateralPrice: oracle.price,
     collateralPriceHistory: oracle.history,
   };
-  const approves = async (principal: number) => (await risk.quote({ ...base, principal: fix6(principal) })).quote.decision === "approve";
   const cap = Math.min(shares * Number(oracle.price), Number(round.assetsAvailable));
+  const key = createHash("sha256").update(JSON.stringify([base, cap])).digest("hex");
+  return maxCache.get(key, () => searchMax(base, shares, oracle.price, cap, termSeconds));
+}
+
+async function searchMax(base: Omit<Parameters<typeof risk.quote>[0], "principal">, shares: number, price: string, cap: number, termSeconds: number) {
+  const approves = async (principal: number) => (await risk.quote({ ...base, principal: fix6(principal) })).quote.decision === "approve";
   let lo = 0;
   let hi = cap;
-  if (!(await approves(1))) return { maxPrincipal: "0.00", collateralValue: fix6(shares * Number(oracle.price)), termSeconds };
+  if (!(await approves(1))) return { maxPrincipal: "0.00", collateralValue: fix6(shares * Number(price)), termSeconds };
   lo = 1;
   for (let i = 0; i < 14 && hi - lo > 0.5; i++) {
     const mid = (lo + hi) / 2;
@@ -201,7 +294,7 @@ export async function maxApprovedPrincipal(req: { borrower: string; gpuId: strin
     else hi = mid;
   }
   // Whole USDC, a little under the edge so rounding never flips it to decline.
-  return { maxPrincipal: Math.max(0, Math.floor(lo * 0.99)).toFixed(2), collateralValue: fix6(shares * Number(oracle.price)), termSeconds };
+  return { maxPrincipal: Math.max(0, Math.floor(lo * 0.99)).toFixed(2), collateralValue: fix6(shares * Number(price)), termSeconds };
 }
 
 // ---------------------------------------------------------------------------
@@ -340,6 +433,7 @@ export async function openFromQuote(quoteId: string): Promise<XlsLoanRecord> {
   broadcast("loan", { id: opened.loanId, type: "opened", status: "open", borrower: name, txs: { escrow: opened.escrowTx.hash, loanSet: opened.loanSetTx.hash } });
   broadcast("vault", { round: opened.round });
 
+  credit.invalidateProfile(CREDIT_NETWORK(), q.borrowerAddress);
   const ledger = opened.loan;
   void credit.watch(CREDIT_NETWORK(), q.borrowerAddress, [
     { loanId: opened.loanId, dueAt: ledger?.nextPaymentDueDate ?? new Date(Date.now() + q.terms.paymentIntervalSeconds * 1000).toISOString(), principal: q.principal },
@@ -360,6 +454,7 @@ export async function repay(id: string, mode: "full" | "next" = "full"): Promise
   for (const t of res.payments) logTx(t as TxResult, "loan.pay", r.borrower, `${r.borrower} paid loan ${id.slice(0, 8)} (XLS-66 LoanPay)`);
   if (res.releaseTx) logTx(res.releaseTx as TxResult, "loan.release", r.borrower, `collateral returned to ${r.borrower} (Batch EscrowFinish + Payment)`);
   if (res.paidOff) setStatus(id, "repaid");
+  credit.invalidateProfile(CREDIT_NETWORK(), r.borrowerAddress);
   broadcast("loan", { id, type: res.paidOff ? "repaid" : "paid", status: res.paidOff ? "repaid" : r.status, txs: { pay: res.hash, release: res.releaseTx?.hash ?? null } });
   broadcast("vault", { round: r.round });
   return (await loanRecord(id))!;
@@ -456,6 +551,7 @@ async function marginCallLocked(id: string, body: KeeperActionBody, via: string)
   saveAction(body.idempotencyKey, id, "margin_call", tx, body);
   addTx(id, "marginCall", tx);
   setStatus(id, "margin_call", { margin_call_at: body.occurredAt || new Date().toISOString() });
+  credit.invalidateProfile(CREDIT_NETWORK(), r.borrowerAddress);
   logTx(tx, "loan.margin_call", r.borrower, `margin call on loan ${id.slice(0, 8)} at ${(Number(body.observedLtv) * 100).toFixed(1)}% LTV (${via})`);
   const alert = await alertFor("margin_call", r, body.observedLtv);
   broadcast("loan", { id, type: "margin_call", status: "margin_call", ltv: body.observedLtv, threshold: body.threshold, tx: tx.hash, alert, via });
@@ -480,6 +576,7 @@ async function liquidateLocked(id: string, body: KeeperActionBody, via: string) 
     liquidated_at: body.occurredAt || new Date().toISOString(),
     default_eligible_at: res.defaultEligibleAt,
   });
+  credit.invalidateProfile(CREDIT_NETWORK(), r.borrowerAddress);
   if (res.seizeTx) logTx(res.seizeTx as TxResult, "loan.liquidate", r.borrower, `collateral seized on loan ${id.slice(0, 8)} at ${(Number(body.observedLtv) * 100).toFixed(1)}% LTV (${via})`);
   if (res.defaultTx) logTx(res.defaultTx as TxResult, "loan.default", r.borrower, `loan ${id.slice(0, 8)} defaulted on the XLS-66 ledger`);
   const alert = await alertFor("liquidation", r, body.observedLtv);
@@ -580,6 +677,7 @@ async function stressRun(p: { gpuId: GpuId; level?: "margin_call" | "liquidation
   }
   target = Math.max(0.000001, target);
   const oracleTx = await lending.publishPrice(gpu.id, fix6(target));
+  oracleCache.invalidate(gpu.id);
   recordOracle(gpu.id, fix6(target), "stress", oracleTx.hash);
   logTx(oracleTx, "oracle.stress", "ORACLE", `stress test: ${gpu.id.toUpperCase()} oracle price ${before} -> ${fix6(target)}`);
   broadcast("risk", { type: "price_shock", gpuId: gpu.id, priceBefore: before, priceAfter: fix6(target), tx: oracleTx.hash });
@@ -623,6 +721,7 @@ async function stressRun(p: { gpuId: GpuId; level?: "margin_call" | "liquidation
 export async function restorePrice(gpuId: GpuId): Promise<{ price: string; tx: TxResult }> {
   const price = preStressPrice.get(gpuId) ?? "5.250000";
   const tx = await lending.publishPrice(gpuId, price);
+  oracleCache.invalidate(gpuId);
   recordOracle(gpuId, price, "restore", tx.hash);
   preStressPrice.delete(gpuId);
   broadcast("risk", { type: "price_restore", gpuId, price, tx: tx.hash });
@@ -631,4 +730,61 @@ export async function restorePrice(gpuId: GpuId): Promise<{ price: string; tx: T
 
 export function asAccountName(s: string): AccountName {
   return (lending.nameOf(s) ?? s) as AccountName;
+}
+
+// ---------------------------------------------------------------------------
+// Connected wallet (testnet): a Crossmark sign-in or a pasted address. It
+// replaces the borrower's linked payment history in the credit profile; the
+// credit service watches it live through Quicknode and reports changes.
+// ---------------------------------------------------------------------------
+
+async function walletCall<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+  try {
+    return await credit.creditRequest<T>(path, init);
+  } catch (e) {
+    if (!(e instanceof ServiceUnavailable)) throw e;
+    const m = /HTTP (\d+) (.*)$/s.exec(e.message);
+    if (!m) throw new LendingError("CREDIT_UNAVAILABLE", "The credit service is not reachable right now.", 503);
+    let body: any = null;
+    try {
+      body = JSON.parse(m[2]);
+    } catch {
+      // not JSON
+    }
+    const err = body?.error ?? {};
+    throw new LendingError(err.code ?? "CREDIT_ERROR", err.message ?? body?.detail ?? m[2], Number(m[1]));
+  }
+}
+
+export function walletChallenge(borrower: string) {
+  return walletCall<{ challengeId: string; message: string; messageHex: string; expiresAt: string }>("/link/challenge", {
+    body: { borrower: lending.addressOf(borrower), network: "testnet" },
+  });
+}
+
+export async function walletVerify(borrower: string, b: { challengeId: string; publicKey: string; signature: string; address?: string }) {
+  const w = await walletCall<Record<string, unknown>>("/link/verify", { body: b });
+  credit.invalidateProfile(CREDIT_NETWORK(), lending.addressOf(borrower));
+  return w;
+}
+
+export async function walletConnect(borrower: string, address: string) {
+  const w = await walletCall<Record<string, unknown>>("/link/wallet", { body: { borrower: lending.addressOf(borrower), address, network: "testnet" } });
+  credit.invalidateProfile(CREDIT_NETWORK(), lending.addressOf(borrower));
+  return w;
+}
+
+export async function walletDisconnect(borrower: string) {
+  const out = await walletCall<Record<string, unknown>>(`/link/wallet/${lending.addressOf(borrower)}`, { method: "DELETE" });
+  credit.invalidateProfile(CREDIT_NETWORK(), lending.addressOf(borrower));
+  return out;
+}
+
+export function walletGet(borrower: string) {
+  return walletCall<{ borrower: string; wallet: Record<string, unknown> | null }>(`/link/wallet/${lending.addressOf(borrower)}`);
+}
+
+// The credit service rescored a borrower after live wallet activity.
+export function creditProfileChanged(borrowerAddress: string): void {
+  credit.invalidateProfile(CREDIT_NETWORK(), borrowerAddress);
 }

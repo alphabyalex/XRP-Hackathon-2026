@@ -54,6 +54,9 @@ internalRouter.post(
   handle(async (req) => {
     const e = req.body as CreditEvent;
     if (!e?.id || !e?.kind || !e?.address) throw new svc.LendingError("BAD_REQUEST", "id, kind, address required");
+    // A live rescore: drop the cached profile before /borrow refetches it.
+    const borrower = (e as any).borrower;
+    if (e.kind === "PROFILE_CHANGED" && typeof borrower === "string") svc.creditProfileChanged(borrower);
     const r = db
       .prepare(`INSERT OR IGNORE INTO credit_events (id, kind, address, body, received_at) VALUES (?, ?, ?, ?, ?)`)
       .run(e.id, e.kind, e.address, JSON.stringify(e), new Date().toISOString());

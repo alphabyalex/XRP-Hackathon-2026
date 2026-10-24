@@ -193,8 +193,37 @@ To eliminate hallucination risk in credit decisions:
 
 | Endpoint | Input Payload | Bedrock Model | Output |
 | :--- | :--- | :--- | :--- |
-| `POST /agent/credit-memo` | Credit profile, risk quote, loan request | Anthropic Claude Haiku (`us-east-2`) | 3-5 sentence credit memo detailing credit tier, collateral backing, and terms |
-| `POST /agent/risk-alert` | Margin call / liquidation context | Anthropic Claude Haiku (`us-east-2`) | Clear, actionable risk notification for borrower |
+| `POST /agent/credit-memo` | Credit profile, risk quote, loan request | Claude Haiku 4.5, `global.anthropic.claude-haiku-4-5-20251001-v1:0` (`us-east-2`) | 3-5 sentence credit memo detailing credit tier, collateral backing, and terms |
+| `POST /agent/risk-alert` | Margin call / liquidation context | Claude Haiku 4.5, same profile | Clear, actionable risk notification for borrower |
+
+### Live run (2026-10-24, Alexander's AWS account)
+
+- **Model:** `global.anthropic.claude-haiku-4-5-20251001-v1:0` (global cross-region inference profile), region `us-east-2`.
+  - Authenticated with a Bedrock API key (`AWS_BEARER_TOKEN_BEDROCK`, read by boto3 1.43, never printed or committed).
+  - Claude Haiku 5.5 (`global.anthropic.claude-haiku-5-5`) was tested too. It returns `AccessDeniedException: anthropic.claude-haiku-5-5 is not available for this account`, so 4.5 stays.
+- **Process:** the pricing service runs on port 6100 locally (`npm run demo`). Port 6000 is refused by Node's fetch.
+- **Budgets:** Bedrock budget 12 s in pricing. The api's timeout to pricing is 15 s, so pricing always answers first.
+- **Number guard:** still on. A memo with a number not in the inputs is first scrubbed (sentences with unverified numbers dropped, kept if at least two verified sentences remain). If that fails, Bedrock is asked once more with a reminder. The deterministic template is served only if both fail.
+  - Before this change, one /borrow load fell back because the guard rejected a memo (`outcome=unverified_numbers` at 2.9 s), not because of a timeout.
+- **Flow on /borrow:** the quote (APR, LTV, margin call and liquidation lines, decision) renders immediately and the memo follows. "Writing credit memo..." holds its place, then "Credit memo by Amazon Bedrock" and the text appear.
+  - Identical inputs reuse one Bedrock call.
+  - `npm run demo` warms Bedrock with one full quote at startup.
+- **Currency:** the api passes `currency: "USDC"` in `loanRequest`. Without it the model once called the principal "XRP".
+
+| Measurement | Result |
+|---|---|
+| Model A/B, 3 memos on the same /borrow payload, Haiku 4.5 | median 3,014 ms, max 6,860 ms, number guard 3/3 pass |
+| Model A/B, Haiku 5.5 | not available on the account |
+| Startup warm-up memo (cold) | 5.5 to 6.3 s |
+| 3 fresh /borrow quotes after restart | quote shown at 1.8 s; memo shown at 4.9 s, 4.4 s, 4.1 s (Bedrock 3.0, 2.6, 2.3 s); all "Credit memo by Amazon Bedrock" |
+| Fresh ALICE after `npm run demo:reset` | 75, grade B, high confidence; default 233 USDC approved; memo at 3.8 s by Bedrock |
+| `/agent/risk-alert` | 1,922 ms, `fellBack: false` |
+
+Sample credit memo (live, verbatim, fresh ALICE):
+> "Borrower with grade B credit score of 75 is approved for a 233.00 USDC loan at 9.5% APR, secured by 100.000000 collateral shares and GPU gpu-a. The loan has an initial LTV of 0.466000 against a maximum LTV limit of 0.471485, with a liquidation threshold set at 0.771485. This structure provides adequate collateral backing with a coverage ratio of 1.011770 and no expected loss based on the quote analysis."
+
+Sample risk alert (live, verbatim, contract input `contracts/pricing/risk_alert.json`):
+> "Your loan LTV has reached 0.710000, exceeding the margin call threshold of 0.700000. You must immediately deposit additional collateral or repay part of your 35.500000 outstanding balance to avoid liquidation. If your LTV reaches the liquidation threshold of 0.850000, your collateral will be automatically liquidated."
 
 ### Real Bedrock Sample Output
 

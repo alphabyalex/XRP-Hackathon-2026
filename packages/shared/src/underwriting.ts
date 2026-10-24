@@ -46,6 +46,7 @@ export interface CreditComponent {
   features: string[];
   ownScore: { score: number; grade: string; confidence: string };
   ownership?: { verified: boolean; status: string } | null;
+  role?: "reference"; // shown for context (its own score), not part of the combined score
 }
 
 // GET /credit/stats (proxy of services/credit GET /stats)
@@ -203,6 +204,7 @@ export interface AgentText {
   latencyMs: number;
   fellBack: boolean; // true = deterministic fallback, not Bedrock
   source: DataSource;
+  outcome?: string; // pricing's reason: ok | timeout | unverified_numbers | invalid_json | error:<Type>
 }
 
 // --- api routes ------------------------------------------------------------
@@ -238,9 +240,10 @@ export interface LoanQuoteApiResponse {
   quote: RiskQuote;
   terms: Xls66Terms;
   credit: CreditProfile;
-  memo: AgentText;
+  memo: AgentText | null; // null while Bedrock is still writing it (memoStatus "pending")
+  memoStatus: "ready" | "pending";
   revenue24h: DecimalString;
-  sources: { credit: DataSource; risk: DataSource; memo: DataSource; revenue: DataSource; oracle: DataSource };
+  sources: { credit: DataSource; risk: DataSource; memo: DataSource | "pending"; revenue: DataSource; oracle: DataSource };
 }
 
 export interface XlsLoanRecord {

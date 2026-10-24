@@ -54,7 +54,18 @@ CREATE TABLE IF NOT EXISTS demo_links (
   mainnet_address TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS wallets (
+  borrower TEXT PRIMARY KEY,
+  network TEXT NOT NULL,
+  address TEXT NOT NULL,
+  public_key TEXT,
+  verified INTEGER NOT NULL,
+  connected_at TEXT NOT NULL
+);
 """
+
+# Columns added after the first release; ALTER fails harmlessly once they exist.
+MIGRATIONS = ["ALTER TABLE link_challenges ADD COLUMN network TEXT NOT NULL DEFAULT 'mainnet'"]
 
 
 class Store:
@@ -65,6 +76,11 @@ class Store:
         self._lock = threading.Lock()
         with self._lock:
             self._conn.executescript(SCHEMA)
+            for sql in MIGRATIONS:
+                try:
+                    self._conn.execute(sql)
+                except sqlite3.OperationalError:
+                    pass
 
     def execute(self, sql: str, args: tuple[Any, ...] = ()) -> list[sqlite3.Row]:
         with self._lock:

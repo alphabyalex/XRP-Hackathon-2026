@@ -16,6 +16,7 @@
     "xrpl:smoke": "npm run smoke -w packages/xrpl",
     "demo": "node scripts/demo.mjs",
     "demo:mock": "node scripts/demo.mjs --mock-xrpl",
+    "demo:prod": "node scripts/demo.mjs --prod",
     "demo:reset": "tsx scripts/demo-reset.ts",
     "demo:check": "node scripts/demo-path.mjs"
   },

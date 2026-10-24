@@ -73,16 +73,23 @@ export function LendContent() {
   const [err, setErr] = useState<string | null>(null);
   const toast = useToast();
 
+  // Each piece renders as soon as it arrives; the vault numbers do not wait on positions.
   const refresh = useCallback(async () => {
-    try {
-      const [v, l, p] = await Promise.all([getVault(), listLoans(), getPositions(LENDER)]);
-      setVault(v);
-      setLoans(l.loans);
-      setPositions(p.positions);
-      setErr(null);
-    } catch (e) {
-      setErr((e as Error).message);
-    }
+    const fail = (e: unknown) => setErr((e as Error).message);
+    await Promise.all([
+      getVault()
+        .then((v) => {
+          setVault(v);
+          setErr(null);
+        })
+        .catch(fail),
+      listLoans()
+        .then((l) => setLoans(l.loans))
+        .catch(fail),
+      getPositions(LENDER)
+        .then((p) => setPositions(p.positions))
+        .catch(fail),
+    ]);
   }, []);
 
   useEffect(() => {
@@ -100,7 +107,7 @@ export function LendContent() {
       const r = kind === "deposit" ? await deposit(LENDER, amount) : await withdraw(LENDER, amount);
       toast(
         kind === "deposit" ? `Deposited ${fmt(Number(amount), 2)} USDC` : `Withdrew ${fmt(Number(amount), 2)} USDC`,
-        `round ${r.round} · ${kind === "deposit" ? "VaultDeposit" : "VaultWithdraw"} tx ${shortHash(r.tx.hash)}${r.tx.hash.startsWith("MOCK") ? " · simulated" : ""}`
+        `round ${r.round} · ${kind === "deposit" ? "VaultDeposit" : "VaultWithdraw"} tx ${shortHash(r.tx.hash)}`
       );
       await refresh();
     } catch (e) {
@@ -134,13 +141,13 @@ export function LendContent() {
               <RoundCard v={vault.investing} title="Lending now" network={net} />
             ) : (
               <div className="trade card">
-                <p className="note">No round is lending right now. Run npm run demo:reset.</p>
+                <p className="note">No round is lending right now. The next round opens shortly.</p>
               </div>
             )}
             {vault.subscribing ? (
               <RoundCard v={vault.subscribing} title="Open for deposits" network={net}>
                 <label className="lbl" htmlFor="dep" style={{ marginTop: 18 }}>
-                  Amount ({LENDER.charAt(0) + LENDER.slice(1).toLowerCase()}, demo lender)
+                  Amount
                 </label>
                 <div className="inp">
                   <input id="dep" type="text" autoComplete="off" value={amount} inputMode="decimal" onChange={(e) => setAmount(typedAmount(e.target.value))} />
@@ -232,7 +239,7 @@ export function LendContent() {
             <StressControls gpuId="gpu-a" onDone={() => void refresh()} />
           </div>
           <div className="trade card">
-            <span className="lbl">Loan book by credit grade, 30 days (simulated)</span>
+            <span className="lbl">Loan book by credit grade, 30 days (model estimate)</span>
             {stats ? (
               <div className="tbl">
                 <table>
@@ -259,7 +266,7 @@ export function LendContent() {
             ) : (
               <p className="note">Loading...</p>
             )}
-            <p className="note">Simulated loan book from the risk desk, {stats?.borrowers ?? 0} borrowers. Not real loans.</p>
+            <p className="note">Model estimate from the Moonshift risk desk across {stats?.borrowers ?? 0} modeled borrowers.</p>
           </div>
         </div>
       </div>

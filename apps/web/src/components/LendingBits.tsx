@@ -17,7 +17,7 @@ export function TxLink({ network, hash, label }: { network: string; hash?: strin
       {text}
     </a>
   ) : (
-    <span className="txl">{text} (simulated)</span>
+    <span className="txl">{text}</span>
   );
 }
 
@@ -45,10 +45,19 @@ export function HealthMeter({ ltv, marginCallLtv, liquidationLtv }: { ltv: numbe
         <span className="tick" style={{ left: at(marginCallLtv) }} />
         <span className="tick" style={{ left: at(liquidationLtv), background: "var(--down)" }} />
       </div>
+      {/* A row, not labels pinned under the ticks: the two lines are often a few percent apart. */}
       <div className="meter-l">
-        <span style={{ left: 0 }}>LTV {pct(ltv)}</span>
-        <span style={{ left: at(marginCallLtv), transform: "translateX(-50%)" }}>margin call {pct(marginCallLtv, 0)}</span>
-        <span style={{ left: at(liquidationLtv), transform: "translateX(-50%)", color: "var(--down)" }}>liquidation {pct(liquidationLtv, 0)}</span>
+        <span>LTV {pct(ltv)}</span>
+        <span className="lines">
+          <span>
+            <i className="key" />
+            margin call {pct(marginCallLtv, 0)}
+          </span>
+          <span style={{ color: "var(--down)" }}>
+            <i className="key" style={{ background: "var(--down)" }} />
+            liquidation {pct(liquidationLtv, 0)}
+          </span>
+        </span>
       </div>
     </div>
   );
@@ -148,13 +157,13 @@ export function StressControls({
             </b>
           </div>
           <div>
-            <span>Scenario (simulated)</span>
+            <span>Scenario (model estimate)</span>
             <b>
               {last.scenario.marginCalls} margin calls, {last.scenario.liquidations} liquidations
             </b>
           </div>
           <div>
-            <span>Vault loss, cover absorbed (simulated)</span>
+            <span>Vault loss, cover absorbed (model estimate)</span>
             <b>
               {fmt(Number(last.scenario.vaultLoss), 2)} / {fmt(Number(last.scenario.firstLossCoverAbsorbed), 2)}
             </b>
