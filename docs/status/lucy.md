@@ -25,8 +25,16 @@
   real on-time Moonshift repayments, thin file because testnet reset today);
   mainnet genesis account scores 74/B, high confidence.
 
+- Phase 4: mainnet profiles are `readOnly: true`, `network: mainnet`, and
+  the XRPL client has no submit path at all (only read methods allowed, tested).
+  Stretch done: POST /link/challenge and POST /link/verify prove a borrower
+  controls a mainnet address with an off-ledger signed message checked by
+  xrpl-py (master key, or the account's RegularKey read via account_info).
+  Verified mainnet profiles carry `ownership`. GET /links/{borrower} lists
+  linked addresses. scripts/sign_link.py signs a challenge offline for the demo.
+
 ## Next
-- Phase 4: mainnet read-only mode and signed-message proof of ownership.
+- Phase 5: live monitoring via Quicknode Streams (primary) and WebSocket (fallback).
 
 ## Blockers
 - No `.env` in the repo yet, so `QUICKNODE_XRPL_MAINNET_URL` and
