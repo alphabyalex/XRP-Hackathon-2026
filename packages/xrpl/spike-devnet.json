@@ -1,0 +1,311 @@
+{
+  "network": "wss://s.devnet.rippletest.net:51233",
+  "startedAt": "2026-10-24T16:37:45.214Z",
+  "addresses": {
+    "TDX_ISSUER": "rM1RgZBRdXqSuhcyfk4wfcv34c6sbxqXpW",
+    "SHARE_ISSUER": "rnV3srDgkfM5qMByNktRskYjfKbHWjseEn",
+    "BROKER": "rEgQZ28oDBq81Sn8vfFUiMTRgTEaG5SbyL",
+    "LENDER": "rvDSVH3kbggFb3otgbCUdpPCMC3bweBAE",
+    "ALICE": "rKMSqox5vjUBczHHaRK6ETQuFoKN7bWBEY"
+  },
+  "ids": {
+    "subscriptionDate": 846175241,
+    "redemptionDate": 846178841,
+    "vaultId": "C824CF3075FF97F4A2984F24163CB1C18E93677E1ECF9A3DF97D98C35EA3BD7B",
+    "loanBrokerId": "5F836F306E1FF0908BFD9848BAAAF9F97A64E1F3CB661A53964AA1807D6B7737",
+    "loanA": "9FEA78277A53B9D2E3D770A8CC7CFA73928AFCBE1BB8050C4B0C223F21E62EDC",
+    "loanB": "613DFFECEC5A869C3890CDB37C13B4C83D57ECFDA40C47FE829ABA809A6D5744"
+  },
+  "steps": [
+    {
+      "step": "TDX_ISSUER DefaultRipple",
+      "result": "tesSUCCESS",
+      "hash": "C733A3798E539535276D8FBCB70D030C24ADBAAAA91DA1159140A336A1612F90"
+    },
+    {
+      "step": "TDX_ISSUER AllowTrustLineLocking",
+      "result": "tesSUCCESS",
+      "hash": "66DF25B4B5B381E67CA957A8AAE693F0AE77CBDEF5DF6001EB876746B2D4F13F"
+    },
+    {
+      "step": "SHARE_ISSUER DefaultRipple",
+      "result": "tesSUCCESS",
+      "hash": "19584ADD2B4C5A76DF40844A27B30053A68413DF430710EC7E00A920EE65D4E1"
+    },
+    {
+      "step": "SHARE_ISSUER AllowTrustLineLocking",
+      "result": "tesSUCCESS",
+      "hash": "297C6634EDDF927EC6B9ED0C35F43A43A412E2ECE750FC2C6B30B5BE2156BDE4"
+    },
+    {
+      "step": "BROKER trusts TDX",
+      "result": "tesSUCCESS",
+      "hash": "8FE55003130CA088072B870C1A557D2B86CBF1A554B4A220C18BEA1A9A7C00EA"
+    },
+    {
+      "step": "LENDER trusts TDX",
+      "result": "tesSUCCESS",
+      "hash": "64FA43FF7EB7E27D482C2F0246FC607BD0FCFC961D69ADB13FA2AAF79910CE06"
+    },
+    {
+      "step": "ALICE trusts TDX",
+      "result": "tesSUCCESS",
+      "hash": "36924F8B177E589CFF8CAD314C743F39E9FD430FE59E39417171731593CE805E"
+    },
+    {
+      "step": "BROKER trusts GPA",
+      "result": "tesSUCCESS",
+      "hash": "C80FF5A69B110CF9988ADF918C05E82D165CBBA19CA8D5EF396D669CAD9F21BC"
+    },
+    {
+      "step": "ALICE trusts GPA",
+      "result": "tesSUCCESS",
+      "hash": "B514433DCA79835C6F03F72A5FBF4448D7C693E8493A07CEE53E0ECECC100245"
+    },
+    {
+      "step": "issue 10000 TDX to LENDER",
+      "result": "tesSUCCESS",
+      "hash": "B6CA88F51F03A5676856C11A2B1877595A8846192D4864D3E15D905CFFC7BB1E"
+    },
+    {
+      "step": "issue 1000 TDX to BROKER (cover)",
+      "result": "tesSUCCESS",
+      "hash": "0FCC84DF0E7C4FFCB931E0BF57935BF05A36322B4C9C9F73DC99D6ECDF729D79"
+    },
+    {
+      "step": "issue 500 TDX to ALICE (interest)",
+      "result": "tesSUCCESS",
+      "hash": "858F1B715F892467E79398D884AF80EFAFE0B0AC393A4AFE8A7378061A18C7B2"
+    },
+    {
+      "step": "issue 200 GPA shares to ALICE",
+      "result": "tesSUCCESS",
+      "hash": "B963DBFA0E48E21602036F86EE713D41D56B613E784E06600D7E2D666005761F"
+    },
+    {
+      "step": "VaultCreate (TDX IOU, closed-ended)",
+      "result": "tesSUCCESS",
+      "hash": "15E30264831F6C98132264CF34DEC97109419B00F07D61296AB7B232CD787CF9"
+    },
+    {
+      "step": "LENDER VaultDeposit 5000 TDX",
+      "result": "tesSUCCESS",
+      "hash": "5E0C0CD137A4A9EDAAD05D9A435454A548B34AEAD4A61CEEE1B5902D46DE2748"
+    },
+    {
+      "step": "LENDER VaultWithdraw 50 TDX (subscription)",
+      "result": "tesSUCCESS",
+      "hash": "170454C9108F8CCD9B5660B7B04EFEFAD5958A189F9C0A2C593A29F048EEA169"
+    },
+    {
+      "step": "LoanBrokerSet",
+      "result": "tesSUCCESS",
+      "hash": "43641715C17B7A7604595F987E3056F89E07141D3EECD71E7859EE4E62F748BA"
+    },
+    {
+      "step": "LoanBrokerCoverDeposit 200 TDX",
+      "result": "tesSUCCESS",
+      "hash": "28A41881FC2F718C151EE3EA91D7BFCF5E08C7CE5D5D5F6F34F46C4D1BC9B9F7"
+    },
+    {
+      "step": "LENDER VaultDeposit 10 TDX (investment)",
+      "result": "tecEXPIRED",
+      "hash": "D140638A574D78A33B2F4405DB51E97930F55F692FDA5B0DA1DF95C659F75AD6"
+    },
+    {
+      "step": "loan A: ALICE escrows 100 GPA",
+      "result": "tesSUCCESS",
+      "hash": "17230ABEBAA0C59ACE4F41FAB18BDC117A4F005FE3AF0E2B0EE90B9D050E402E"
+    },
+    {
+      "step": "loan A: LoanSet (broker + ALICE countersign)",
+      "result": "tesSUCCESS",
+      "hash": "C3F4C746677CA83F0AD796E420CCB89B8EC0F7E0FFFD673F186966070EE6C6B2"
+    },
+    {
+      "step": "loan A: ALICE LoanPay periodic",
+      "result": "tesSUCCESS",
+      "hash": "C2145707E993E6E606C2439C08AF0D8C0286554E22914F0A69BE1698F4D53897"
+    },
+    {
+      "step": "margin call memo (1 drop to ALICE)",
+      "result": "tesSUCCESS",
+      "hash": "D8D9F3C17F0030D2128A594925544AC8AA8DAFF7DC1C3D290AF4930D2018D11A"
+    },
+    {
+      "step": "loan A: ALICE LoanPay full payoff",
+      "result": "tesSUCCESS",
+      "hash": "65711D23039013F9EFFC4DC3F659F43869E74EC155A346EF10216AD61A1D99FC"
+    },
+    {
+      "step": "loan A: Batch(EscrowFinish + return shares)",
+      "result": "tesSUCCESS",
+      "hash": "B4CC545415B7F44FD1F0B2F5DEF7EA9612E6138713CA2120888149AADF3D4AE4"
+    },
+    {
+      "step": "loan A: LoanDelete",
+      "result": "tesSUCCESS",
+      "hash": "16EE911C4163B1F9BC100CA1EEFDD5E673EE2DAC51EA29C24EF1282E2455B67A"
+    },
+    {
+      "step": "loan B: ALICE escrows 50 GPA",
+      "result": "tesSUCCESS",
+      "hash": "BB934CB2FF5F8C94C9F426EECE3240041DD47F6CFD5AD35B745EBA3CB17790D4"
+    },
+    {
+      "step": "loan B: LoanSet (broker + ALICE countersign)",
+      "result": "tesSUCCESS",
+      "hash": "7F9537C296C8DD3D06BD531817D2B67302C366DDF32E74482073042DDCB42D74"
+    },
+    {
+      "step": "loan B: LoanManage impair",
+      "result": "tesSUCCESS",
+      "hash": "4434A56BDA448876055DB8B2E33D96D5F26EC95F07924630010317D59C16E989"
+    },
+    {
+      "step": "loan B: LoanManage default",
+      "result": "tesSUCCESS",
+      "hash": "1049F59DF69F1DA9165035349406BC09E044003CF7E62297144803C64CB797E9"
+    },
+    {
+      "step": "loan B: seize collateral (EscrowFinish)",
+      "result": "tesSUCCESS",
+      "hash": "E43C99AF6C07682E105A251CA53482B7A7950A6C77E9A70E2AEC07D90AD44066"
+    },
+    {
+      "step": "LENDER VaultWithdraw 100 TDX",
+      "result": "tecTOO_SOON",
+      "hash": "2AB207EA2ECB8ACBD67FCB3B16B4C4042479F5AA52301B86FFA5E6C8F19D6E74"
+    }
+  ],
+  "state": {
+    "loanA_opened": {
+      "Borrower": "rKMSqox5vjUBczHHaRK6ETQuFoKN7bWBEY",
+      "Flags": 0,
+      "GracePeriod": 120,
+      "InterestRate": 12000,
+      "LedgerEntryType": "Loan",
+      "LoanBrokerID": "5F836F306E1FF0908BFD9848BAAAF9F97A64E1F3CB661A53964AA1807D6B7737",
+      "LoanBrokerNode": "0",
+      "LoanScale": -12,
+      "LoanSequence": 1,
+      "ManagementFeeOutstanding": "0.000022831067",
+      "NextPaymentDueDate": 846175862,
+      "OwnerNode": "0",
+      "PaymentInterval": 600,
+      "PaymentRemaining": 3,
+      "PeriodicPayment": "166.667427702245843",
+      "PreviousTxnID": "C3F4C746677CA83F0AD796E420CCB89B8EC0F7E0FFFD673F186966070EE6C6B2",
+      "PreviousTxnLgrSeq": 6383134,
+      "PrincipalOutstanding": "500",
+      "StartDate": 846175262,
+      "TotalValueOutstanding": "500.002283106738",
+      "index": "9FEA78277A53B9D2E3D770A8CC7CFA73928AFCBE1BB8050C4B0C223F21E62EDC"
+    },
+    "loanA_afterPay": {
+      "Borrower": "rKMSqox5vjUBczHHaRK6ETQuFoKN7bWBEY",
+      "Flags": 0,
+      "GracePeriod": 120,
+      "InterestRate": 12000,
+      "LedgerEntryType": "Loan",
+      "LoanBrokerID": "5F836F306E1FF0908BFD9848BAAAF9F97A64E1F3CB661A53964AA1807D6B7737",
+      "LoanBrokerNode": "0",
+      "LoanScale": -12,
+      "LoanSequence": 1,
+      "ManagementFeeOutstanding": "0.000011415543",
+      "NextPaymentDueDate": 846176462,
+      "OwnerNode": "0",
+      "PaymentInterval": 600,
+      "PaymentRemaining": 2,
+      "PeriodicPayment": "166.667427702245843",
+      "PreviousPaymentDueDate": 846175862,
+      "PreviousTxnID": "C2145707E993E6E606C2439C08AF0D8C0286554E22914F0A69BE1698F4D53897",
+      "PreviousTxnLgrSeq": 6383136,
+      "PrincipalOutstanding": "333.333713850269",
+      "StartDate": 846175262,
+      "TotalValueOutstanding": "333.334855404492",
+      "index": "9FEA78277A53B9D2E3D770A8CC7CFA73928AFCBE1BB8050C4B0C223F21E62EDC"
+    },
+    "loanA_afterPayoff": {
+      "Borrower": "rKMSqox5vjUBczHHaRK6ETQuFoKN7bWBEY",
+      "Flags": 0,
+      "GracePeriod": 120,
+      "InterestRate": 12000,
+      "LedgerEntryType": "Loan",
+      "LoanBrokerID": "5F836F306E1FF0908BFD9848BAAAF9F97A64E1F3CB661A53964AA1807D6B7737",
+      "LoanBrokerNode": "0",
+      "LoanScale": -12,
+      "LoanSequence": 1,
+      "OwnerNode": "0",
+      "PaymentInterval": 600,
+      "PeriodicPayment": "166.667427702245843",
+      "PreviousPaymentDueDate": 846176462,
+      "PreviousTxnID": "65711D23039013F9EFFC4DC3F659F43869E74EC155A346EF10216AD61A1D99FC",
+      "PreviousTxnLgrSeq": 6383140,
+      "StartDate": 846175262,
+      "index": "9FEA78277A53B9D2E3D770A8CC7CFA73928AFCBE1BB8050C4B0C223F21E62EDC"
+    },
+    "loanB_afterDefault": {
+      "Borrower": "rKMSqox5vjUBczHHaRK6ETQuFoKN7bWBEY",
+      "Flags": 196608,
+      "GracePeriod": 60,
+      "InterestRate": 12000,
+      "LedgerEntryType": "Loan",
+      "LoanBrokerID": "5F836F306E1FF0908BFD9848BAAAF9F97A64E1F3CB661A53964AA1807D6B7737",
+      "LoanBrokerNode": "0",
+      "LoanScale": -12,
+      "LoanSequence": 2,
+      "OwnerNode": "0",
+      "PaymentInterval": 60,
+      "PeriodicPayment": "300.0000684932886849",
+      "PreviousTxnID": "1049F59DF69F1DA9165035349406BC09E044003CF7E62297144803C64CB797E9",
+      "PreviousTxnLgrSeq": 6383193,
+      "StartDate": 846175310,
+      "index": "613DFFECEC5A869C3890CDB37C13B4C83D57ECFDA40C47FE829ABA809A6D5744"
+    },
+    "vault": {
+      "Account": "rJ9ymbEJZXqXiXQqcSYNqHAprp89FQVFTc",
+      "Asset": {
+        "currency": "TDX",
+        "issuer": "rM1RgZBRdXqSuhcyfk4wfcv34c6sbxqXpW"
+      },
+      "AssetsAvailable": "4665.001130136991",
+      "AssetsTotal": "4665.001130136991",
+      "Data": "4D6F6F6E73686966742047505520637265646974207661756C74",
+      "Flags": 0,
+      "LEVersion": 1,
+      "LedgerEntryType": "Vault",
+      "Owner": "rEgQZ28oDBq81Sn8vfFUiMTRgTEaG5SbyL",
+      "OwnerNode": "0",
+      "PreviousTxnID": "1049F59DF69F1DA9165035349406BC09E044003CF7E62297144803C64CB797E9",
+      "PreviousTxnLgrSeq": 6383193,
+      "RedemptionDate": 846178841,
+      "Scale": 6,
+      "Sequence": 6383082,
+      "ShareMPTID": "00000001BC2CDAAEA1A41B7854AE53EE9D34AA30D35A9D32",
+      "SubscriptionDate": 846175241,
+      "VaultKind": 1,
+      "WithdrawalPolicy": 1,
+      "index": "C824CF3075FF97F4A2984F24163CB1C18E93677E1ECF9A3DF97D98C35EA3BD7B"
+    },
+    "loanBroker": {
+      "Account": "rBCwarSUeAv3mNaUVX6nVgVSw7BcaHxXhm",
+      "CoverAvailable": "185",
+      "CoverRateLiquidation": 50000,
+      "CoverRateMinimum": 10000,
+      "Flags": 0,
+      "LedgerEntryType": "LoanBroker",
+      "LoanSequence": 3,
+      "ManagementFeeRate": 1000,
+      "Owner": "rEgQZ28oDBq81Sn8vfFUiMTRgTEaG5SbyL",
+      "OwnerCount": 1,
+      "OwnerNode": "0",
+      "PreviousTxnID": "1049F59DF69F1DA9165035349406BC09E044003CF7E62297144803C64CB797E9",
+      "PreviousTxnLgrSeq": 6383193,
+      "Sequence": 6383083,
+      "VaultID": "C824CF3075FF97F4A2984F24163CB1C18E93677E1ECF9A3DF97D98C35EA3BD7B",
+      "VaultNode": "0",
+      "index": "5F836F306E1FF0908BFD9848BAAAF9F97A64E1F3CB661A53964AA1807D6B7737"
+    }
+  }
+}
