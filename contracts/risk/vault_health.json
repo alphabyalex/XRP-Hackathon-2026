@@ -1,0 +1,14 @@
+{
+  "request": {"method": "GET", "path": "/vault/health"},
+  "response": {
+    "activeLoans": 3,
+    "vaultDeposits": "10000.000000",
+    "outstandingPrincipal": "209.000000",
+    "utilization": "0.020900",
+    "weightedAverageApr": "0.080478",
+    "expectedLoss": "0.000000",
+    "firstLossCover": "250.000000",
+    "coverRatio": "UNBOUNDED",
+    "simulated": true
+  }
+}

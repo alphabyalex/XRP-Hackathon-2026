@@ -1,0 +1,25 @@
+{
+  "request": {"method": "GET", "path": "/book/stats?grade=C"},
+  "response": {
+    "periodDays": 30,
+    "borrowers": 100,
+    "grades": [
+      {
+        "grade": "C",
+        "loans": 100,
+        "defaultRate": "0.230000",
+        "marginCallRate": "0.300000",
+        "cureRate": "0.233333",
+        "outcomes": {
+          "repaidOnTime": 67,
+          "late": 3,
+          "marginCalledThenCured": 7,
+          "liquidated": 23
+        },
+        "simulated": true
+      }
+    ],
+    "simulated": true
+  }
+}
+

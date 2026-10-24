@@ -1,0 +1,52 @@
+{
+  "request": {
+    "borrower": "rExampleBorrower",
+    "gpuId": "gpu-a",
+    "collateralShares": "100.000000",
+    "principal": "0.010000",
+    "termSeconds": 600,
+    "creditProfile": {
+      "address": "rExampleBorrower",
+      "network": "testnet",
+      "score": 82,
+      "grade": "B",
+      "confidence": 0.9,
+      "features": {"repaymentCount": 8},
+      "evidence": [],
+      "reasons": []
+    },
+    "revenueHistory": [
+      {
+        "start": "2026-10-23T00:00:00Z",
+        "end": "2026-10-24T00:00:00Z",
+        "revenue": "120.000000",
+        "bookedMinutes": 480,
+        "inferenceMinutes": 600,
+        "idleMinutes": 360,
+        "utilizationPct": "75.000000",
+        "simulated": true
+      }
+    ],
+    "collateralPrice": "1.000000",
+    "collateralPriceHistory": [
+      {"timestamp": "2026-10-23T00:00:00Z", "price": "0.990000"},
+      {"timestamp": "2026-10-24T00:00:00Z", "price": "1.000000"}
+    ]
+  },
+  "response": {
+    "decision": "approve",
+    "ltv": "0.000100",
+    "maxLtv": "0.516048",
+    "apr": "0.090800",
+    "marginCallLtv": "0.666048",
+    "liquidationLtv": "0.816048",
+    "termSeconds": 600,
+    "paymentIntervalSeconds": 60,
+    "pd": "0.053000",
+    "pdLabel": "estimate",
+    "expectedLoss": "0.000000",
+    "coverageRatio": "6.729155",
+    "reasons": []
+  }
+}
+
