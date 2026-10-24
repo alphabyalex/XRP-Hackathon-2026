@@ -14,6 +14,7 @@ from functools import lru_cache
 
 from app import config as C
 from app.agent import fallback, guardrails
+from app.agent.memo_format import present
 from app.agent.prompts import (
     CREDIT_MEMO_SYSTEM_PROMPT,
     RISK_ALERT_SYSTEM_PROMPT,
@@ -134,9 +135,10 @@ def _converse_custom(system_prompt: str, user_content: str) -> str:
 def generate_credit_memo(credit_profile: dict, quote: dict, loan_request: dict) -> CreditMemo:
     """Generate plain-English credit memo using Bedrock with strict number verification guard."""
     started = time.monotonic()
+    # Raw inputs plus the formatted ones the memo is written from (200.00 USDC, 9.50%, 1.18x).
     allowed = guardrails.allowed_numbers(
         {"credit_profile": credit_profile, "quote": quote, "loan_request": loan_request}
-    )
+    ) | guardrails.allowed_numbers(present(credit_profile, quote, loan_request))
 
     def fallback_result() -> CreditMemo:
         latency = int((time.monotonic() - started) * 1000)

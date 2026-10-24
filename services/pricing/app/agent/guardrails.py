@@ -57,6 +57,12 @@ def allowed_numbers(data: object, key: str = "") -> set[Decimal]:
         out.add(Decimal(len(data)))
         for v in data:
             out |= allowed_numbers(v, key)
+    elif isinstance(data, str) and _as_decimal(data) is None:
+        # Formatted values ("200.00 USDC", "1.18x", "14 days"): every number inside them.
+        for m in re.finditer(r"\d[\d,]*(?:\.\d+)?", data):
+            d = _as_decimal(m.group())
+            if d is not None:
+                out.add(d)
     else:
         d = _as_decimal(data)
         if d is not None:

@@ -66,30 +66,17 @@ def loan(data: dict, flags: list[str]) -> str:
 
 
 def credit_memo(credit_profile: dict, quote: dict, loan_request: dict) -> str:
-    borrower = loan_request.get("borrower") or credit_profile.get("address") or "the borrower"
-    score = credit_profile.get("score", "unrated")
-    grade = credit_profile.get("grade", "N/A")
-    principal = loan_request.get("principal") or quote.get("principal") or "0"
-    collateral_shares = loan_request.get("collateralShares") or loan_request.get("collateral_shares") or "0"
-    gpu_id = loan_request.get("gpuId") or loan_request.get("gpu_id") or "GPU"
-    apr = quote.get("apr", "0")
-    ltv = quote.get("ltv", "0")
-    max_ltv = quote.get("maxLtv") or quote.get("max_ltv") or "0"
-    liquidation_ltv = quote.get("liquidationLtv") or quote.get("liquidation_ltv") or "0"
-    term_seconds = (
-        loan_request.get("termSeconds")
-        or loan_request.get("term_seconds")
-        or quote.get("termSeconds")
-        or "600"
-    )
-    pd = quote.get("pd", "0")
+    from app.agent.memo_format import present
 
+    p = present(credit_profile, quote, loan_request)
+    b, loan, q = p["borrower"], p["loan"], p["quote"]
     s = [
-        f"Borrower {borrower} holds Grade {grade} credit with a score of {score}.",
-        f"The requested loan of {principal} TDX is secured by {collateral_shares} shares of {gpu_id}.",
-        f"The loan offers an initial LTV of {ltv} against a maximum LTV limit of {max_ltv}.",
-        f"Terms specify an APR of {apr} for {term_seconds} seconds with an estimated default probability of {pd}.",
-        f"Liquidation is scheduled if LTV rises to {liquidation_ltv}.",
+        f"The borrower holds Grade {b.get('grade', 'N/A')} credit with a score of {b.get('score', 'unrated')}.",
+        f"The requested loan of {loan.get('principal', 'the requested amount')} is secured by {loan.get('collateral', 'GPU shares')}.",
+        f"The loan opens at {q.get('ltv', 'its')} LTV against a maximum of {q.get('maxLtv', 'the limit')}.",
+        f"Terms are {q.get('apr', 'the quoted rate')} APR for {loan.get('term', 'the term')}, "
+        f"with an estimated default probability of {q.get('defaultProbability', 'n/a')}.",
+        f"Liquidation starts if LTV reaches {q.get('liquidationLtv', 'the liquidation line')}.",
     ]
     return " ".join(s)
 
