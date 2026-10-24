@@ -17,6 +17,9 @@ import {
   REPO_ROOT,
 } from "./wallets.js";
 import { LedgerRejected } from "./errors.js";
+import { networkInfo, LOAN, type GpuId } from "@moonshift/shared";
+import { releaseCollateral } from "./collateral.js";
+import { openLendingLoan, repayLendingLoan, liquidateLoan } from "./lendingLoans.js";
 
 const LOANS_STORE_PATH = path.join(REPO_ROOT, "contracts", "active_loans.json");
 
@@ -52,7 +55,7 @@ function saveLoansRegistry(registry: Record<string, StoredLoan>): void {
   fs.writeFileSync(LOANS_STORE_PATH, JSON.stringify(registry, null, 2) + "\n", "utf8");
 }
 
-export async function openLoan(p: OpenLoanParams): Promise<OpenLoanResult> {
+async function openEscrowLoan(p: OpenLoanParams): Promise<OpenLoanResult> {
   const gpu = GPUS.find((g) => g.id === p.gpuId);
   if (!gpu) throw new Error(`Unknown gpuId: ${p.gpuId}`);
 
@@ -143,7 +146,7 @@ export async function openLoan(p: OpenLoanParams): Promise<OpenLoanResult> {
   };
 }
 
-export async function repayLoan(p: { loanId: string }): Promise<TxResult> {
+async function repayEscrowLoan(p: { loanId: string }): Promise<TxResult> {
   const registry = loadLoansRegistry();
   const loan = registry[p.loanId];
   if (!loan) {
@@ -182,10 +185,31 @@ export async function repayLoan(p: { loanId: string }): Promise<TxResult> {
   loan.repaid = true;
   saveLoansRegistry(registry);
 
+  // Release the shares right away (Batch: EscrowFinish + return) instead of
+  // making the borrower wait for CancelAfter. See collateral.ts.
+  try {
+    await releaseCollateral(
+      {
+        gpuId: loan.gpuId,
+        shares: loan.collateralShares,
+        owner: loan.borrowerAddress,
+        escrowSequence: loan.escrowSequence,
+        nonce: loan.loanId,
+        locked: true,
+      },
+      loan.loanId,
+      { condition: loan.condition, fulfillment: loan.fulfillment }
+    );
+    loan.settled = true;
+    saveLoansRegistry(registry);
+  } catch (e) {
+    console.warn(`Collateral release for ${loan.loanId} failed, settleLoan can retry:`, (e as Error).message);
+  }
+
   return txResult;
 }
 
-export async function settleLoan(p: { loanId: string }): Promise<TxResult> {
+async function settleEscrowLoan(p: { loanId: string }): Promise<TxResult> {
   const registry = loadLoansRegistry();
   const loan = registry[p.loanId];
   if (!loan) {
@@ -194,8 +218,21 @@ export async function settleLoan(p: { loanId: string }): Promise<TxResult> {
 
   const lendingPoolWallet = getAccountWallet("LENDING_POOL");
 
+  if (loan.repaid && !loan.settled) {
+    const res = await releaseCollateral(
+      { gpuId: loan.gpuId, shares: loan.collateralShares, owner: loan.borrowerAddress, escrowSequence: loan.escrowSequence, nonce: loan.loanId, locked: true },
+      loan.loanId,
+      { condition: loan.condition, fulfillment: loan.fulfillment }
+    ).catch(() => null);
+    if (res) {
+      loan.settled = true;
+      saveLoansRegistry(registry);
+      return res;
+    }
+  }
+
   if (loan.repaid) {
-    // EscrowCancel: Return shares to borrower (after CancelAfter expires)
+    // EscrowCancel fallback: return shares to borrower (after CancelAfter expires)
     const borrowerWallet = getAccountWallet(loan.borrower as any);
     const cancelTx: EscrowCancel = {
       TransactionType: "EscrowCancel",
@@ -224,4 +261,41 @@ export async function settleLoan(p: { loanId: string }): Promise<TxResult> {
     saveLoansRegistry(registry);
     return res;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Public entry points. On a lending network (devnet) these are XLS-66 loans
+// from a vault round with share collateral; on testnet they are the original
+// escrow loans. Existing callers keep the same names and shapes.
+// ---------------------------------------------------------------------------
+
+export async function openLoan(p: OpenLoanParams): Promise<OpenLoanResult> {
+  if (!networkInfo().lending) return openEscrowLoan(p);
+  const termSeconds = Math.max(120, Math.round((new Date(p.dueAt).getTime() - Date.now()) / 1000));
+  const r = await openLendingLoan({
+    borrower: p.borrower,
+    gpuId: p.gpuId as GpuId,
+    collateralShares: p.collateralShares,
+    principal: p.principal,
+    aprPct: LOAN.aprBps / 100,
+    termSeconds,
+    paymentIntervalSeconds: termSeconds, // single bullet payment
+  });
+  return { loanId: r.loanId, escrowTx: r.escrowTx, disburseTx: r.disburseTx };
+}
+
+export async function repayLoan(p: { loanId: string }): Promise<TxResult> {
+  if (!networkInfo().lending) return repayEscrowLoan(p);
+  const r = await repayLendingLoan({ loanId: p.loanId, mode: "full" });
+  return { hash: r.hash, result: r.result, validated: r.validated, explorerUrl: r.explorerUrl };
+}
+
+// Default settlement: seize the collateral (and default the XLS-66 loan when
+// the ledger allows it).
+export async function settleLoan(p: { loanId: string }): Promise<TxResult> {
+  if (!networkInfo().lending) return settleEscrowLoan(p);
+  const r = await liquidateLoan({ loanId: p.loanId, reason: "DEFAULT_SETTLEMENT" });
+  const tx = r.defaultTx ?? r.seizeTx;
+  if (!tx) throw new Error(`Nothing to settle for ${p.loanId}`);
+  return tx;
 }

@@ -228,3 +228,28 @@ The keeper needs these API routes from Alex. Every route uses
 The loan records returned to the keeper must retain the margin-call and
 liquidation thresholds from the accepted risk quote. The Risk Desk does not
 submit XRPL transactions itself.
+
+---
+
+## Requests from Alex (on-chain lane, packages/xrpl)
+
+Lending now runs on **devnet** with XLS-65 vaults and XLS-66 loans. Details: `docs/SPIKE_DEVNET_LENDING.md` and `packages/xrpl/README.md`.
+
+**For Lucy (services/credit): how to read Moonshift loan history.**
+
+Memo types are JSON in `MemoData` with `MemoType` = hex("text/plain"):
+
+| Memo `type` | Transaction | Meaning |
+|---|---|---|
+| `MS_COLLATERAL` | EscrowCreate (borrower to broker) | Shares locked as collateral |
+| `MS_LOAN_DISBURSE` | LoanSet (broker signs, borrower is `Counterparty`) | Loan opened, principal from vault |
+| `MS_REPAY` | LoanPay (borrower) | Repayment; `kind` is installment, payoff or prepay, and `onTime` is true or false |
+| `MS_MARGIN_CALL` | Payment of 1 drop, broker to borrower | Margin call, with `ltv` and `threshold` |
+| `MS_COLLATERAL_RELEASE` | Batch(EscrowFinish + Payment) by broker | Loan repaid, collateral returned. **This is NOT a liquidation**, even though the broker (LENDING_POOL) finishes the escrow. |
+| `MS_LIQUIDATION` | EscrowFinish by broker | Collateral seized. Count this one as a liquidation. |
+
+Also:
+- A defaulted XLS-66 loan is a `LoanManage` with flag `tfLoanDefault` (0x00010000), submitted by the broker.
+- Lending txs live on devnet, which Quicknode does not serve. For the `ms*` features, read devnet history from the public node (`https://s.devnet.rippletest.net:51234`). Devnet addresses are in `contracts/accounts.devnet.json`.
+- The `LENDING_POOL` address differs per network: testnet is `contracts/accounts.testnet.json`, devnet is `contracts/accounts.devnet.json`.
+- Your config comment says CancelAfter = dueAt + 120 s. On devnet it is maturity + grace + 3600 s, and repaid loans release collateral immediately, so CancelAfter is no longer a useful lateness signal. Use `MS_REPAY.onTime` and the loan's `NextPaymentDueDate`.

@@ -105,3 +105,102 @@ export function fix6(v: string | number | undefined): DecimalString {
   const n = Number(v ?? 0);
   return (Number.isFinite(n) ? n : 0).toFixed(6);
 }
+
+// ---------------------------------------------------------------------------
+// XLS-66 loans with GPU-share collateral (our layer on top of the protocol)
+// ---------------------------------------------------------------------------
+
+// Ledger view of a loan. "late" = past NextPaymentDueDate, "impaired" = the
+// broker flagged it (only allowed once late), "defaulted" = written off.
+export type LedgerLoanState = "open" | "late" | "impaired" | "repaid" | "defaulted";
+
+export interface CollateralLock {
+  gpuId: string;
+  shares: DecimalString;
+  owner: string; // borrower address (escrow owner)
+  escrowSequence: number;
+  nonce: string; // public; the escrow fulfillment is derived from it by the broker
+  locked: boolean; // escrow still on ledger
+}
+
+export interface LedgerLoan {
+  loanId: string;
+  loanBrokerId: string;
+  vaultId: string;
+  round: number;
+  borrower: string; // address
+  state: LedgerLoanState;
+  aprPct: string;
+  principalOutstanding: DecimalString;
+  totalValueOutstanding: DecimalString; // principal + scheduled interest still owed
+  interestOutstanding: DecimalString;
+  managementFeeOutstanding: DecimalString;
+  periodicPayment: DecimalString; // next installment, rounded up
+  paymentRemaining: number;
+  paymentIntervalSeconds: number;
+  gracePeriodSeconds: number;
+  startDate: IsoDateTime;
+  nextPaymentDueDate: IsoDateTime | null;
+  defaultEligibleAt: IsoDateTime | null; // next due date + grace period
+  collateral: CollateralLock | null;
+  explorerUrl: string; // the LoanSet transaction when known, else the broker
+}
+
+export interface OpenLendingLoanParams {
+  borrower: import("./types").AccountName;
+  gpuId: import("./constants").GpuId;
+  collateralShares: DecimalString;
+  principal: DecimalString;
+  aprPct: number; // e.g. 9.08
+  termSeconds: number;
+  paymentIntervalSeconds: number;
+  gracePeriodSeconds?: number; // default 60
+  round?: number; // default: newest round in its investment phase
+}
+
+export interface OpenLendingLoanResult {
+  loanId: string;
+  round: number;
+  vaultId: string;
+  loanBrokerId: string;
+  escrowTx: TxResultLite;
+  loanSetTx: TxResultLite;
+  disburseTx: TxResultLite; // same as loanSetTx: LoanSet moves principal from the vault
+  collateral: CollateralLock;
+  loan: LedgerLoan | null;
+}
+
+export interface RepayLoanResult {
+  hash: string; // last LoanPay
+  result: string;
+  validated: boolean;
+  explorerUrl: string;
+  payments: TxResultLite[];
+  paidOff: boolean;
+  releaseTx?: TxResultLite; // Batch(EscrowFinish + return shares)
+  deleteTx?: TxResultLite;
+  loan: LedgerLoan | null; // null once deleted
+}
+
+export interface MarginCallResult {
+  memoTx: TxResultLite;
+  loanId: string;
+  observedLtv: string;
+  threshold: string;
+}
+
+export interface LiquidationResult {
+  loanId: string;
+  seizeTx: TxResultLite | null; // null if collateral was already seized
+  defaultTx: TxResultLite | null; // null until due date + grace has passed
+  defaulted: boolean;
+  defaultEligibleAt: IsoDateTime | null;
+}
+
+// Structural copy of TxResult to avoid a circular import with ./types.
+export interface TxResultLite {
+  hash: string;
+  result: string;
+  validated: boolean;
+  explorerUrl: string;
+}

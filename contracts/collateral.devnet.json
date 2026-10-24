@@ -1,0 +1,61 @@
+{
+  "_note": "Public loan -> collateral escrow links. Rebuildable from LoanSet Data on ledger. No secrets.",
+  "loans": {
+    "2FFCFE9A41F6269539CD7DA55F576118F7B83539BDDC21C2CBDC0200759A397C": {
+      "gpuId": "gpu-a",
+      "shares": "50.000000",
+      "owner": "rPScK1uuXC9szrSg2qqkzMYqXGvK6Q2hYT",
+      "escrowSequence": 6383394,
+      "nonce": "D3AC4F3CEDA748EA1F844697"
+    },
+    "6BBDFEFCC39B7E16BE07C72B5AAD3F87FB7D6B912C4FA481960820ECD4514B3A": {
+      "gpuId": "gpu-a",
+      "shares": "100.000000",
+      "owner": "rPScK1uuXC9szrSg2qqkzMYqXGvK6Q2hYT",
+      "escrowSequence": 6383390,
+      "nonce": "285C8165B200049742336E94"
+    },
+    "2765B5468BB384CCB7E99549FEB480BEA6A22F33120CE2A3030ED87555D80937": {
+      "gpuId": "gpu-a",
+      "shares": "100.000000",
+      "owner": "rPScK1uuXC9szrSg2qqkzMYqXGvK6Q2hYT",
+      "escrowSequence": 6383396,
+      "nonce": "9BF3C890BD3A8A1E5CF29629"
+    },
+    "B5C180158DA4DD635BD6B7B793719D1ABD658FD81A87BD166CD69950F0541444": {
+      "gpuId": "gpu-a",
+      "shares": "50.000000",
+      "owner": "rPScK1uuXC9szrSg2qqkzMYqXGvK6Q2hYT",
+      "escrowSequence": 6383400,
+      "nonce": "96D282E85A404B998A153364"
+    },
+    "7DC2EB134790C4C1BEB1F92FAD3F0046F5BCB6193589746DE9D3318AA86FE2F6": {
+      "gpuId": "gpu-a",
+      "shares": "10.000000",
+      "owner": "rPScK1uuXC9szrSg2qqkzMYqXGvK6Q2hYT",
+      "escrowSequence": 6383402,
+      "nonce": "A7C84E3C055A42E65BB47A9D"
+    },
+    "0A517D515AB40C2F1F3F681BC3E07992F997FD5B7E71D7D9F8D55D9B11C67588": {
+      "gpuId": "gpu-a",
+      "shares": "10.000000",
+      "owner": "rUYwgUBQi7eTFDjbJMEjpNbyzXvFTUUsx1",
+      "escrowSequence": 6383393,
+      "nonce": "734A4FEB9E7E9942953C1F06"
+    },
+    "19268726E76330A1FAEDD046BA06F181041A0EA06158D827060F61A67CFE2BB7": {
+      "gpuId": "gpu-a",
+      "shares": "100.000000",
+      "owner": "rPScK1uuXC9szrSg2qqkzMYqXGvK6Q2hYT",
+      "escrowSequence": 6383405,
+      "nonce": "93AB90A9F7BBD994B0235564"
+    },
+    "774823E2967DB4811236CA8494C747639BAF61C4B240D8C70DA2DA4F9648E1FF": {
+      "gpuId": "gpu-a",
+      "shares": "50.000000",
+      "owner": "rPScK1uuXC9szrSg2qqkzMYqXGvK6Q2hYT",
+      "escrowSequence": 6383409,
+      "nonce": "FC1A6FBD2C73F777CA725861"
+    }
+  }
+}

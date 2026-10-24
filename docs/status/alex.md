@@ -4,6 +4,13 @@ Updated after each phase. Newest phase first in Done.
 
 ## Done
 
+### Phase 3: lending library (2026-10-24 13:30 EDT)
+- XLS-66 loans with GPU-share collateral in packages/xrpl: openLendingLoan, repayLendingLoan (installment or payoff), prepayLoan (margin call cure), marginCall, impairLoan/unimpairLoan, liquidateLoan, defaultLoan, getLedgerLoan, listLedgerLoans (read from the broker pseudo-account on ledger), getVaultSummary (lender APY from open loans).
+- Collateral bug fixed: repaid loans release shares immediately in one atomic Batch (EscrowFinish + return). Also applied to the testnet escrow loans.
+- Escrow keys are derived (HMAC of broker key + public nonce), so nothing secret is stored. The loan to escrow link is in contracts/collateral.devnet.json and can be rebuilt from the LoanSet tx on ledger (tested).
+- Compatibility: openLoan/repayLoan/settleLoan keep their names and shapes; on devnet they use XLS-66.
+- `NETWORK=devnet npm run xrpl:smoke` runs the old smoke plus the full lending cycle; all green.
+
 ### Phase 2: network switch and devnet world (2026-10-24 13:05 EDT)
 - `NETWORK=devnet|testnet` (packages/shared/src/network.ts) picks node, faucet and explorer. Devnet never uses Quicknode; DEVNET_WSS is the only devnet override. Endpoints are redacted before printing (Quicknode URLs carry a token).
 - Devnet accounts are separate: seeds `DEVNET_<NAME>_SEED` (written to .env by setup, never printed), addresses in `contracts/accounts.devnet.json`.
@@ -24,12 +31,15 @@ Updated after each phase. Newest phase first in Done.
 - Checked the two seed-shaped strings in `packages/xrpl/test/xrpl.test.ts`. They are format fixtures for `getSigningAlgorithm`. One derives to an unrelated address and the other is not a valid seed. Neither controls a team account.
 
 ## Next
-- Phase 3: XLS-66 loans with share escrow collateral, repay with prompt release, margin call (impair), liquidate, ledger-backed listLoans, devnet smoke test.
+- Phase 4: api wiring (credit, risk, pricing memo, compute revenue adapters; vault, credit, quote, loan routes; keeper internal routes; SSE loan events; background defaulter for liquidated loans).
 
 ## Blockers
 - Python 3.11 or newer is not installed on the integration machine (only 3.10). The pricing and compute services both fail to import (`datetime.UTC`). That blocks running pricing, compute, risk and credit locally. Fix: install Python 3.12 (`winget install Python.Python.3.12`), which needs Alexander's OK because it's a system install. Until then, the api talks to those services through their MOCK modes and contract JSON.
 
 ## Decisions
+- Margin call = MS_MARGIN_CALL memo + api state. The ledger refuses LoanManage impair before a payment is late, so impair is used only for late loans.
+- Liquidation = seize the escrowed shares now, then LoanManage default once due date + grace passes (the broker cannot LoanPay for the borrower). First-loss cover absorbs part of the vault loss. The api runs a background defaulter for liquidated loans.
+- Loans are opened with the overpayment flag so a borrower can cure a margin call by prepaying principal (installment + extra).
 - The Moonshift broker is the existing LENDING_POOL account (owns every vault and loan broker). BOB and CAROL are the demo lenders.
 - NETWORK defaults to testnet in code when unset (keeps old behavior); .env.example now says devnet. The demo start script sets NETWORK=devnet explicitly.
 - Rerunning setup tops balances back up to their targets (TDX 10000 per persona). Harmless on devnet.

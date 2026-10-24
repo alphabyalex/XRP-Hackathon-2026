@@ -1,0 +1,139 @@
+{
+  "network": "devnet",
+  "ranAt": "2026-10-24T17:24:46.037Z",
+  "borrower": "rPScK1uuXC9szrSg2qqkzMYqXGvK6Q2hYT",
+  "broker": "rsWQVjDESTe9JsS3DXL92icYXtpBF4Xktw",
+  "investingRound": 1,
+  "loanA": "19268726E76330A1FAEDD046BA06F181041A0EA06158D827060F61A67CFE2BB7",
+  "loanB": "774823E2967DB4811236CA8494C747639BAF61C4B240D8C70DA2DA4F9648E1FF",
+  "steps": [
+    {
+      "step": "BOB deposits 100 TDX into round 2",
+      "result": "tesSUCCESS",
+      "hash": "A687582C4D39D947C8A869183A945D3C9B9447486D67C26368A5EBA9BCABBC9C",
+      "url": "https://devnet.xrpl.org/transactions/A687582C4D39D947C8A869183A945D3C9B9447486D67C26368A5EBA9BCABBC9C"
+    },
+    {
+      "step": "ALICE buys 200 GPA on the DEX",
+      "result": "tesSUCCESS",
+      "hash": "737990F3D663982EF506D97D1122F1552ADC9219A0F5ACF8D43A3FD38625A954",
+      "url": "https://devnet.xrpl.org/transactions/737990F3D663982EF506D97D1122F1552ADC9219A0F5ACF8D43A3FD38625A954"
+    },
+    {
+      "step": "loan A: ALICE escrows 100 GPA (collateral)",
+      "result": "tesSUCCESS",
+      "hash": "DACB334143CDAA86BAD9729728EFB5AF238BFCEC251AACAAEFF649A0AD0D4E23",
+      "url": "https://devnet.xrpl.org/transactions/DACB334143CDAA86BAD9729728EFB5AF238BFCEC251AACAAEFF649A0AD0D4E23"
+    },
+    {
+      "step": "loan A: LoanSet (broker + ALICE countersign)",
+      "result": "tesSUCCESS",
+      "hash": "E9E223C339A14BBB29C4F26E78B78257E340A767AEF59C205E709F96DFEA0124",
+      "url": "https://devnet.xrpl.org/transactions/E9E223C339A14BBB29C4F26E78B78257E340A767AEF59C205E709F96DFEA0124"
+    },
+    {
+      "step": "loan A: ALICE pays one installment",
+      "result": "tesSUCCESS",
+      "hash": "212E8D398258F24C1D0C43FD9DE0D3AB6D266223CBFC7247D16D4D2FD4873DCD",
+      "url": "https://devnet.xrpl.org/transactions/212E8D398258F24C1D0C43FD9DE0D3AB6D266223CBFC7247D16D4D2FD4873DCD"
+    },
+    {
+      "step": "loan A: margin call memo (MS_MARGIN_CALL)",
+      "result": "tesSUCCESS",
+      "hash": "AF981DC7728B50C8BF07954B150D82085105D6229D904E8695A68BE5A9B776B7",
+      "url": "https://devnet.xrpl.org/transactions/AF981DC7728B50C8BF07954B150D82085105D6229D904E8695A68BE5A9B776B7"
+    },
+    {
+      "step": "loan A: ALICE pays installment + 10 TDX principal (cure)",
+      "result": "tesSUCCESS",
+      "hash": "6B5B9C87EAD0FA133AC6350195CAD462E84C8947BDE5006D4A03C9BA2F81DC38",
+      "url": "https://devnet.xrpl.org/transactions/6B5B9C87EAD0FA133AC6350195CAD462E84C8947BDE5006D4A03C9BA2F81DC38"
+    },
+    {
+      "step": "loan A: payoff LoanPay #1",
+      "result": "tesSUCCESS",
+      "hash": "99C1594A20752E98C45197F9E9C475DB2EC589729967ECBA82198728A1331E20",
+      "url": "https://devnet.xrpl.org/transactions/99C1594A20752E98C45197F9E9C475DB2EC589729967ECBA82198728A1331E20"
+    },
+    {
+      "step": "loan A: Batch release collateral to ALICE",
+      "result": "tesSUCCESS",
+      "hash": "6485BBDFD82358ADDBC60E384B6DDF238BA9045DB2D2349BB775383AE162ED34",
+      "url": "https://devnet.xrpl.org/transactions/6485BBDFD82358ADDBC60E384B6DDF238BA9045DB2D2349BB775383AE162ED34"
+    },
+    {
+      "step": "loan A: LoanDelete",
+      "result": "tesSUCCESS",
+      "hash": "80E0378806F34DA28927262AA23B96B49BB6E6BE41B6A646120AA81100167CB7",
+      "url": "https://devnet.xrpl.org/transactions/80E0378806F34DA28927262AA23B96B49BB6E6BE41B6A646120AA81100167CB7"
+    },
+    {
+      "step": "loan B: ALICE escrows 50 GPA",
+      "result": "tesSUCCESS",
+      "hash": "831963CA2A3E86C36C267E080342A1F214F361591791C5141D8E59C43F12BB60",
+      "url": "https://devnet.xrpl.org/transactions/831963CA2A3E86C36C267E080342A1F214F361591791C5141D8E59C43F12BB60"
+    },
+    {
+      "step": "loan B: LoanSet",
+      "result": "tesSUCCESS",
+      "hash": "7E9869F5844C83C1FF09EF441BC9FC7FD396008EBD5A876E204B36CEFA33A30C",
+      "url": "https://devnet.xrpl.org/transactions/7E9869F5844C83C1FF09EF441BC9FC7FD396008EBD5A876E204B36CEFA33A30C"
+    },
+    {
+      "step": "loan B: margin call memo",
+      "result": "tesSUCCESS",
+      "hash": "0B26AB5040E74A3C2539DEADA42B90E36B176CA6EB58EA67FF5F8AAADF5B9CE1",
+      "url": "https://devnet.xrpl.org/transactions/0B26AB5040E74A3C2539DEADA42B90E36B176CA6EB58EA67FF5F8AAADF5B9CE1"
+    },
+    {
+      "step": "loan B: seize collateral (MS_LIQUIDATION)",
+      "result": "tesSUCCESS",
+      "hash": "AF17E78B3EBCF985CC75CDB513326A0FD8EE83C0A347CC2A42770450FA2789C1",
+      "url": "https://devnet.xrpl.org/transactions/AF17E78B3EBCF985CC75CDB513326A0FD8EE83C0A347CC2A42770450FA2789C1"
+    },
+    {
+      "step": "loan B: LoanManage default",
+      "result": "tesSUCCESS",
+      "hash": "54CA73A39613165310014B0BD51863676CDE1100720C09894D1373741D277129",
+      "url": "https://devnet.xrpl.org/transactions/54CA73A39613165310014B0BD51863676CDE1100720C09894D1373741D277129"
+    },
+    {
+      "step": "BOB withdraws 50 TDX from round 2",
+      "result": "tesSUCCESS",
+      "hash": "80025429C12ADD814AFF773893213371B664698E2130A0C5D857AEFA56FE0A65",
+      "url": "https://devnet.xrpl.org/transactions/80025429C12ADD814AFF773893213371B664698E2130A0C5D857AEFA56FE0A65"
+    }
+  ],
+  "vault": {
+    "round": 1,
+    "vaultId": "3F449538CB3991C8659CD0D45EDD37088E76EB8D458E0DE0C4988CFCEB29371C",
+    "loanBrokerId": "9561A2D286D42C1E3B9B5156651A75D1C36540911EB85D55F6C36646E6052E3D",
+    "phase": "investment",
+    "asset": "TDX",
+    "assetsTotal": "6830.250207",
+    "assetsAvailable": "6805.250207",
+    "lossUnrealized": "0.000000",
+    "debtTotal": "25.000000",
+    "coverAvailable": "989.750000",
+    "utilizationPct": "0.37",
+    "sharesOutstanding": "7000.000000",
+    "sharePrice": "0.975750",
+    "lenderApyPct": "0.04",
+    "subscriptionDate": "2026-10-24T16:57:25.000Z",
+    "redemptionDate": "2026-11-07T16:57:25.000Z",
+    "explorerUrl": "https://devnet.xrpl.org/accounts/rMgztSjPX56tqfE1SyEaSTMXTYaK44xEKg"
+  },
+  "broker_state": {
+    "loanBrokerId": "9561A2D286D42C1E3B9B5156651A75D1C36540911EB85D55F6C36646E6052E3D",
+    "vaultId": "3F449538CB3991C8659CD0D45EDD37088E76EB8D458E0DE0C4988CFCEB29371C",
+    "owner": "rsWQVjDESTe9JsS3DXL92icYXtpBF4Xktw",
+    "account": "rfMFFg9xaKfMVYJxpXMASyhJEPTJyUFsKk",
+    "debtTotal": "25.000000",
+    "debtMaximum": "0.000000",
+    "coverAvailable": "989.750000",
+    "coverRateMinimumPct": "10.000",
+    "coverRateLiquidationPct": "50.000",
+    "managementFeePct": "1.000",
+    "loansOriginated": 10
+  }
+}

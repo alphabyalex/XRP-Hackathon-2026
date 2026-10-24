@@ -67,3 +67,23 @@ export {
   roundPhase,
 } from "./lending.js";
 export { ensureLendingRounds } from "./setup.js";
+
+// XLS-66 loans with GPU-share collateral (devnet)
+export {
+  openLendingLoan,
+  repayLendingLoan,
+  prepayLoan,
+  getLedgerLoan,
+  listLedgerLoans,
+  marginCall,
+  impairLoan,
+  unimpairLoan,
+  liquidateLoan,
+  defaultLoan,
+  weightedAprPct,
+  getVaultSummary,
+  accountNameFor,
+  findCollateral,
+  DEFAULT_GRACE_SECONDS,
+} from "./lendingLoans.js";
+export { conditionFor, releaseCollateral, seizeCollateral, escrowExists, decodeMemos } from "./collateral.js";

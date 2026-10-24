@@ -14,6 +14,7 @@ import {
   disconnectClient,
   getAccountAddress,
 } from "../index.js";
+import { networkInfo } from "@moonshift/shared";
 
 async function main() {
   console.log("==================================================================");
@@ -180,4 +181,8 @@ async function main() {
   }
 }
 
-main();
+// On a lending network (devnet) the full XLS-65/66 cycle runs after the
+// general smoke: deposit, open, pay, margin call, cure, liquidate, withdraw.
+main().then(async () => {
+  if (networkInfo().lending && !process.exitCode) await import("./smokeLending.js");
+});
