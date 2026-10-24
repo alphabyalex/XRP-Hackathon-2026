@@ -1459,9 +1459,18 @@ a.txl:hover {
 .sources b {
   font-weight: 500;
 }
-.sources span,
-.note.qn {
+.sources span {
   color: var(--ink2);
+}
+/* The one source mark per card: "via Quicknode", "via Amazon Bedrock" */
+.via {
+  display: block;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--ink3);
+}
+.memo .via {
+  margin-top: 8px;
 }
 
 .sources .unverified {
