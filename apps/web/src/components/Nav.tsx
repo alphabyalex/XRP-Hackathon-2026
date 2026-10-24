@@ -4,6 +4,7 @@ import Link from "next/link";
 import clsx from "clsx";
 import { MoonMark } from "./MoonMark";
 import { Button } from "./Button";
+import { ThemeToggle } from "./ThemeToggle";
 
 const LINKS = [
   { href: "/market", label: "Market" },
@@ -15,15 +16,20 @@ const LINKS = [
 
 export function Nav() {
   const [scrolled, setScrolled] = useState(false);
+  const [onNight, setOnNight] = useState(false);
   useEffect(() => {
-    const onScroll = () => setScrolled(scrollY > 8);
+    const onScroll = () => {
+      setScrolled(scrollY > 8);
+      const enter = document.getElementById("enter");
+      setOnNight(!!enter && enter.getBoundingClientRect().top < 72);
+    };
     onScroll();
     addEventListener("scroll", onScroll, { passive: true });
     return () => removeEventListener("scroll", onScroll);
   }, []);
 
   return (
-    <header className={clsx("nav", scrolled && "scrolled")}>
+    <header className={clsx("nav", scrolled && "scrolled", onNight && "on-night")}>
       <div className="wrap nav-in">
         <Link className="logo" href="/">
           <MoonMark size={28} />
@@ -36,9 +42,12 @@ export function Nav() {
             </Link>
           ))}
         </nav>
-        <Button href="/market" size="sm" className="cta">
-          Open app
-        </Button>
+        <div className="nav-end">
+          <ThemeToggle />
+          <Button href="/market" size="sm" className="cta">
+            Open app
+          </Button>
+        </div>
       </div>
     </header>
   );

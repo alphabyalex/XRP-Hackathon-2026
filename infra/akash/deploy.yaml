@@ -1,0 +1,52 @@
+version: "2.0"
+
+services:
+  moonshift-gpu:
+    image: vllm/vllm-openai:v0.6.2
+    expose:
+      - port: 8000
+        as: 8000
+        to:
+          - global: true
+    args:
+      - "--model"
+      - "Qwen/Qwen3-1.7B"
+      - "--dtype"
+      - "float16"
+      - "--max-model-len"
+      - "4096"
+      - "--chat-template-kwargs"
+      - '{"enable_thinking": false}'
+    env:
+      - "HUGGING_FACE_HUB_TOKEN="
+
+profiles:
+  compute:
+    moonshift-gpu:
+      resources:
+        cpu:
+          units: 4
+        memory:
+          size: 16Gi
+        storage:
+          - size: 100Gi
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              nvidia:
+                - model: t4
+  placement:
+    dcloud:
+      attributes:
+        host: akash
+      pricing:
+        moonshift-gpu:
+          denom: uakt
+          amount: 100000
+
+deployment:
+  moonshift-gpu:
+    dcloud:
+      profile: moonshift-gpu
+      count: 1

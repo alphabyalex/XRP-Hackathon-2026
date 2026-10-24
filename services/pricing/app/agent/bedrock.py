@@ -208,7 +208,7 @@ RETRY_REMINDER = (
 
 def _memo(text: str, started: float, outcome: str) -> CreditMemo:
     return CreditMemo(
-        memo=text.replace("—", ", "),
+        memo=text.replace("\u2014", ", "),
         model_id=C.BEDROCK_MODEL_ID,
         latency_ms=int((time.monotonic() - started) * 1000),
         fell_back=False,
@@ -251,7 +251,7 @@ def generate_risk_alert(event: dict) -> RiskAlert:
 
         latency = int((time.monotonic() - started) * 1000)
         return RiskAlert(
-            alert=parsed_text.replace("—", ", "),
+            alert=parsed_text.replace("\u2014", ", "),
             model_id=C.BEDROCK_MODEL_ID,
             latency_ms=latency,
             fell_back=False,
