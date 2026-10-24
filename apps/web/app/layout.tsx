@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import { Schibsted_Grotesk, Spline_Sans_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
@@ -35,10 +34,6 @@ export const metadata: Metadata = {
 const beforePaint = `
 document.documentElement.classList.add('js');
 try {
-  var storedTheme = localStorage.getItem('moonshift-theme');
-  if (storedTheme === 'dark' || storedTheme === 'light') {
-    document.documentElement.dataset.theme = storedTheme;
-  }
   var accent = new URLSearchParams(location.search).get('accent');
   if (accent === 'moon') document.documentElement.dataset.accent = 'moon';
   else if (accent === 'orange') delete document.documentElement.dataset.accent;
@@ -46,13 +41,9 @@ try {
 `;
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const stored = (await cookies()).get("moonshift-theme")?.value;
-  const dataTheme = stored === "dark" || stored === "light" ? stored : undefined;
-
   return (
     <html
       lang="en"
-      data-theme={dataTheme}
       data-accent={theme.defaultAccent === "moon" ? "moon" : undefined}
       className={`${schibstedGrotesk.variable} ${splineSansMono.variable}`}
       // beforePaint intentionally adds "js" and may change data-accent before hydration
