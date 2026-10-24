@@ -116,7 +116,8 @@ def decode_memos(tx: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def normalize(entry: dict[str, Any], close_time_iso: str | None = None) -> Tx:
-    tx = entry.get("tx_json") or entry.get("tx") or entry
+    # account_tx v2 / v1, WebSocket subscription messages ("transaction"), or a flat Streams tx.
+    tx = entry.get("tx_json") or entry.get("tx") or entry.get("transaction") or entry
     meta = entry.get("meta") or entry.get("metaData") or tx.get("metaData") or {}
     if isinstance(meta, str):  # binary meta is never requested, but never crash on it
         meta = {}

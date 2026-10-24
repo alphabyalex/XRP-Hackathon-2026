@@ -104,5 +104,7 @@ def test_source_is_quicknode_when_env_set(monkeypatch):
     assert C.quicknode_configured() == {"mainnet": False, "testnet": True, "devnet": False}
 
 
-def test_devnet_never_uses_quicknode():
-    assert C.endpoint("devnet")[1] == "public"
+def test_devnet_is_public_unless_a_quicknode_devnet_url_is_set(monkeypatch):
+    assert C.endpoint("devnet") == ("https://s.devnet.rippletest.net:51234/", "public")
+    monkeypatch.setenv("QUICKNODE_XRPL_DEVNET_URL", "https://example.xrp-devnet.quiknode.pro/tok/")
+    assert C.endpoint("devnet")[1] == "quicknode"

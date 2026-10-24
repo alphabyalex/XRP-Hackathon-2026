@@ -33,10 +33,29 @@
   Verified mainnet profiles carry `ownership`. GET /links/{borrower} lists
   linked addresses. scripts/sign_link.py signs a challenge offline for the demo.
 
+- Phase 5: live monitoring. Quicknode Streams is the primary path: JS filter
+  (services/credit/quicknode/streams_filter.js, tested in Node with a stubbed
+  qnLib) reads the Quicknode KV watchlist; signed receiver POST /streams/xrpl
+  (HMAC checked, gzip ok, filtered or raw ledger payloads). Classifier emits
+  LARGE_OUTFLOW, MS_LOAN_DISBURSE, MS_REPAY, MARGIN_CALL, LIQUIDATION and
+  MISSED_PAYMENT (15 s overdue check) to GET /events and api
+  POST /internal/credit-events. POST/DELETE/GET /watch keeps the KV list in
+  sync. WebSocket fallback (MONITOR_MODE=websocket) smoke-tested live on
+  public testnet. POST /monitor/simulate for rehearsals, labeled simulated.
+  Requests for Alex and Kristian added at the bottom of docs/CONTRACTS.md.
+
 ## Next
-- Phase 5: live monitoring via Quicknode Streams (primary) and WebSocket (fallback).
+- Phase 6: portfolio context from risk GET /book/stats (mocked until risk is up).
 
 ## Blockers
+- Streams needs a human in the Quicknode dashboard: create the Stream, paste
+  the filter, set the webhook URL, copy the security token into
+  `QUICKNODE_STREAMS_TOKEN`, and set `QUICKNODE_API_KEY` for the watchlist.
+  Steps in docs/QUICKNODE.md section 4. Also needs a public URL for the credit
+  service (EC2 or a tunnel). Until then MONITOR_MODE=websocket works.
+- Open question (Lucy): does the dashboard offer XRPL Devnet for endpoints and
+  Streams? Quicknode's docs list only Mainnet and Testnet. If yes, set
+  STREAMS_NETWORK=devnet and QUICKNODE_XRPL_DEVNET_URL; no code change needed.
 - No `.env` in the repo yet, so `QUICKNODE_XRPL_MAINNET_URL` and
   `QUICKNODE_XRPL_TESTNET_URL` are unset. The service falls back to public
   XRPL endpoints and labels every response `source: "public"` until a human
@@ -48,6 +67,13 @@
   watchlist, delivered to the credit service's signed webhook receiver. A
   Quicknode WebSocket `subscribe` on `accounts` is the fallback
   (`MONITOR_MODE=websocket`) if Streams is not on our plan.
+- Streams receiver is network agnostic (delivery metadata, else
+  STREAMS_NETWORK, default testnet), and devnet uses Quicknode when
+  QUICKNODE_XRPL_DEVNET_URL is set, so the devnet question is config only.
+- One KV list for all networks (an r-address is the same string on every
+  network); the receiver checks the watch table per network.
+- Margin calls are only visible on-ledger if someone writes an MS_MARGIN_CALL
+  memo; requested in docs/CONTRACTS.md.
 - Followed the Lucy prompt's branch rule (commit and push to `lucy`) over the
   root CLAUDE.md, which is written for Alexander's own session (`alex` branch).
 - Contract JSON uses camelCase (address, readOnly, asOf), matching apps/api.

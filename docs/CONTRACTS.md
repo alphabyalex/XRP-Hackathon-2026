@@ -189,3 +189,43 @@ Will NOT claim: that the blockchain proves the computation happened; that we
 are integrated with OpenRouter or Liquid Inference (roadmap only); that
 shares or dividends are real money; that we are first or only. Simulated
 traffic and any simulated GPU are always labeled SIMULATED in the UI and API.
+
+---
+
+## Requests from services/credit (Lucy, port 7100)
+
+Contracts: `contracts/credit/*.json`. Base URL from env `CREDIT_URL`
+(default `http://localhost:7100`). Every call sends `X-MS-Internal-Key`.
+
+- **For Alexander (apps/api): implement `POST /internal/credit-events`.**
+  Body is `contracts/credit/credit_events_internal.json` (`id`, `kind`,
+  `severity`, `network`, `address`, `txHash`, `amount`, `currency`, `detail`,
+  `ledgerIndex`, `at`, `via`, `simulated`). Kinds: `LARGE_OUTFLOW`,
+  `MISSED_PAYMENT`, `MS_REPAY`, `MS_LOAN_DISBURSE`, `MARGIN_CALL`,
+  `LIQUIDATION`. Requires `X-MS-Internal-Key`, reply 2xx with `{ "ok": true }`.
+  `id` is stable per event, so ignore duplicates. Suggested: forward to the
+  api SSE as a `credit` event so the web app can show it.
+- **For Alexander (apps/api): call credit when a loan opens.**
+  `POST {CREDIT_URL}/watch { network, address, loans: [{ loanId, dueAt, principal }] }`
+  so credit watches the borrower live (Quicknode Streams) and raises
+  `MISSED_PAYMENT` when `dueAt` passes without `MS_REPAY`.
+- **For Alexander (apps/api): read the credit profile before quoting.**
+  `GET {CREDIT_URL}/profile/{network}/{address}` (or `POST /profiles` for a
+  batch). Pass the result to risk for terms. For a borrower who linked a
+  mainnet address (`POST /link/challenge`, `POST /link/verify`), also fetch
+  `GET /profile/mainnet/{mainnetAddress}`; it carries `readOnly: true` and
+  `ownership`.
+- **For Alexander or Tharun (packages/xrpl): write an on-ledger margin call.**
+  When the keeper issues a margin call, send the borrower a Payment (1 drop
+  of XRP is enough) with memo `{ "type": "MS_MARGIN_CALL", "loanId" }` in the
+  same text/plain JSON format as `MS_REPAY`. Credit already scores and
+  monitors this memo. Without it, margin calls are invisible on-ledger and
+  cannot feed the credit score.
+- **For Alexander (packages/xrpl, XLS-66): keep a memo on loan payments.**
+  If loans move to native XLS-66 (LoanSet, LoanPay), please keep the
+  `MS_REPAY` / `MS_LOAN_DISBURSE` memos (or tell Lucy the field that links a
+  LoanPay to its loan and due date) so credit can keep scoring on-time vs late.
+- **For Kristian (services/risk): `GET /book/stats?grade=A..E`.** Credit
+  reads `{ grade, loans, defaults, defaultRatePct, simulated: true }` to
+  attach "borrowers in this grade defaulted X% (simulated)" to each profile.
+  Credit mocks it until risk is up. See `contracts/credit/risk_book_stats.json`.
