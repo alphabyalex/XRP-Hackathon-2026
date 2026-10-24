@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { AccountResponse } from "@moonshift/shared";
@@ -40,7 +40,7 @@ export function AccountPortfolio() {
   useEffect(()=>{void refresh();const timer=setInterval(()=>void refresh(),15000);return()=>clearInterval(timer);},[refresh]);
   useApiEvents(["dividend","tx","loan","risk","calendar"],()=>void refresh());
   useEffect(()=>{if(data){const timer=setTimeout(()=>setDeferred(true),0);return()=>clearTimeout(timer);}},[data]);
-  useEffect(()=>{if(!chart.current)return;const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){setInView(true);observer.disconnect();}},{threshold:0.15});observer.observe(chart.current);return()=>observer.disconnect();},[deferred]);
+  useEffect(()=>{if(!chart.current)return;const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){setInView(true);observer.disconnect();}},{threshold:0.15});observer.observe(chart.current);return()=>observer.disconnect();},[deferred,data?.holdings.length]);
   async function repay(id:string){
     setBusy(id);
     try{const loan=await payOff(id);toast("Loan repaid",Object.entries(loan.txs).filter(([key])=>key.startsWith("pay")).map(([,hash])=>hash).join(" · "));await refresh();}
@@ -68,7 +68,7 @@ export function AccountPortfolio() {
     {error && <div role="status" className="account-error">Account updates are unavailable. <Button size="sm" variant="ghost" onClick={()=>void refresh()}>Try again</Button></div>}
     <section aria-labelledby="holdings-heading"><h2 id="holdings-heading">Holdings</h2>
       {!data?<div className="account-skeleton account-table-skeleton"/>:held.length ? <div className="account-table-scroll" tabIndex={0} aria-label="GPU holdings"><table className="account-table"><thead><tr>{["GPU","Shares","Locked","Value","24h","Yield","Earned 7d"].map(t=><th key={t} scope="col">{t}</th>)}</tr></thead><tbody>{held.map(h=><tr key={h.gpuId}>
-        <td><Link className="account-gpu" href={`/gpu/${h.gpuId}`}><DataMoon slots={[]} size={28}/><span>{h.label}<small>{h.hardware}</small></span></Link></td>
+        <td><Link className="account-gpu" href={`/gpu/${h.gpuId}`}><DataMoon slots={h.slots??[]} size={28}/><span>{h.label}<small>{h.hardware}</small></span></Link></td>
         <td>{money(h.shares)}</td><td>{money(h.locked)}</td><td><Link href={`/gpu/${h.gpuId}`}><PriceFlash value={Number(h.value)} decimals={2}/><small>USDC</small></Link></td>
         <td>{h.change24h===null?<span aria-label="Price history unavailable">·</span>:<span style={{color:Number(h.change24h)>0?"var(--up)":Number(h.change24h)<0?"var(--down)":"var(--ink2)"}}>{Number(h.change24h)>0?"+":""}<PriceFlash value={Number(h.change24h)} decimals={2}/>%</span>}</td>
         <td>{money(h.yield)}%</td><td className="account-income">+{money(h.earned7d)}</td>

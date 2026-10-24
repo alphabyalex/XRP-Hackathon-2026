@@ -1,4 +1,5 @@
 export interface AccountHolding {
+  slots?: ("b" | "l" | "i" | "o")[];
   gpuId: string; label: string; hardware: string; free: string; locked: string;
   shares: string; sharePrice: string; value: string; change24h: string | null;
   yield: string; earned7d: string; ownershipPct: string;

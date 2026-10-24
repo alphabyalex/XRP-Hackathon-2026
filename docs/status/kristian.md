@@ -164,3 +164,33 @@
 - Extended Segmented for any option count. Added SSE refresh, polling fallback, reduced motion, viewport-triggered bar animation, page-scoped light palette and mobile table containment.
 - npm run typecheck passed across all four workspaces.
 
+
+## Portfolio phase 4 (2026-10-24)
+
+- Final `npm run typecheck`: PASS in web, api, shared and xrpl.
+- `git diff --check`: PASS.
+- Added `scripts/check-portfolio.mjs`. Uses installed Playwright, or PLAYWRIGHT_MODULE pointing to index.mjs, with Edge by default (PLAYWRIGHT_CHANNEL may override).
+- Ran against the existing stack on ports 3000 and 4000. Actual account screenshots are empty holdings/loans because that is the current account state. Populated browser fixtures additionally cover holdings, both GPU tabs plus All, seven bars, keyboard tooltip, Show more, repayment request/toast/refetch and mobile containment. No ledger writes were submitted by verification.
+- Visual review completed for mobile and desktop. Mobile LTV labels now use three columns to avoid overlap. DataMoon avatars use the existing compute calendar. Screenshot capture hides only the Next development toolbar.
+
+Final check output:
+
+```
+PASS warm /account/ALICE 2ms (<500ms)
+PASS 1280px: net worth 752ms, no horizontal scroll, production copy, nav order, screenshot saved
+PASS 400px: net worth 617ms, no horizontal scroll, production copy, nav order, screenshot saved
+PASS populated 1280px: holdings, seven bars, GPU selection, tooltip, pagination, repayment route and refresh, no overflow
+PASS populated 400px: holdings, seven bars, GPU selection, tooltip, pagination, repayment route and refresh, no overflow
+PASS no console errors
+```
+
+Artifacts:
+- `contracts/api/account.json`: full current /account/ALICE response, including activity. Net worth 1000.000000 USDC, USDC 1000.000000, XRP 1000.000000, no held shares or open loans, earned7d and earned30d both 0.000000.
+- `docs/screens/portfolio-1280.png`
+- `docs/screens/portfolio-400.png`
+
+Remaining upstream limitations:
+- The running API uses its existing in-memory XRPL adapter mode. The XRP value returned by that mode is not a live ledger balance. No configuration was changed and no environment values were opened or printed. Running with the real ledger adapter makes the same getBalances call use the ledger.
+- The compute response has combined revenue only, so source totals are allocated using its documented rate weights, rather than independently measured source receipts.
+- Historical loan payment log rows lack amounts. Those activity amounts remain null, shown blank. Share trade quantities are displayed in shares; their logs do not include cash consideration.
+- BRAND.md does not exist in the checkout. Explicit supplied brand rules and existing brand tokens were used.

@@ -63,3 +63,11 @@ body:has(.account-portfolio) .theme-toggle {display:none}
 .account-chart-skeleton {height:240px;width:100%}
 @media(max-width:700px){.account-portfolio {padding-top:112px;padding-bottom:56px}.account-header {display:block}.account-header h1 {font-size:44px}.account-address {margin-top:24px}.account-inline {gap:12px 24px}.account-inline span:last-child {flex-basis:100%}.account-portfolio section {margin-top:42px}.account-earnings {grid-template-columns:minmax(0,1fr);gap:24px}.account-stats {gap:20px}.account-stats>div {display:flex;justify-content:space-between;align-items:baseline;gap:16px}.account-stats dd {font-size:22px}.account-loan {padding:22px 18px}.account-loan-top {display:block}.account-margin {margin-top:24px;max-width:none;justify-content:space-between}.account-loan .meter-l {font-size:10px}.account-activity li {grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px 12px}.account-activity time {grid-column:1;grid-row:1}.account-activity li>span:nth-child(2) {grid-column:1;grid-row:2}.account-amount {grid-column:2;grid-row:2;font-size:13px}.account-hash {grid-column:2;grid-row:1}.account-tooltip {font-size:10px}.account-section-head {gap:12px}.account-section-head .seg {min-width:110px}.account-section-head .seg button {font-size:12px;padding:7px}.account-empty {align-items:center}}
 @media(prefers-reduced-motion:reduce){.account-bar {transform:scaleY(1);transition:none}}
+.account-loan .meter-l {display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;height:auto;min-height:18px}
+.account-loan .meter-l span {position:static;transform:none!important;white-space:normal}
+.account-loan .meter-l span:nth-child(2) {text-align:center}
+.account-loan .meter-l span:last-child {text-align:right}
+.account-loan .meter-l span::first-letter {text-transform:uppercase}
+.account-table tbody tr {position:relative}
+.account-gpu::after {content:"";position:absolute;inset:0}
+.account-table tbody tr:focus-within {outline:1px solid var(--rule2);outline-offset:-1px}
