@@ -1468,6 +1468,107 @@ a.txl:hover {
   color: var(--ink3);
   font-size: 12px;
 }
+.sources .ref span {
+  font-size: 12px;
+  color: var(--ink3);
+}
+
+/* Live rescore: what moved, briefly highlighted */
+@keyframes flash {
+  from {
+    background: var(--accent-wash);
+  }
+  to {
+    background: transparent;
+  }
+}
+.factors > div.flash,
+.score.flash {
+  animation: flash 8s ease-out;
+}
+.changes {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--ink);
+}
+.activity {
+  margin-top: 16px;
+  display: grid;
+  gap: 4px;
+  font-size: 12.5px;
+}
+.activity > div {
+  display: grid;
+  grid-template-columns: 64px 64px 1fr auto auto;
+  gap: 10px;
+  align-items: baseline;
+  color: var(--ink2);
+}
+.activity b {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* Connected wallet row on the credit card */
+.wallet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 18px 0 4px;
+  font-size: 13px;
+}
+.wallet > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wallet b {
+  font-weight: 500;
+  font-family: var(--mono);
+}
+.wallet .ok {
+  color: var(--up);
+}
+.wallet .muted {
+  color: var(--ink3);
+}
+.wallet .note {
+  flex-basis: 100%;
+  margin-top: 0;
+}
+.wallet-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.wallet-paste {
+  display: flex;
+  gap: 8px;
+  flex-basis: 100%;
+  align-items: center;
+}
+.wallet-paste .inp {
+  flex: 1;
+  min-width: 0;
+}
+.linkish {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink3);
+  cursor: pointer;
+}
+.linkish:hover:not(:disabled) {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .memo-pending {
   margin: 18px 0 0;
   font-size: 13px;

@@ -5,10 +5,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { AgentText, CreditProfile, CreditStats, LoanQuoteApiResponse, PortfolioResponse, XlsLoanRecord } from "@moonshift/shared";
 import { getPortfolio } from "@/lib/api";
 import { fmt, shortHash, typedAmount } from "@/lib/format";
-import { borrowerProfile, creditStats, listLoans, maxPrincipal, openFromQuote, payNext, payOff, pct, quoteLoan, quoteMemo, txUrl, useApiEvents } from "@/lib/lendingApi";
+import { borrowerProfile, creditStats, listLoans, maxPrincipal, openFromQuote, walletGet, type ConnectedWallet, payNext, payOff, pct, quoteLoan, quoteMemo, txUrl, useApiEvents } from "@/lib/lendingApi";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
 import { HealthMeter, LoanTxs, StatusChip, StressControls, TxLink } from "./LendingBits";
+import { WalletConnect } from "./WalletConnect";
 import { ACCOUNT } from "@/lib/session";
 
 const FACTOR_TEXT: Record<string, string> = {
@@ -25,6 +26,45 @@ const FACTOR_TEXT: Record<string, string> = {
   msMarginCalls: "Margin calls",
   msLiquidations: "Liquidations",
 };
+
+// One line of the connected wallet's activity feed (credit service shape).
+type Activity = {
+  at: string;
+  type: string;
+  direction: "in" | "out";
+  amount: string | null;
+  currency: string | null;
+  counterparty: string | null;
+  txHash: string;
+  network: string;
+  ok: boolean;
+};
+type FactorChange = { feature: string; before: unknown; after: unknown; pointsBefore: number; pointsAfter: number; delta: number };
+
+// How long a live change stays highlighted.
+const HIGHLIGHT_MS = 8000;
+
+function factorValue(v: unknown) {
+  if (v === null || v === undefined) return "none";
+  const n = Number(v);
+  return Number.isFinite(n) ? fmt(n, Number.isInteger(n) ? 0 : 2) : String(v);
+}
+
+// "Counterparties +2", or the value move when the points did not change.
+function changeText(c: FactorChange) {
+  const label = FACTOR_TEXT[c.feature] ?? c.feature;
+  const move = `${factorValue(c.before)} to ${factorValue(c.after)}`;
+  return c.delta !== 0 ? `${label} ${c.delta > 0 ? "+" : ""}${c.delta} (${move})` : `${label} ${move}`;
+}
+
+function activityText(a: Activity) {
+  if (a.type !== "Payment") return a.type;
+  return a.direction === "out" ? "Sent" : "Received";
+}
+
+function clock(iso: string) {
+  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+}
 
 function days(seconds: number) {
   const d = seconds / 86400;
@@ -46,6 +86,7 @@ export function BorrowContent({
   initialPortfolio,
   initialProfile,
   initialMax,
+  initialWallet,
   defaultShares,
   gpuId,
   gpuLabel,
@@ -53,6 +94,7 @@ export function BorrowContent({
   initialPortfolio: PortfolioResponse;
   initialProfile: CreditProfile | null;
   initialMax: MaxAmount | null;
+  initialWallet: ConnectedWallet | null;
   defaultShares: string;
   gpuId: string;
   gpuLabel: string;
@@ -65,6 +107,10 @@ export function BorrowContent({
   const [max, setMax] = useState<MaxAmount | null>(initialMax);
   const [quote, setQuote] = useState<LoanQuoteApiResponse | null>(null);
   const [profile, setProfile] = useState<CreditProfile | null>(initialProfile);
+  const [wallet, setWallet] = useState<ConnectedWallet | null>(initialWallet);
+  const [activity, setActivity] = useState<Activity[]>([]);
+  // The last live rescore: what moved, shown briefly on the card.
+  const [live, setLive] = useState<{ at: number; scoreBefore: number; score: number; changes: FactorChange[] } | null>(null);
   const [quoteErr, setQuoteErr] = useState<string | null>(null);
   const [quoting, setQuoting] = useState(false);
   const [loans, setLoans] = useState<XlsLoanRecord[]>([]);
@@ -99,6 +145,42 @@ export function BorrowContent({
       alive = false;
     };
   }, [initialProfile, requote]);
+
+  // The connected wallet's newest transactions (the feed then grows live).
+  useEffect(() => {
+    if (!wallet) return setActivity([]);
+    let alive = true;
+    walletGet(ACCOUNT)
+      .then((r) => alive && setActivity(((r as { activity?: Activity[] }).activity ?? []).slice(0, 8)))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [wallet]);
+
+  // Live rescore from the credit service (Quicknode WebSocket on the wallet):
+  // add the tx to the feed, highlight what moved, refetch the profile, the max
+  // and the quote (and so the memo).
+  useApiEvents(["credit"], (_type, data) => {
+    if (data?.kind !== "PROFILE_CHANGED" || !profile || data.borrower !== profile.address) return;
+    // Connected (or switched) from another tab or device: pick the wallet up too.
+    if (wallet?.address !== data.address) walletGet(ACCOUNT).then((r) => setWallet(r.wallet)).catch(() => {});
+    const item = data.activity as Activity | undefined;
+    // The new profile and what moved land together, so highlighted rows already show the new points.
+    borrowerProfile(ACCOUNT)
+      .then(setProfile)
+      .catch(() => {})
+      .finally(() => {
+        if (item) setActivity((list) => [item, ...list.filter((x) => x.txHash !== item.txHash)].slice(0, 8));
+        setLive({ at: Date.now(), scoreBefore: data.scoreBefore, score: data.score, changes: data.changes ?? [] });
+        setRequote((n) => n + 1);
+      });
+  });
+  useEffect(() => {
+    if (!live) return;
+    const t = setTimeout(() => setLive((l) => (l && Date.now() - l.at >= HIGHLIGHT_MS ? null : l)), HIGHLIGHT_MS);
+    return () => clearTimeout(t);
+  }, [live]);
 
   // Largest approved amount for the shares entered, shown under the amount field.
   useEffect(() => {
@@ -241,12 +323,15 @@ export function BorrowContent({
   const q = quote?.quote;
   const active = loans.filter((l) => l.status === "open" || l.status === "margin_call");
   const past = loans.filter((l) => !(l.status === "open" || l.status === "margin_call")).slice(0, 6);
-  const credit = quote?.credit ?? profile;
+  // The profile drives the card: it is refetched on every wallet change, so it
+  // is never older than the quote's copy.
+  const credit = profile ?? quote?.credit;
+  const changed = new Map((live?.changes ?? []).map((c) => [c.feature, c]));
   const topFactors = credit
     ? Object.entries(credit.features)
-        .filter(([, f]) => f.points !== 0)
-        .sort((a, b) => Math.abs(b[1].points) - Math.abs(a[1].points))
-        .slice(0, 5)
+        .filter(([k, f]) => f.points !== 0 || changed.has(k))
+        .sort((a, b) => Number(changed.has(b[0])) - Number(changed.has(a[0])) || Math.abs(b[1].points) - Math.abs(a[1].points))
+        .slice(0, Math.max(5, changed.size))
     : [];
 
   return (
@@ -266,16 +351,30 @@ export function BorrowContent({
             <span className="lbl">Credit profile</span>
             {credit ? (
               <>
-                <div className="score">
+                <div className={live && live.score !== live.scoreBefore ? "score flash" : "score"}>
                   <div className="bignum">{credit.score}</div>
                   <div>
                     <div className="grade">Grade {credit.grade}</div>
                     <div className="muted">{credit.confidence} confidence</div>
                   </div>
                 </div>
+                <WalletConnect
+                  borrower={ACCOUNT}
+                  wallet={wallet}
+                  onChange={(w) => {
+                    setWallet(w);
+                    setRequote((n) => n + 1); // new history: refetch the profile, the max and the quote
+                  }}
+                />
+                {live && live.changes.length > 0 && (
+                  <p className="changes">
+                    {live.score !== live.scoreBefore ? `Score ${live.scoreBefore} to ${live.score}. ` : "Updated just now. "}
+                    {live.changes.map(changeText).join(" · ")}
+                  </p>
+                )}
                 <div className="factors">
                   {topFactors.map(([k, f]) => (
-                    <div key={k}>
+                    <div key={k} className={changed.has(k) ? "flash" : undefined}>
                       <span>
                         {FACTOR_TEXT[k] ?? k}
                       </span>
@@ -301,13 +400,36 @@ export function BorrowContent({
                 </div>
                 {credit.components && credit.components.length > 0 && (
                   <div className="sources">
-                    {credit.components.map((c) => (
-                      <div key={c.part}>
-                        <b>{c.part}</b>
-                        <span>
-                          {c.source === "quicknode" ? "Read through Quicknode" : `XRPL ${c.network}`} · {shortHash(c.address)}
-                        </span>
-                        {c.ownership && !c.ownership.verified && <span className="unverified">Ownership not verified</span>}
+                    {credit.components.map((c) =>
+                      c.role === "reference" ? (
+                        <div key={c.part} className="ref">
+                          <span>
+                            Mainnet history read through Quicknode · {shortHash(c.address)} · score {c.ownScore.score}
+                          </span>
+                        </div>
+                      ) : (
+                        <div key={c.part}>
+                          <b>{c.part}</b>
+                          <span>
+                            {c.source === "quicknode" ? `Read through Quicknode${c.network === "testnet" ? " (XRPL testnet)" : ""}` : `XRPL ${c.network}`} ·{" "}
+                            {shortHash(c.address)}
+                          </span>
+                          {c.ownership && !c.ownership.verified && <span className="unverified">Ownership not verified</span>}
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+                {wallet && activity.length > 0 && (
+                  <div className="activity">
+                    <span className="lbl">Wallet activity</span>
+                    {activity.map((a) => (
+                      <div key={a.txHash}>
+                        <span>{clock(a.at)}</span>
+                        <span>{activityText(a)}</span>
+                        <b>{a.amount ? `${fmt(Number(a.amount), 2)} ${a.currency ?? ""}` : ""}</b>
+                        <span>{a.counterparty ? shortHash(a.counterparty) : ""}</span>
+                        <TxLink network={a.network} hash={a.txHash} />
                       </div>
                     ))}
                   </div>

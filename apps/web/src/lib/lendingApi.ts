@@ -34,6 +34,15 @@ export const maxPrincipal = (borrower: string, gpuId: string, collateralShares: 
 // Long-polls the quote's Bedrock memo (the api holds the request up to waitMs).
 export const quoteMemo = (quoteId: string, waitMs = 12_000) =>
   apiFetch<{ status: "ready" | "pending"; memo: AgentText | null }>(`/loans/quote/${quoteId}/memo?wait=${waitMs}`);
+// Connected testnet wallet (Crossmark sign-in or a pasted address).
+export type ConnectedWallet = { borrower: string; network: string; address: string; verified: boolean; status: string; connectedAt: string };
+export const walletGet = (borrower: string) => apiFetch<{ borrower: string; wallet: ConnectedWallet | null }>(`/wallet/${encodeURIComponent(borrower)}`);
+export const walletChallenge = (borrower: string) =>
+  post<{ challengeId: string; message: string; messageHex: string; expiresAt: string }>("/wallet/challenge", { borrower });
+export const walletVerify = (borrower: string, b: { challengeId: string; publicKey: string; signature: string; address?: string }) =>
+  post<ConnectedWallet>("/wallet/verify", { borrower, ...b });
+export const walletConnect = (borrower: string, address: string) => post<ConnectedWallet>("/wallet/connect", { borrower, address });
+export const walletDisconnect = (borrower: string) => apiFetch<{ wallet: null }>(`/wallet/${encodeURIComponent(borrower)}`, { method: "DELETE" });
 export const openFromQuote = (quoteId: string) => post<XlsLoanRecord>("/loans/open", { quoteId });
 export const listLoans = (borrower?: string) =>
   apiFetch<{ loans: XlsLoanRecord[] }>(`/loans${borrower ? `?borrower=${encodeURIComponent(borrower)}` : ""}`);

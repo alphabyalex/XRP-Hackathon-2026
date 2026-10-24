@@ -31,6 +31,7 @@ import * as risk from "../adapters/riskClient.js";
 import * as pricing from "../adapters/pricingClient.js";
 import * as compute from "../adapters/computeClient.js";
 import { swr, timed } from "./swr.js";
+import { ServiceUnavailable } from "../adapters/serviceFetch.js";
 
 export class LendingError extends Error {
   constructor(
@@ -729,4 +730,61 @@ export async function restorePrice(gpuId: GpuId): Promise<{ price: string; tx: T
 
 export function asAccountName(s: string): AccountName {
   return (lending.nameOf(s) ?? s) as AccountName;
+}
+
+// ---------------------------------------------------------------------------
+// Connected wallet (testnet): a Crossmark sign-in or a pasted address. It
+// replaces the borrower's linked payment history in the credit profile; the
+// credit service watches it live through Quicknode and reports changes.
+// ---------------------------------------------------------------------------
+
+async function walletCall<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+  try {
+    return await credit.creditRequest<T>(path, init);
+  } catch (e) {
+    if (!(e instanceof ServiceUnavailable)) throw e;
+    const m = /HTTP (\d+) (.*)$/s.exec(e.message);
+    if (!m) throw new LendingError("CREDIT_UNAVAILABLE", "The credit service is not reachable right now.", 503);
+    let body: any = null;
+    try {
+      body = JSON.parse(m[2]);
+    } catch {
+      // not JSON
+    }
+    const err = body?.error ?? {};
+    throw new LendingError(err.code ?? "CREDIT_ERROR", err.message ?? body?.detail ?? m[2], Number(m[1]));
+  }
+}
+
+export function walletChallenge(borrower: string) {
+  return walletCall<{ challengeId: string; message: string; messageHex: string; expiresAt: string }>("/link/challenge", {
+    body: { borrower: lending.addressOf(borrower), network: "testnet" },
+  });
+}
+
+export async function walletVerify(borrower: string, b: { challengeId: string; publicKey: string; signature: string; address?: string }) {
+  const w = await walletCall<Record<string, unknown>>("/link/verify", { body: b });
+  credit.invalidateProfile(CREDIT_NETWORK(), lending.addressOf(borrower));
+  return w;
+}
+
+export async function walletConnect(borrower: string, address: string) {
+  const w = await walletCall<Record<string, unknown>>("/link/wallet", { body: { borrower: lending.addressOf(borrower), address, network: "testnet" } });
+  credit.invalidateProfile(CREDIT_NETWORK(), lending.addressOf(borrower));
+  return w;
+}
+
+export async function walletDisconnect(borrower: string) {
+  const out = await walletCall<Record<string, unknown>>(`/link/wallet/${lending.addressOf(borrower)}`, { method: "DELETE" });
+  credit.invalidateProfile(CREDIT_NETWORK(), lending.addressOf(borrower));
+  return out;
+}
+
+export function walletGet(borrower: string) {
+  return walletCall<{ borrower: string; wallet: Record<string, unknown> | null }>(`/link/wallet/${lending.addressOf(borrower)}`);
+}
+
+// The credit service rescored a borrower after live wallet activity.
+export function creditProfileChanged(borrowerAddress: string): void {
+  credit.invalidateProfile(CREDIT_NETWORK(), borrowerAddress);
 }

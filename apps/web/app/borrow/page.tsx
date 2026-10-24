@@ -1,4 +1,5 @@
 import type { CreditProfile } from "@moonshift/shared";
+import type { ConnectedWallet } from "@/lib/lendingApi";
 import { apiFetch, getPortfolio, ApiUnreachableError } from "@/lib/api";
 import { fetchAllGpus } from "@/lib/fetchAllGpus";
 import { ACCOUNT } from "@/lib/session";
@@ -26,15 +27,28 @@ function initialMax() {
   }).catch(() => null);
 }
 
+function initialWallet() {
+  return apiFetch<{ wallet: ConnectedWallet | null }>(`/wallet/${ACCOUNT}`, fast())
+    .then((r) => r.wallet)
+    .catch(() => null);
+}
+
 export default async function BorrowPage() {
   try {
-    const [portfolio, { gpus }, profile, max] = await Promise.all([getPortfolio(ACCOUNT), fetchAllGpus(), initialProfile(), initialMax()]);
+    const [portfolio, { gpus }, profile, max, wallet] = await Promise.all([
+      getPortfolio(ACCOUNT),
+      fetchAllGpus(),
+      initialProfile(),
+      initialMax(),
+      initialWallet(),
+    ]);
     const gpu = gpus[GPU_ID] ?? Object.values(gpus)[0];
     return (
       <BorrowContent
         initialPortfolio={portfolio}
         initialProfile={profile}
         initialMax={gpu.id === GPU_ID ? max : null}
+        initialWallet={wallet}
         defaultShares={DEFAULT_SHARES}
         gpuId={gpu.id}
         gpuLabel={gpu.id.toUpperCase()}

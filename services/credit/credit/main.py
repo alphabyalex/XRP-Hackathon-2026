@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from credit import config as C
-from credit import combine, explain, mock, portfolio, profile, stats, streams, ws
+from credit import combine, explain, live, mock, portfolio, profile, stats, streams, ws
 from credit import features as F
 from credit.errors import CreditError
 from credit.events import bus
@@ -33,6 +33,7 @@ log = logging.getLogger("credit")
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     tasks: list[asyncio.Task[None]] = []
+    monitor().on_tx = rescorer().on_tx
     if C.MONITOR_MODE != "off":
         tasks.append(asyncio.create_task(monitor().overdue_loop()))
     if C.MONITOR_MODE == "websocket" and not C.MOCK:
@@ -66,14 +67,28 @@ def check_target(network: str, address: str) -> None:
         raise CreditError(422, "INVALID_ADDRESS", "not a classic XRPL address")
 
 
-async def build_profile(network: str, address: str, refresh: bool = False, combined: bool = True) -> dict:
+async def build_profile(
+    network: str, address: str, refresh: bool = False, combined: bool = True, refresh_link: bool = False
+) -> dict:
     check_target(network, address)
     link = linker().link_for(address) if (combined and network != "mainnet" and not C.MOCK) else None
+    # A connected wallet replaces the configured history; that history stays as a reference line.
+    wallet = linker().wallet_for(address) if (combined and network != "mainnet" and not C.MOCK) else None
     if C.MOCK:
         body = mock.profile(network, address)
     else:
         try:
-            if link:
+            if wallet:
+                own = {"verified": wallet["verified"], "status": wallet["status"], "borrower": address}
+                body = await combine.build(
+                    network,
+                    address,
+                    {"network": wallet["network"], "address": wallet["address"], "ownership": own},
+                    refresh,
+                    reference=link,
+                    refresh_link=refresh_link,
+                )
+            elif link:
                 body = await combine.build(network, address, link, refresh)
             else:
                 body, _ = await profile.build(network, address, refresh)
@@ -86,6 +101,8 @@ async def build_profile(network: str, address: str, refresh: bool = False, combi
         body["ownership"] = linker().ownership(address)
     if C.MOCK:
         return body
+    if wallet:
+        rescorer().remember(address, body)
     bus.publish(
         "profile",
         {k: body[k] for k in ("network", "address", "score", "grade", "confidence", "source", "asOf")},
@@ -108,13 +125,21 @@ class BatchRequest(BaseModel):
 
 class ChallengeRequest(BaseModel):
     borrower: str
-    mainnetAddress: str  # noqa: N815 (contract field name)
+    mainnetAddress: str = ""  # noqa: N815 (contract field name); the address to prove, if known
+    network: str = "mainnet"  # "testnet": connect a wallet (Crossmark sign-in)
 
 
 class VerifyRequest(BaseModel):
     challengeId: str  # noqa: N815
     publicKey: str  # noqa: N815
     signature: str
+    address: str | None = None  # the wallet's address as it reported it (RegularKey accounts)
+
+
+class WalletRequest(BaseModel):
+    borrower: str
+    address: str
+    network: str = "testnet"
 
 
 class WatchLoan(BaseModel):
@@ -192,22 +217,86 @@ async def post_profiles(req: BatchRequest) -> dict:
     return {"profiles": profiles, "errors": errors}
 
 
+WALLET_NETWORKS = ("testnet",)
+
+
 @app.post("/link/challenge", dependencies=[Depends(internal_key)])
 def link_challenge(req: ChallengeRequest) -> dict:
-    for addr in (req.borrower, req.mainnetAddress):
+    if req.network != "mainnet" and req.network not in WALLET_NETWORKS:
+        raise CreditError(422, "INVALID_NETWORK", "network must be mainnet or testnet")
+    addrs = [req.borrower] + ([req.mainnetAddress] if req.mainnetAddress or req.network == "mainnet" else [])
+    for addr in addrs:
         if not CLASSIC_ADDRESS.match(addr):
             raise CreditError(422, "INVALID_ADDRESS", f"{addr} is not a classic XRPL address")
-    return linker().challenge(req.borrower, req.mainnetAddress, datetime.now(UTC))
+    return linker().challenge(req.borrower, req.mainnetAddress, datetime.now(UTC), req.network)
 
 
 @app.post("/link/verify", dependencies=[Depends(internal_key)])
 async def link_verify(req: VerifyRequest) -> dict:
     try:
-        return await linker().verify(req.challengeId, req.publicKey, req.signature, datetime.now(UTC))
+        out = await linker().verify(req.challengeId, req.publicKey, req.signature, datetime.now(UTC), address=req.address)
     except AccountNotFound:
-        raise CreditError(422, "KEY_ADDRESS_MISMATCH", "mainnet account not found") from None
+        raise CreditError(422, "KEY_ADDRESS_MISMATCH", "account not found") from None
     except UpstreamError as e:
         raise CreditError(502, "UPSTREAM_ERROR", str(e)) from None
+    if out.get("network") in WALLET_NETWORKS:
+        await wallet_connected(out)
+    return out
+
+
+@app.post("/link/wallet", dependencies=[Depends(internal_key)])
+async def link_wallet(req: WalletRequest) -> dict:
+    """Connect a wallet by pasting its address: read-only, ownership not verified."""
+    if req.network not in WALLET_NETWORKS:
+        raise CreditError(422, "INVALID_NETWORK", "network must be testnet")
+    for addr in (req.borrower, req.address):
+        if not CLASSIC_ADDRESS.match(addr):
+            raise CreditError(422, "INVALID_ADDRESS", f"{addr} is not a classic XRPL address")
+    out = linker().connect_wallet(req.borrower, req.network, req.address, datetime.now(UTC))
+    await wallet_connected(out)
+    return out
+
+
+@app.get("/link/wallet/{borrower}", dependencies=[Depends(internal_key)])
+async def get_wallet(borrower: str) -> dict:
+    """The connected wallet and its newest transactions (the activity feed's first lines)."""
+    w = linker().wallet_for(borrower)
+    recent: list[dict] = []
+    if w and not C.MOCK:
+        try:
+            recent = await live.recent_activity(w["network"], w["address"])
+        except (AccountNotFound, UpstreamError):
+            recent = []
+    return {"borrower": borrower, "wallet": w, "activity": recent}
+
+
+@app.delete("/link/wallet/{borrower}", dependencies=[Depends(internal_key)])
+def delete_wallet(borrower: str) -> dict:
+    w = linker().disconnect_wallet(borrower)
+    if w and not linker().borrowers_for_wallet(w["network"], w["address"]):
+        monitor().remove(w["network"], w["address"])
+    return {"borrower": borrower, "wallet": None}
+
+
+async def wallet_connected(w: dict) -> None:
+    """Watch the wallet live (Quicknode WebSocket) and score it now, so the first live change has
+    a profile to compare against."""
+    monitor().add(w["network"], w["address"], [], datetime.now(UTC))
+    log.info("wallet connected: %s on %s (%s)", w["address"], w["network"], w["status"])
+    try:
+        await build_profile(live.BORROWER_NETWORK, w["borrower"], refresh_link=True)
+    except CreditError as e:
+        log.info("first score for %s failed: %s", w["address"], e.code)
+
+
+_rescorer: live.Rescorer | None = None
+
+
+def rescorer() -> live.Rescorer:
+    global _rescorer
+    if _rescorer is None:
+        _rescorer = live.Rescorer(monitor(), build_profile)
+    return _rescorer
 
 
 class DemoLinkRequest(BaseModel):

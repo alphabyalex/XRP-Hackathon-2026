@@ -101,6 +101,28 @@ lendingRouter.post("/loans/quote", handle(async (req) => svc.buildQuote(req.body
 // The borrower's cached credit profile on the lending network.
 lendingRouter.get("/loans/profile/:borrower", handle(async (req) => svc.borrowerProfile(req.params.borrower)));
 
+// Connected testnet wallet: Crossmark sign-in (challenge, then verify with the
+// signature) or a pasted address (read-only, ownership not verified).
+lendingRouter.post("/wallet/challenge", handle(async (req) => svc.walletChallenge(String(req.body?.borrower ?? ""))));
+lendingRouter.post(
+  "/wallet/verify",
+  handle(async (req) => {
+    const { borrower, challengeId, publicKey, signature, address } = req.body ?? {};
+    if (!borrower || !challengeId || !publicKey || !signature) throw new svc.LendingError("BAD_REQUEST", "borrower, challengeId, publicKey and signature are required");
+    return svc.walletVerify(String(borrower), { challengeId, publicKey, signature, address });
+  })
+);
+lendingRouter.post(
+  "/wallet/connect",
+  handle(async (req) => {
+    const { borrower, address } = req.body ?? {};
+    if (!borrower || !address) throw new svc.LendingError("BAD_REQUEST", "borrower and address are required");
+    return svc.walletConnect(String(borrower), String(address).trim());
+  })
+);
+lendingRouter.get("/wallet/:borrower", handle(async (req) => svc.walletGet(req.params.borrower)));
+lendingRouter.delete("/wallet/:borrower", handle(async (req) => svc.walletDisconnect(req.params.borrower)));
+
 // The quote's Bedrock memo, written in the background. ?wait=ms long-polls up to 14 s.
 lendingRouter.get(
   "/loans/quote/:id/memo",

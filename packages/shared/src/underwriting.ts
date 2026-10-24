@@ -46,6 +46,7 @@ export interface CreditComponent {
   features: string[];
   ownScore: { score: number; grade: string; confidence: string };
   ownership?: { verified: boolean; status: string } | null;
+  role?: "reference"; // shown for context (its own score), not part of the combined score
 }
 
 // GET /credit/stats (proxy of services/credit GET /stats)

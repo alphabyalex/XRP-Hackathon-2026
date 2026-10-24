@@ -169,3 +169,9 @@ export function toRiskProfile(p: CreditProfile): RiskCreditProfile {
     reasons: p.reasons ?? [],
   };
 }
+
+// Raw call to the credit service (wallet connect routes). Errors keep the
+// service's status and message so the page can show them.
+export async function creditRequest<T>(path: string, init: { method?: string; body?: unknown; timeoutMs?: number } = {}): Promise<T> {
+  return serviceJson<T>("credit", `${CREDIT_URL()}${path}`, { timeoutMs: 15_000, ...init });
+}
