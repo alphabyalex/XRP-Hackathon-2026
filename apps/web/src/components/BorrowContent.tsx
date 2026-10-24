@@ -414,7 +414,8 @@ export function BorrowContent({
                             {c.source === "quicknode" ? `Read through Quicknode${c.network === "testnet" ? " (XRPL testnet)" : ""}` : `XRPL ${c.network}`} ·{" "}
                             {shortHash(c.address)}
                           </span>
-                          {c.ownership && !c.ownership.verified && <span className="unverified">Ownership not verified</span>}
+                          {/* the wallet row above already says it for a connected wallet */}
+                          {c.ownership && !c.ownership.verified && !wallet && <span className="unverified">Ownership not verified</span>}
                         </div>
                       )
                     )}
