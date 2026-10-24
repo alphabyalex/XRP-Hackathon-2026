@@ -4,45 +4,51 @@ This guide describes how Moonshift integrates with the Akash Network decentraliz
 
 ---
 
-## 1. Live Network Capacity (Queried Automatically)
+## 1. Complete Live GPU Inventory & Market Pricing
 
-Queried live from the Akash Console API (`https://console-api.akash.network`):
+Queried live from the Akash Console Market API (`https://console-api.akash.network/v1/gpu-prices`):
 
-| Resource | Active / Leased | Available Capacity | Total Network |
-| :--- | :--- | :--- | :--- |
-| **GPU Units** | 264 GPUs | **109 GPUs available** | 375 GPUs |
-| **CPU (millicores)** | 3,666,880 vCPU | **10,475,107 vCPU available** | 14,254,497 vCPU |
-| **Memory (RAM)** | 26.6 TB | **49.5 TB available** | 76.4 TB |
-| **Storage (Ephemeral + Persistent)** | 58.0 TB | **575.2 TB available** | 634.1 TB |
-| **Active Providers** | N/A | **58 providers online** | 1,869 registered |
+- **Total Network GPUs:** 370 GPUs
+- **Available to Lease Right Now:** **109 GPUs across 23 distinct model categories**
 
-### Available GPU Hardware Models on Akash
+| Model | VRAM | Bus / Interface | Available / Total | Online Providers | Market Hourly Rate (USD) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **NVIDIA A100** | 80 GB | SXM4 | **59 / 200** | 3 / 4 | $1.07 - $1.91 / hr (avg $1.49) |
+| **NVIDIA H100** | 80 GB | SXM5 | **9 / 69** | 3 / 4 | $2.04 - $3.16 / hr (avg $2.58) |
+| **NVIDIA PRO 6000 SE** | 96 GB | PCIe | **9 / 25** | 2 / 3 | $1.49 - $2.04 / hr (avg $1.86) |
+| **NVIDIA V100** | 32 GB | PCIe | **7 / 10** | 2 / 2 | $0.20 - $0.25 / hr (avg $0.23) |
+| **NVIDIA RTX 3060 Ti** | 8 GB | PCIe | **6 / 6** | 1 / 1 | $0.14 / hr |
+| **NVIDIA V100** | 16 GB | SXM2 | **4 / 4** | 1 / 1 | $0.25 / hr |
+| **NVIDIA A10G** | 24 GB | PCIe | **3 / 3** | 1 / 1 | $0.18 / hr |
+| **NVIDIA RTX 4090** | 24 GB | PCIe | **2 / 4** | 2 / 3 | $0.34 / hr |
+| **NVIDIA Tesla P4** | 8 GB | PCIe | **2 / 2** | 1 / 1 | $0.06 / hr |
+| **NVIDIA T4** | 16 GB | PCIe | **1 / 2** | 1 / 2 | **$0.11 - $0.21 / hr (avg $0.16)** |
+| **NVIDIA RTX 3090** | 24 GB | PCIe | **1 / 11** | 1 / 3 | $0.09 - $0.16 / hr (avg $0.13) |
+| **NVIDIA RTX 4000 Ada**| 20 GB | PCIe | **1 / 7** | 1 / 1 | $0.29 / hr |
+| **NVIDIA PRO 6000 WE** | 96 GB | PCIe | **1 / 1** | 1 / 1 | $1.44 / hr |
+| **NVIDIA Tesla P40** | 24 GB | PCIe | **1 / 1** | 1 / 1 | $0.15 / hr |
+| **NVIDIA Quadro M4000**| 8 GB | PCIe | **1 / 1** | 1 / 1 | $0.04 / hr |
+| **NVIDIA GTX 1050** | 2 GB | PCIe | **1 / 1** | 1 / 1 | $0.14 / hr |
+| **NVIDIA GTX 1050 Ti**| 4 GB | PCIe | **1 / 1** | 1 / 1 | Custom bid |
 
-- **NVIDIA T4**: 2 active providers (matches Moonshift GPU A specifications)
-- **NVIDIA H100**: 4 active providers
-- **NVIDIA A100**: 3 active providers
-- **NVIDIA V100**: 2 active providers
-- **NVIDIA RTX 4090**: 1 active provider
-- **NVIDIA Tesla P4 / P40**: 2 active providers
+### GPUs on Akash Network Currently 100% Leased
+
+- **Blackwell B300 (288 GB SXM6):** 16 GPUs in network (0 available, all leased)
+- **RTX 5090 (32 GB PCIe):** 2 GPUs in network (0 available, all leased)
+- **RTX 4080 (16 GB):** 1 GPU in network (leased)
+- **RTX 3090 Ti (24 GB):** 1 GPU in network (leased)
+- **RTX 3060 (12 GB):** 1 GPU in network (leased)
+- **RTX 4000 SADA (20 GB):** 1 GPU in network (leased)
 
 ---
 
-## 2. Authentication with Akash Console API Key
+## 2. Cost Comparison: Akash vs. AWS EC2
 
-Akash Console generates API keys in the format:
-`ac.sk.production.<identifier>`
-
-### Configuration Steps
-
-1. In the Akash Console under **Settings -> API Keys**, generate or copy your full unmasked key.
-2. In your local terminal or shell, export the environment variable:
-   ```bash
-   export AKASH_API_KEY="ac.sk.production.YOUR_FULL_KEY"
-   ```
-3. To test your key and inspect account deployments:
-   ```bash
-   curl -s -H "x-api-key: $AKASH_API_KEY" https://console-api.akash.network/v1/deployments
-   ```
+| GPU Model | Akash Average Price | AWS EC2 Equivalent Instance | AWS On-Demand Rate | Cost Difference |
+| :--- | :--- | :--- | :--- | :--- |
+| **NVIDIA T4 (16 GB)** | **$0.16 / hr** | `g4dn.xlarge` (1x T4) | $0.526 / hr | **~70% cheaper** |
+| **NVIDIA A100 (80 GB)**| **$1.49 / hr** | `p4de.24xlarge` (8x A100 80GB) | ~$4.10 / GPU-hr | **~64% cheaper** |
+| **NVIDIA H100 (80 GB)**| **$2.58 / hr** | `p5.48xlarge` (8x H100 80GB) | ~$12.29 / GPU-hr | **~79% cheaper** |
 
 ---
 
