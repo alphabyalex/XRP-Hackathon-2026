@@ -39,7 +39,7 @@ class AccountsFeed:
                     await conn.send(json.dumps({"id": 1, "command": "subscribe", "accounts": accounts}))
                     log.info("%s: subscribed to %d accounts via %s", self.network, len(accounts), source)
                     backoff = 1.0
-                    await self._read(conn)
+                    await self._read(conn, source)
             except (OSError, websockets.WebSocketException) as e:
                 log.warning(
                     "%s WebSocket via %s: %s, reconnect in %.0fs",
@@ -51,7 +51,7 @@ class AccountsFeed:
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 60)
 
-    async def _read(self, conn: websockets.ClientConnection) -> None:
+    async def _read(self, conn: websockets.ClientConnection, source: str = "public") -> None:
         changed = asyncio.ensure_future(self.changed.wait())
         try:
             while True:
@@ -62,8 +62,10 @@ class AccountsFeed:
                     return  # reconnect with the new account list
                 msg = json.loads(recv.result())
                 if msg.get("type") == "transaction" and msg.get("validated"):
+                    # via says which feed saw it: "websocket (public devnet)", "websocket (quicknode)".
+                    label = f"public {self.network}" if source == "public" else source
                     self.monitor.handle_tx(
-                        self.network, normalize(msg, msg.get("close_time_iso")), "websocket"
+                        self.network, normalize(msg, msg.get("close_time_iso")), f"websocket ({label})"
                     )
         finally:
             changed.cancel()

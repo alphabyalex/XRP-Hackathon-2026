@@ -117,3 +117,16 @@ def test_stats_route_has_no_urls() -> None:
     body = TestClient(app).get("/stats").json()
     assert "quicknode" in body and "quicknodeConfigured" in body
     assert "http" not in str(body).lower().replace("httpx", "")
+
+
+def test_monitor_classifies_xls66_repay_and_ignores_release() -> None:
+    from credit.monitor import classify
+
+    lid = "M" * 64
+    pay = normalize(loan_pay(5, lid, iso(NOW), on_time=True, closes=True))
+    evs = classify("devnet", BORROWER, pay, "websocket (public devnet)", frozenset({BROKER}))
+    assert [e["kind"] for e in evs] == ["MS_REPAY"] and evs[0]["via"] == "websocket (public devnet)"
+    release = normalize(escrow_finish(5, "MS_COLLATERAL_RELEASE", lid, iso(NOW)))
+    assert classify("devnet", BORROWER, release, "websocket", frozenset({BROKER})) == []
+    seize = normalize(escrow_finish(6, "MS_LIQUIDATION", lid, iso(NOW)))
+    assert [e["kind"] for e in classify("devnet", BORROWER, seize, "websocket", frozenset({BROKER}))] == ["LIQUIDATION"]

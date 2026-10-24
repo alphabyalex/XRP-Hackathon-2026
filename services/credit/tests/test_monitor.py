@@ -258,13 +258,14 @@ def test_watch_list_and_unwatch(api):
             "loans": [{"loanId": "L9", "dueAt": "2099-01-01T00:00:00Z"}],
         },
     ).json()
-    assert r == {
+    assert {k: r[k] for k in ("network", "address", "watching", "mode", "kvSynced")} == {
         "network": "testnet",
         "address": BORROWER,
         "watching": True,
         "mode": "off",
         "kvSynced": False,
     }
+    assert r["feeds"][0] == {"network": "testnet", "address": BORROWER, "source": "public"}
     assert api.get("/watch").json()["watched"][0]["openLoans"] == 1
     api.delete(f"/watch/testnet/{BORROWER}")
     assert api.get("/watch").json()["watched"] == []

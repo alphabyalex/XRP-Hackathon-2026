@@ -147,7 +147,42 @@ def classify(network: str, address: str, t: Tx, via: str, lenders: frozenset[str
                 )
             )
 
+    # Devnet XLS-66: LoanPay carries MS_REPAY; LoanSet (borrower is Counterparty) MS_LOAN_DISBURSE.
+    if t.type == "LoanPay" and t.account == address and (m := t.memo(C.MEMO_REPAY)) is not None:
+        late = m.get("onTime") is False
+        out.append(
+            event(
+                "MS_REPAY",
+                "warn" if late else "info",
+                network,
+                address,
+                t.hash,
+                f"{'Late' if late else 'On-time'} XLS-66 LoanPay on Moonshift loan {str(m.get('loanId', ''))[:8]}",
+                via,
+                amount=str((t.tx.get("Amount") or {}).get("value", "")) or None,
+                currency="TDX",
+                **common,
+            )
+        )
+    if t.type == "LoanSet" and t.tx.get("Counterparty") == address and t.memo(C.MEMO_LOAN_DISBURSE) is not None:
+        out.append(
+            event(
+                "MS_LOAN_DISBURSE",
+                "info",
+                network,
+                address,
+                t.hash,
+                f"Opened XLS-66 Moonshift loan of {t.tx.get('PrincipalRequested', '')} TDX",
+                via,
+                amount=str(t.tx.get("PrincipalRequested", "")) or None,
+                currency="TDX",
+                **common,
+            )
+        )
+
     if t.type == "EscrowFinish" and t.tx.get("Owner") == address and t.account != address:
+        if t.memo(C.MEMO_COLLATERAL_RELEASE) is not None:
+            return out  # repaid: the broker hands the shares straight back, not a liquidation
         who = "the lending pool" if t.account in lenders else t.account
         out.append(
             event(

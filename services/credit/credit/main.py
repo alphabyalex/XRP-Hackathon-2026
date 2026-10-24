@@ -241,13 +241,21 @@ async def watch(req: WatchRequest) -> dict:
             loans += [lo for lo in F.open_loans(hist) if lo["loanId"] not in known]
         except (AccountNotFound, UpstreamError) as e:
             log.info("watch %s: no history loaded (%s)", req.address, type(e).__name__)
-    monitor().add(req.network, req.address, loans, datetime.now(UTC))
+    now = datetime.now(UTC)
+    monitor().add(req.network, req.address, loans, now)
+    feeds = [{"network": req.network, "address": req.address, "source": C.ws_endpoint(req.network)[1]}]
+    # A linked mainnet history is watched too, through Quicknode's WebSocket when configured.
+    link = linker().link_for(req.address) if req.network != "mainnet" else None
+    if link:
+        monitor().add("mainnet", link["mainnetAddress"], [], now)
+        feeds.append({"network": "mainnet", "address": link["mainnetAddress"], "source": C.ws_endpoint("mainnet")[1], "ownership": link["ownership"]["status"]})
     kv_synced = await streams.kv_add(req.address) if C.MONITOR_MODE == "streams" else False
     return {
         "network": req.network,
         "address": req.address,
         "watching": True,
         "mode": C.MONITOR_MODE,
+        "feeds": feeds,
         "kvSynced": kv_synced,
     }
 
@@ -256,6 +264,9 @@ async def watch(req: WatchRequest) -> dict:
 async def unwatch(network: str, address: str) -> dict:
     check_target(network, address)
     monitor().remove(network, address)
+    link = linker().link_for(address) if network != "mainnet" else None
+    if link:
+        monitor().remove("mainnet", link["mainnetAddress"])
     if C.MONITOR_MODE == "streams" and not monitor().watched_anywhere(address):
         await streams.kv_remove(address)
     return {"network": network, "address": address, "watching": False}
