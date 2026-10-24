@@ -51,7 +51,7 @@ checked-in files.
 | `KEEPER_DRY_RUN` | `1` | Log proposed actions without calling API action routes. |
 | `DEMO_SHOCK_ENABLED` | `0` | Allow the stress endpoint outside mock mode. |
 | `DEMO_SHOCK_SECONDS` | `120` | How long the keeper sees a stress price override. |
-| `DEFAULT_TERM_SECONDS` | `600` | Demo quote term when a request omits the term. |
+| `DEFAULT_TERM_SECONDS` | `1209600` | 14 day quote term when omitted; API caps to the actual round. |
 | `PAYMENT_INTERVAL_SECONDS` | `60` | Demo payment interval. |
 | `FIRST_LOSS_COVER_USDC` | `250.000000` | Configured demo first-loss cover. |
 | `VAULT_DEPOSITS_USDC` | `10000.000000` | Configured demo vault size. |
@@ -87,12 +87,25 @@ fractions, so `0.500000` means 50 percent.
 4. Expected dividends use the average revenue per second in the supplied
    history, projected across the loan term. `projectedRevenue =
    mean(revenuePerSecond) * termSeconds`. `projectedDividend = projectedRevenue
-   * 0.85 * 0.95 * collateralShares / 1000`, reflecting the 15 percent hosting
-   fee and 5 percent reserve.
+   * 0.80 * collateralShares / 1000`, reflecting the 15 percent hosting
+   fee and 5 percent reserve, both taken from gross revenue. The holding period
+   is the full agreed loan term: shares are released on repayment. No dividends
+   beyond that period are counted and the API caps it to the vault redemption.
 5. Payments due are principal plus simple interest:
-   `principal * (1 + APR * termSeconds / 31,536,000)`. Coverage is expected
-   dividends divided by payments due. When coverage is below 1, maximum LTV is
-   multiplied by coverage. A request above that limit is declined.
+   `principal * (1 + APR * termSeconds / 31,536,000)`. Coverage assets are
+   `expectedDividends + 0.35 * collateralValue`; `coverageRatio` is those assets
+   divided by payments due. Coverage capacity is
+   `coverageAssets / collateralValue / (1 + APR * termSeconds / 31,536,000)`.
+   Maximum LTV is the lesser of that capacity and the confidence/volatility
+   adjusted grade cap. A request above that limit is declined.
+   The 65 percent collateral haircut is a conservative underwriting allowance
+   for a volatile, illiquid GPU share market, separate from the 10 percent
+   execution haircut used in LGD. This recognizes collateral as a repayment
+   source without counting its full spot value. Unlike the old dividend-only
+   multiplier, capacity does not depend on the requested principal.
+   With daily GPU-A gross revenue 48.2, price 5.25, and a 14 day holding period,
+   B (score 82, confidence 0.9) gets about 45.1 percent maximum LTV, 60.1 percent
+   margin call, and 75.1 percent liquidation. E remains capped near 20 percent.
 6. PD is an estimate, not a measured fact. `PD = clamp(baseGradePD + 0.10 *
    (100 - score) / 100 + 0.05 * (1 - confidence) + 0.15 * max(0, 1 -
    coverage) + 0.20 * max(0, requestedLTV - effectiveMaxLTV), 0.001, 0.99)`.
@@ -102,6 +115,8 @@ fractions, so `0.500000` means 50 percent.
 8. Margin-call LTV is maximum LTV plus 15 percentage points, capped at 85
    percent. Liquidation LTV is maximum LTV plus 30 percentage points, capped
    at 95 percent.
+9. `paymentIntervalSeconds = max(60, configuredInterval, ceil(termSeconds / 30))`,
+   matching the API's XLS-66 mapping and limiting the schedule to 30 installments.
 
 ## Keeper and scenario assumptions
 

@@ -339,3 +339,10 @@ All routes below are live on `alex`. Every internal route requires `X-MS-Interna
 **Request to Kristian (services/risk): same split in `projected_dividends`.**
 - `gross_projection * 0.85 * 0.95` becomes `gross_projection * 0.80`.
 - The api's TypeScript port in `apps/api/src/adapters/riskClient.ts` keeps your current formula until you change it, so both stay identical.
+
+**Kristian round 2 risk update:** Python and the API fallback now use the 80%
+gross dividend split, full holding-period dividends plus 35% of collateral
+value as coverage assets, and the lesser of coverage capacity and the existing
+grade cap. See `services/risk/README.md` formulas and `contracts/risk/quote.json`.
+The returned interval is `max(60, configuredInterval, ceil(term / 30))`, matching
+the API mapping. Default term is 14 days; the API supplies the actual capped term.

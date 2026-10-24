@@ -87,3 +87,49 @@ def test_ltv_above_max_is_declined() -> None:
 
     assert result["decision"] == "decline"
     assert "LTV_ABOVE_MAX" in result["reasons"]
+
+
+def normal_round_request(grade="B", principal="105.000000"):
+    req = make_request(grade=grade, principal=principal, revenue="48.200000")
+    return req.model_copy(update={"term_seconds": 14 * 86400, "collateral_price": Decimal("5.25")})
+
+
+def test_grade_b_real_round_calibration_and_schedule():
+    result = calculate_quote(normal_round_request(), Settings())
+    assert result["decision"] == "approve"
+    assert result["ltv"] == "0.200000"
+    assert Decimal("0.45") <= Decimal(result["maxLtv"]) <= Decimal("0.50")
+    assert Decimal("0.60") <= Decimal(result["marginCallLtv"]) <= Decimal("0.65")
+    assert Decimal("0.75") <= Decimal(result["liquidationLtv"]) <= Decimal("0.80")
+    assert result["paymentIntervalSeconds"] == 40320
+    assert calculate_quote(normal_round_request(principal="100"), Settings())["decision"] == "approve"
+
+
+def test_grade_e_at_forty_percent_declines():
+    req = normal_round_request("E", "210").model_copy(update={
+        "credit_profile": make_request(grade="E", score=25).credit_profile,
+    })
+    result = calculate_quote(req, Settings())
+    assert result["decision"] == "decline"
+    assert Decimal(result["maxLtv"]) <= Decimal("0.20")
+    assert "HIGHEST_RISK_GRADE" in result["reasons"]
+
+
+def test_thirty_percent_shock_crosses_margin_on_45_percent_loan():
+    result = calculate_quote(normal_round_request(principal="236.25"), Settings())
+    assert result["decision"] == "approve"
+    shocked_ltv = Decimal("0.45") / Decimal("0.70")
+    assert Decimal(result["marginCallLtv"]) < shocked_ltv < Decimal(result["liquidationLtv"])
+
+
+def test_capacity_does_not_depend_on_requested_principal():
+    small = calculate_quote(normal_round_request(principal="100"), Settings())
+    large = calculate_quote(normal_round_request(principal="250"), Settings())
+    assert small["maxLtv"] == large["maxLtv"]
+
+
+def test_schedule_rounds_up_and_respects_configured_interval():
+    from dataclasses import replace
+    req = normal_round_request().model_copy(update={"term_seconds": 1209601})
+    assert calculate_quote(req, Settings())["paymentIntervalSeconds"] == 40321
+    assert calculate_quote(req, replace(Settings(), payment_interval_seconds=50000))["paymentIntervalSeconds"] == 50000

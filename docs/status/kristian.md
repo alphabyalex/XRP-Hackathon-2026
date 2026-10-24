@@ -56,6 +56,41 @@
 | CAROL | rhkYPaGdTMRvMs85KhvVaUYMoBDnvgpiJr | 99.999993 | 399.999993 |
 | DEV | rDBNrgqBmMV3ebnFWhnyxZkdUQb7GZkejc | 99.999992 | 399.999992 |
 
+## Round 2, job 2: real-round risk terms
+
+- Job 1 committed and pushed as `4ce3c1b`.
+- Read the merged API lending flow and CONTRACTS. Coverage now includes 80%
+  of gross revenue over the complete collateral holding period plus 35% of
+  spot collateral value. Capacity is independent of requested principal and
+  remains bounded by the existing grade, confidence, and volatility limits.
+- README formulas explain the 65% underwriting haircut and distinguish it
+  from the LGD execution haircut. The API fallback port matches these formulas.
+- Schedule now returns `max(60, configured interval, ceil(term / 30))`.
+  Default term is 14 days; the API still caps it to the actual round end.
+- Updated `contracts/risk/quote.json` to a realistic GPU-A B request. Both
+  examples below use 100 shares at 5.25 USDC, daily gross revenue 48.2 USDC,
+  confidence 0.9, stable prices, and a 1,209,600 second term (14 days).
+
+| quote | B, score 82 | E, score 25 |
+| --- | ---: | ---: |
+| Principal USDC | 105.000000 | 210.000000 |
+| Decision | approve | decline |
+| LTV | 0.200000 | 0.400000 |
+| Max LTV | 0.451255 | 0.195000 |
+| APR | 0.090800 | 0.345000 |
+| Margin call LTV | 0.601255 | 0.345000 |
+| Liquidation LTV | 0.751255 | 0.495000 |
+| Payment interval seconds | 40320 | 40320 |
+| PD estimate | 0.053000 | 0.521000 |
+| Expected loss USDC | 0.000000 | 0.000000 |
+| Coverage ratio | 2.256275 | 1.117282 |
+| Reasons | none | LTV_ABOVE_MAX, HIGHEST_RISK_GRADE |
+
+- Checks: all 27 risk tests pass, including B at 20%, E at 40%, a 30% shock
+  taking a 45% loan to 64.29% LTV, principal-independent limits, and interval
+  rounding. Python compile check passes. API typecheck could not run because
+  this environment has no Node/npm or installed workspace dependencies.
+
 ## Next
 
 - Round 2 jobs are authorized for a commit and push after each job.

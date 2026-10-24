@@ -17,7 +17,7 @@ import { serviceJson, noteSource, ServiceUnavailable } from "./serviceFetch.js";
 
 const RISK_URL = () => process.env.RISK_URL ?? "http://localhost:7000";
 const YEAR_SECONDS = 365 * 24 * 60 * 60;
-const DEFAULT_TERM_SECONDS = 600;
+const DEFAULT_TERM_SECONDS = 14 * 86400;
 const PAYMENT_INTERVAL_SECONDS = Number(process.env.RISK_PAYMENT_INTERVAL_SECONDS ?? 60);
 
 const GRADE_BASE_APR: Record<string, number> = { A: 0.05, B: 0.08, C: 0.12, D: 0.18, E: 0.3 };
@@ -49,7 +49,7 @@ function projectedDividends(req: RiskQuoteRequest, termSeconds: number): number 
   }
   if (seconds === 0) return 0;
   const gross = (revenue / seconds) * termSeconds;
-  return gross * 0.85 * 0.95 * (Number(req.collateralShares) / 1000);
+  return gross * 0.80 * (Number(req.collateralShares) / 1000);
 }
 
 // Port of calculate_quote() in services/risk/app/risk.py.
@@ -67,8 +67,10 @@ export function localQuote(req: RiskQuoteRequest): RiskQuote {
   const apr = GRADE_BASE_APR[grade] + ((100 - p.score) / 100) * 0.06;
   const paymentDue = principal * (1 + (apr * term) / YEAR_SECONDS);
   const dividends = projectedDividends(req, term);
-  const coverage = paymentDue > 0 ? dividends / paymentDue : 0;
-  const maxLtv = prelimMaxLtv * Math.min(1, coverage);
+  const coverageAssets = dividends + collateralValue * 0.35;
+  const coverage = paymentDue > 0 ? coverageAssets / paymentDue : 0;
+  const coverageMaxLtv = coverageAssets / collateralValue / (1 + apr * term / YEAR_SECONDS);
+  const maxLtv = Math.min(prelimMaxLtv, coverageMaxLtv);
   const marginCallLtv = Math.min(0.85, maxLtv + 0.15);
   const liquidationLtv = Math.min(0.95, maxLtv + 0.3);
   const pd = clamp(
@@ -96,7 +98,7 @@ export function localQuote(req: RiskQuoteRequest): RiskQuote {
     marginCallLtv: r6(marginCallLtv),
     liquidationLtv: r6(liquidationLtv),
     termSeconds: term,
-    paymentIntervalSeconds: Math.min(PAYMENT_INTERVAL_SECONDS, term),
+    paymentIntervalSeconds: Math.max(60, PAYMENT_INTERVAL_SECONDS, Math.ceil(term / 30)),
     pd: r6(pd),
     pdLabel: "estimate",
     expectedLoss: r6(expectedLoss),
