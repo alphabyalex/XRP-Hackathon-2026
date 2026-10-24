@@ -2,10 +2,10 @@
 // /borrow: credit profile, live risk quote, Bedrock memo, then a real XLS-66
 // loan on devnet with GPU shares escrowed. Loan health updates live.
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CreditStats, LoanQuoteApiResponse, PortfolioResponse, XlsLoanRecord } from "@moonshift/shared";
+import type { AgentText, CreditStats, LoanQuoteApiResponse, PortfolioResponse, XlsLoanRecord } from "@moonshift/shared";
 import { getPortfolio } from "@/lib/api";
 import { fmt, shortHash, typedAmount } from "@/lib/format";
-import { creditStats, listLoans, maxPrincipal, openFromQuote, payNext, payOff, pct, quoteLoan, txUrl, useApiEvents } from "@/lib/lendingApi";
+import { creditStats, listLoans, maxPrincipal, openFromQuote, payNext, payOff, pct, quoteLoan, quoteMemo, txUrl, useApiEvents } from "@/lib/lendingApi";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
 import { HealthMeter, LoanTxs, StatusChip, StressControls, TxLink } from "./LendingBits";
@@ -63,6 +63,7 @@ export function BorrowContent({
   const [busy, setBusy] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
   const [qn, setQn] = useState<CreditStats | null>(null);
+  const [memo, setMemo] = useState<AgentText | null>(null);
   const [requote, setRequote] = useState(0);
   const toast = useToast();
   const seq = useRef(0);
@@ -115,6 +116,33 @@ export function BorrowContent({
     }, 450);
     return () => clearTimeout(t);
   }, [shares, principal, gpuId, requote]);
+
+  // The credit memo arrives after the quote: show the quote now, the memo when Bedrock is done.
+  useEffect(() => {
+    if (!quote) return;
+    if (quote.memo) {
+      setMemo(quote.memo);
+      return;
+    }
+    setMemo(null);
+    let alive = true;
+    (async () => {
+      for (let i = 0; i < 4 && alive; i++) {
+        try {
+          const r = await quoteMemo(quote.quoteId);
+          if (r.memo) {
+            if (alive) setMemo(r.memo);
+            return;
+          }
+        } catch {
+          return;
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [quote]);
 
   // Live Quicknode counters from the credit service, next to the profile.
   useEffect(() => {
@@ -331,12 +359,14 @@ export function BorrowContent({
                   </b>
                 </div>
                 {q.reasons.length > 0 && <p className="note">Risk flags: {q.reasons.join(", ").toLowerCase().replace(/_/g, " ")}</p>}
-                <blockquote className="memo">
-                  {quote!.memo.text.replace(/TDX/g, "USDC")}
-                  <span>
-                    {quote!.memo.fellBack ? "Credit memo" : "Credit memo by Amazon Bedrock"}
-                  </span>
-                </blockquote>
+                {memo ? (
+                  <blockquote className="memo">
+                    {memo.text.replace(/TDX/g, "USDC")}
+                    <span>{memo.fellBack ? "Credit memo" : "Credit memo by Amazon Bedrock"}</span>
+                  </blockquote>
+                ) : (
+                  <p className="memo-pending">Writing credit memo...</p>
+                )}
               </>
             )}
             {quoteErr && !q && <p className="note dn">{quoteErr}</p>}

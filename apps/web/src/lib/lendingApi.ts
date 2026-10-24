@@ -1,6 +1,7 @@
 // apps/api lending routes (XLS-65 vault, XLS-66 loans). See docs/CONTRACTS.md.
 import { useEffect, useRef } from "react";
 import type {
+  AgentText,
   BookStats,
   CreditStats,
   LoanQuoteApiResponse,
@@ -26,6 +27,9 @@ export const quoteLoan = (borrower: string, gpuId: string, collateralShares: str
 export const creditStats = () => apiFetch<CreditStats>("/credit/stats");
 export const maxPrincipal = (borrower: string, gpuId: string, collateralShares: string) =>
   post<{ maxPrincipal: string; collateralValue: string; termSeconds: number }>("/loans/max", { borrower, gpuId, collateralShares });
+// Long-polls the quote's Bedrock memo (the api holds the request up to waitMs).
+export const quoteMemo = (quoteId: string, waitMs = 12_000) =>
+  apiFetch<{ status: "ready" | "pending"; memo: AgentText | null }>(`/loans/quote/${quoteId}/memo?wait=${waitMs}`);
 export const openFromQuote = (quoteId: string) => post<XlsLoanRecord>("/loans/open", { quoteId });
 export const listLoans = (borrower?: string) =>
   apiFetch<{ loans: XlsLoanRecord[] }>(`/loans${borrower ? `?borrower=${encodeURIComponent(borrower)}` : ""}`);

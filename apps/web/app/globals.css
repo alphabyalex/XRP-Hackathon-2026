@@ -1463,3 +1463,9 @@ a.txl:hover {
 .foot-links a {
   color: inherit;
 }
+
+.memo-pending {
+  margin: 18px 0 0;
+  font-size: 13px;
+  color: var(--ink3);
+}

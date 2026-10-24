@@ -3,7 +3,7 @@
 // and liquidations (idempotent, callable by Kristian's keeper or the
 // built-in keeper), the demo stress control, and the background defaulter.
 
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import {
   GPUS,
   explorerUrl,
@@ -130,12 +130,17 @@ export async function buildQuote(req: LoanQuoteApiRequest): Promise<LoanQuoteApi
     collateralPriceHistory: oracle.history,
   };
   const { quote, source: riskSource } = await risk.quote(riskReq);
-  const memo = await pricing.creditMemo({
+  // The memo is written in the background: the quote returns now and /borrow
+  // shows APR, LTV and the lines immediately, then picks the memo up from
+  // GET /loans/quote/:id/memo. Identical inputs reuse one Bedrock call.
+  const memoReq = {
     creditProfile: { address, network: profile.network, score: profile.score, grade: profile.grade, confidence: profile.confidence, features: profile.features, reasons: profile.reasons },
     quote,
     // currency is explicit so the model never guesses XRP for the principal.
     loanRequest: { borrower: address, gpuId: gpu.id, collateralShares: riskReq.collateralShares, principal: riskReq.principal, currency: "USDC", termSeconds },
-  });
+  };
+  const memoPromise = memoFor(memoReq);
+  const ready = memoReady.get(memoKey(memoReq)) ?? null;
 
   const quoteId = randomUUID();
   const expiresAt = new Date(Date.now() + QUOTE_TTL_SECONDS * 1000).toISOString();
@@ -152,12 +157,68 @@ export async function buildQuote(req: LoanQuoteApiRequest): Promise<LoanQuoteApi
     quote,
     terms: xls66Terms(termSeconds, quote.paymentIntervalSeconds, Number(quote.apr)),
     credit: profile,
-    memo,
+    memo: ready,
+    memoStatus: ready ? "ready" : "pending",
     revenue24h: fix6(buckets.reduce((s, b) => s + Number(b.revenue), 0)),
-    sources: { credit: creditSource, risk: riskSource, memo: memo.source, revenue: revenueSource, oracle: oracle.source === "live" ? "live" : "mock" },
+    sources: { credit: creditSource, risk: riskSource, memo: ready?.source ?? "pending", revenue: revenueSource, oracle: oracle.source === "live" ? "live" : "mock" },
   };
   db.prepare(`INSERT INTO loan_quotes (id, created_at, expires_at, body, used) VALUES (?, ?, ?, ?, 0)`).run(quoteId, new Date().toISOString(), expiresAt, JSON.stringify(out));
+  memoByQuote.set(quoteId, memoPromise);
+  void memoPromise.then((memo) => {
+    const row = db.prepare(`SELECT body FROM loan_quotes WHERE id = ?`).get(quoteId) as { body: string } | undefined;
+    if (!row) return;
+    const body = JSON.parse(row.body) as LoanQuoteApiResponse;
+    body.memo = memo;
+    body.memoStatus = "ready";
+    body.sources.memo = memo.source;
+    db.prepare(`UPDATE loan_quotes SET body = ? WHERE id = ?`).run(JSON.stringify(body), quoteId);
+  });
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Credit memo cache: one Bedrock call per distinct (profile, quote, request).
+// Fallback results are not cached, so the next quote tries Bedrock again.
+// ---------------------------------------------------------------------------
+
+type MemoReq = Parameters<typeof pricing.creditMemo>[0];
+const MEMO_TTL_MS = 15 * 60 * 1000;
+const memoInflight = new Map<string, { at: number; p: Promise<AgentText> }>();
+const memoReady = new Map<string, AgentText>();
+const memoByQuote = new Map<string, Promise<AgentText>>();
+
+function memoKey(req: MemoReq): string {
+  const p = req.creditProfile as any;
+  return createHash("sha256")
+    .update(JSON.stringify([p.address, p.score, p.grade, p.confidence, req.quote, req.loanRequest]))
+    .digest("hex");
+}
+
+function memoFor(req: MemoReq): Promise<AgentText> {
+  const key = memoKey(req);
+  const hit = memoInflight.get(key);
+  if (hit && Date.now() - hit.at < MEMO_TTL_MS) return hit.p;
+  const p = pricing.creditMemo(req).then((memo) => {
+    if (memo.fellBack) memoInflight.delete(key);
+    else memoReady.set(key, memo);
+    return memo;
+  });
+  memoInflight.set(key, { at: Date.now(), p });
+  return p;
+}
+
+// GET /loans/quote/:id/memo. With wait, holds the request until the memo is
+// ready (or waitMs passes) so the page needs only one or two calls.
+export async function quoteMemo(quoteId: string, waitMs = 0): Promise<{ status: "ready" | "pending"; memo: AgentText | null }> {
+  const pending = memoByQuote.get(quoteId);
+  if (pending) {
+    const memo = waitMs > 0 ? await Promise.race([pending, new Promise<null>((r) => setTimeout(() => r(null), waitMs))]) : null;
+    if (memo) return { status: "ready", memo };
+  }
+  const row = db.prepare(`SELECT body FROM loan_quotes WHERE id = ?`).get(quoteId) as { body: string } | undefined;
+  if (!row) throw new LendingError("QUOTE_NOT_FOUND", "unknown quoteId", 404);
+  const body = JSON.parse(row.body) as LoanQuoteApiResponse;
+  return body.memo ? { status: "ready", memo: body.memo } : { status: "pending", memo: null };
 }
 
 // Largest principal risk approves for this collateral. Approval depends on
