@@ -76,7 +76,7 @@ function ensureVenv(py, dir, name) {
   return vpy;
 }
 
-const colors = { web: 34, api: 32, pricing: 35, risk: 33, credit: 36, compute: 31, demo: 37 };
+const colors = { web: 34, api: 32, pricing: 35, risk: 33, credit: 36, compute: 31, router: 95, demo: 37 };
 function log(name, line) {
   const c = colors[name] ?? 37;
   process.stdout.write(`\x1b[${c}m[${name.padEnd(7)}]\x1b[0m ${line}\n`);
@@ -128,6 +128,9 @@ const services = [
   // Local compute in its own MOCK mode (simulated GPU) unless COMPUTE_URL
   // points at the EC2 box, in which case the api talks to that instead.
   { name: "compute", dir: "services/compute", module: "compute.main:app", port: 5000, flag: "MOCK_COMPUTE", skipIfRemote: "COMPUTE_URL", env: { MOCK: "1" } },
+  // router: order routing across GPUs and providers (Lucy). Local state, in-process queues and the mock
+  // fleet by default; settles on devnet through the api. AWS backends are switched on by env.
+  { name: "router", dir: "services/router", module: "router.main:app", port: 7200, flag: "MOCK_ROUTER", env: { FLEET_SOURCE: "mock", STATE_BACKEND: "local", QUEUE_BACKEND: "local", ORCHESTRATOR: "local", SETTLEMENT: "api", COMPUTE_URL: "http://localhost:5000" } },
 ];
 
 const apiEnv = {
@@ -139,6 +142,7 @@ const apiEnv = {
   RISK_URL: baseEnv.RISK_URL || "http://localhost:7000",
   CREDIT_URL: baseEnv.CREDIT_URL || "http://localhost:7100",
   COMPUTE_URL: baseEnv.COMPUTE_URL || "http://localhost:5000",
+  ROUTER_URL: baseEnv.ROUTER_URL || "http://localhost:7200",
 };
 
 if (py) {

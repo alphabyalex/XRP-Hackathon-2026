@@ -136,9 +136,20 @@
   ECR push commands. Tests with moto (CloudWatch metrics, tagged spot launch).
   111 router tests.
 
+- Phase 8: npm run demo starts services/router on 7200 with its venv (mock
+  fleet, local backends, devnet settlement) and passes ROUTER_URL to the api;
+  requirements split into runtime (requirements.txt) and dev
+  (requirements-dev.txt). docs/DEMO.md: router click path and the devnet
+  run's hashes. docs/ROUTER.md: model, objectives, Pareto knee, providers,
+  AWS architecture, resume, settlement, observability, benchmark, SpotServe
+  citation. docs/CONTRACTS.md: AWS resource list and compute hooks for
+  Tharun, api/demo additions for Alexander.
+
 ## Next
-- Phase 8: npm run demo starts the router, docs/DEMO.md flow, full
-  docs/ROUTER.md, request for Tharun in docs/CONTRACTS.md.
+- When AWS access is approved: deploy the SAM stack, set STATE_BACKEND,
+  QUEUE_BACKEND, ORCHESTRATOR and PRICE_SOURCES=all, and rerun the benchmark
+  with --from-store against recorded live prices.
+- Add Tharun's rented GPUs to config/fleet.live.json as they come online.
 
 ## Blockers
 - No AWS credentials on this machine (no AWS CLI either). All AWS adapters

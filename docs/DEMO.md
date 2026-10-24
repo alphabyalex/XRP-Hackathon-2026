@@ -64,3 +64,33 @@ Sources in this run:
 - Ledger: real devnet.
 - Oracle: read live from the ledger.
 - Credit, risk and memo: the api's built-in models, labeled simulated, because Python 3.11+ is not installed on the demo machine yet.
+
+## Router: rent compute across providers (2 minutes)
+
+`npm run demo` also starts the order router on :7200 (mock fleet across Moonshift, AWS, Azure and Vast.ai, local state, devnet settlement through the api). Open http://localhost:3000/admin/router in a second tab (not linked from the nav; enter the ADMIN_KEY if one is set).
+
+**The one line to say:** Pick Cheapest, Balanced or Fastest. The router prices every GPU it can see across clouds, places the job, and if a GPU is taken back mid-job, the job resumes on another GPU instead of restarting.
+
+| Time | Where | Click | Say | What it proves |
+|---|---|---|---|---|
+| 0:00 | /admin/router | Scroll the Prices table | "Live prices across AWS, Azure, Google Cloud, Oracle, Lambda, RunPod, Vast.ai and CoreWeave, with availability and how fresh each price is." | Multi-provider catalog; AWS spot blends the Spot Advisor band with placement scores |
+| 0:15 | /market | Rent compute, 30 min. Point at the three rows | "Same order, three plans: Cheapest waits for one cheap spot GPU, Fastest splits across three, Balanced is the knee of the price/time curve." | Optimizer output from /quote, real price and ETA |
+| 0:35 | /market | **Rent** with Balanced | "One USDC payment to the order treasury on the ledger." Open the payment link. | MS_ORDER Payment on devnet |
+| 0:45 | /market | Point at the GPUs line and the progress bar | "It is running on three GPUs from three providers." | Parallel split, live progress over SSE |
+| 0:55 | /admin/router | **Reclaim** on the GPU the order runs on (or AWS_LAUNCH=1 with a real EC2 spot warning) | "The provider just took that GPU back with a warning window." | One reclaim path for manual, booking and EC2/Azure/GCP notices |
+| 1:05 | /market | The line "Moved to GPU-B1, resumed" | "It checkpointed inside the warning window and continued elsewhere. Nothing restarted." | Resume, don't restart (SpotServe idea) |
+| 1:25 | /admin/router | Orders table: the order is settled | "Each GPU got paid for exactly the work it served, and the unused amount went back." | MS_SETTLE per GPU + MS_REFUND on devnet |
+| 1:40 | /playground | Switch between Cheapest and Fastest, Run | "Same prompt, different GPU, different price." | priority in the OpenAI-compatible API |
+
+### Last router run (devnet)
+
+Run on 2026-10-24 through apps/api with MOCK_XRPL=0, NETWORK=devnet. Order `ord_953c69de`, mode Cheapest, T4 only: it started on Azure spot (GPU-A3), was reclaimed at token 15, and resumed on AWS spot (GPU-A2) as one continuous reply (15 + 20 tokens, 0 restarts).
+
+| # | Step | Tx |
+|---|---|---|
+| 1 | Buyer pays the quote to the order treasury (MS_ORDER) | [241C1E9C](https://devnet.xrpl.org/transactions/241C1E9C58E5C1FE673003E3F8EFD5F2124EC4943A9F793B4952E27D44DFFCD3) |
+| 2 | GPU-A2 (AWS) paid for the 20 tokens it served (MS_SETTLE) | [CDCD8575](https://devnet.xrpl.org/transactions/CDCD85755FE7B4BB6A2AEB7D27A90466989CE0007886C92A1CC8B26471110EFB) |
+| 3 | GPU-A3 (Azure) paid for the 15 tokens it served (MS_SETTLE) | [A7BA417B](https://devnet.xrpl.org/transactions/A7BA417BD9A48E14BE9C50372A46C33A3A6217C3A6613B01A2A1117F8105BDFA) |
+| 4 | Unused amount refunded to the buyer (MS_REFUND) | [7A11B3BE](https://devnet.xrpl.org/transactions/7A11B3BE97C508A95D8941A308BA4C72713E60F4B028D491D6C4F3B6BC386BF2) |
+
+Honest labels for the router: the fleet in the demo is the mock fleet (real prices from the catalog where collected, GPUs run in-process at each card's speed); external providers' GPUs are not launched unless AWS_LAUNCH=1 / EXTERNAL_LAUNCH=1. The benchmark in docs/ROUTER.md is a simulation.
