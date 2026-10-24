@@ -7,7 +7,7 @@ import {
   type OfferCreate,
 } from "xrpl";
 import type { AccountName, AccountsFile } from "@moonshift/shared";
-import { GPUS } from "@moonshift/shared";
+import { GPUS, networkInfo, networkName, vaultPhase } from "@moonshift/shared";
 import { getClient, submitTx } from "./client.js";
 import {
   ALL_ACCOUNT_NAMES,
@@ -18,6 +18,8 @@ import {
   appendOrUpdateEnvSeeds,
   loadWalletFromSeed,
 } from "./wallets.js";
+import { publishOracle } from "./oracle.js";
+import { createRound, pruneRounds } from "./lending.js";
 
 const DEFAULT_RIPPLE_FLAG = 8; // asfDefaultRipple
 const ALLOW_TRUSTLINE_LOCKING_FLAG = 17; // asfAllowTrustLineLocking
@@ -27,9 +29,10 @@ const LSF_ALLOW_TRUSTLINE_LOCKING = 0x40000000;
 
 export async function setupNetwork(): Promise<AccountsFile> {
   const client = await getClient();
-  console.log("Starting setupNetwork (idempotent)...");
+  const net = networkInfo();
+  console.log(`Starting setupNetwork on ${net.name} (idempotent, safe to rerun)...`);
 
-  // Step 1: Ensure all wallets exist and have sufficient testnet XRP (>= 50 XRP)
+  // Step 1: Ensure all wallets exist and have enough XRP (>= 50) on this network
   const wallets: Record<AccountName, Wallet> = {} as any;
   const newSeedsToSave: Partial<Record<AccountName, string>> = {};
 
@@ -58,7 +61,7 @@ export async function setupNetwork(): Promise<AccountsFile> {
         }
       }
     } else {
-      console.log(`Generating and funding new testnet wallet for ${name}...`);
+      console.log(`Generating and funding new ${net.name} wallet for ${name}...`);
       const fundResult = await client.fundWallet();
       wallet = fundResult.wallet;
       seed = wallet.seed;
@@ -81,7 +84,7 @@ export async function setupNetwork(): Promise<AccountsFile> {
     accountsFile[name] = { address: wallets[name].address };
   }
   saveAccountsJson(accountsFile);
-  console.log("Updated contracts/accounts.testnet.json with public addresses.");
+  console.log(`Updated contracts/accounts.${net.name}.json with public addresses.`);
 
   const tdxIssuer = wallets.TDX_ISSUER;
   const shareIssuer = wallets.SHARE_ISSUER;
@@ -111,9 +114,8 @@ export async function setupNetwork(): Promise<AccountsFile> {
     "DEV",
   ];
 
-  for (const acct of nonIssuers) {
-    await ensureTrustline(wallets[acct], "TDX", tdxIssuer.address, "1000000000", acct);
-  }
+  // Different accounts never share a sequence, so run them in parallel.
+  await Promise.all(nonIssuers.map((acct) => ensureTrustline(wallets[acct], "TDX", tdxIssuer.address, "1000000000", acct)));
 
   // Treasuries, personas and LENDING_POOL trust GPA and GPB
   const shareTrustees: AccountName[] = [
@@ -126,10 +128,12 @@ export async function setupNetwork(): Promise<AccountsFile> {
     "DEV",
   ];
 
-  for (const acct of shareTrustees) {
-    await ensureTrustline(wallets[acct], "GPA", shareIssuer.address, "1000000000", acct);
-    await ensureTrustline(wallets[acct], "GPB", shareIssuer.address, "1000000000", acct);
-  }
+  await Promise.all(
+    shareTrustees.map(async (acct) => {
+      await ensureTrustline(wallets[acct], "GPA", shareIssuer.address, "1000000000", acct);
+      await ensureTrustline(wallets[acct], "GPB", shareIssuer.address, "1000000000", acct);
+    })
+  );
 
   // Treasuries, personas and DEV trust HRA and HRB
   const contractTrustees: AccountName[] = [
@@ -141,10 +145,12 @@ export async function setupNetwork(): Promise<AccountsFile> {
     "DEV",
   ];
 
-  for (const acct of contractTrustees) {
-    await ensureTrustline(wallets[acct], "HRA", contractIssuer.address, "1000000000", acct);
-    await ensureTrustline(wallets[acct], "HRB", contractIssuer.address, "1000000000", acct);
-  }
+  await Promise.all(
+    contractTrustees.map(async (acct) => {
+      await ensureTrustline(wallets[acct], "HRA", contractIssuer.address, "1000000000", acct);
+      await ensureTrustline(wallets[acct], "HRB", contractIssuer.address, "1000000000", acct);
+    })
+  );
 
   // Step 4: Issue tokens
   // 1,000 GPA to TREASURY_GPU_A
@@ -193,7 +199,17 @@ export async function setupNetwork(): Promise<AccountsFile> {
     "TREASURY_GPU_B (HRB 200 @ 0.25 TDX)"
   );
 
-  console.log("setupNetwork completed successfully!");
+  // Step 6: Oracle. One OracleSet per GPU so the risk keeper has a price.
+  await ensureOracles();
+
+  // Step 7: Lending rounds (XLS-65 vault + XLS-66 broker), lending networks only.
+  if (net.lending) {
+    await ensureLendingRounds();
+  } else {
+    console.log(`Lending is not enabled on ${net.name}; skipping vaults. Use NETWORK=devnet.`);
+  }
+
+  console.log(`setupNetwork completed successfully on ${networkName()}!`);
   return accountsFile;
 }
 
@@ -342,4 +358,65 @@ async function ensureInitialOffer(
   };
 
   await submitTx(treasury, offerTx);
+}
+
+async function ensureOracles(): Promise<void> {
+  const client = await getClient();
+  const oracle = getAccountWallet("ORACLE");
+  for (const [i, gpu] of GPUS.entries()) {
+    try {
+      await client.request({
+        command: "ledger_entry",
+        oracle: { account: oracle.address, oracle_document_id: i + 1 },
+        ledger_index: "validated",
+      } as any);
+      continue; // already published
+    } catch {
+      // not found: publish the opening price below
+    }
+    console.log(`Publishing opening oracle price for ${gpu.id}...`);
+    // Opening NAV matches the initial DEX offer (5 TDX per share).
+    await publishOracle({ gpuId: gpu.id, navPerShare: "5.000000", gpuHourPrice: "3.000000", utilizationPct: "20.00" });
+  }
+}
+
+// Two rounds keep the demo whole: one in its investment phase (borrowers
+// draw from it now) and the next one in subscription (lenders deposit now).
+// Rounds whose vault vanished (devnet reset) are pruned first.
+export async function ensureLendingRounds(): Promise<void> {
+  const live = await pruneRounds();
+  const soon = Date.now() + 60 * 60 * 1000;
+  const now = new Date();
+
+  const investing = live.find(
+    (r) => vaultPhase(r.subscriptionDate, r.redemptionDate, now) === "investment" && new Date(r.redemptionDate).getTime() > soon
+  );
+  if (!investing) {
+    console.log("Creating an investing lending round (short subscription, 14 day term)...");
+    await createRound({
+      subscriptionSeconds: 75,
+      termSeconds: 14 * 24 * 3600,
+      coverAmount: "1000",
+      seedDeposits: [
+        { lender: "BOB", amount: "4000" },
+        { lender: "CAROL", amount: "3000" },
+      ],
+      waitForInvestment: true,
+      log: (m) => console.log(`  ${m}`),
+    });
+  }
+
+  const subscribing = live.find(
+    (r) => vaultPhase(r.subscriptionDate, r.redemptionDate, now) === "subscription" && new Date(r.subscriptionDate).getTime() > soon
+  );
+  if (!subscribing) {
+    console.log("Creating the next lending round (3 day subscription window)...");
+    await createRound({
+      subscriptionSeconds: 3 * 24 * 3600,
+      termSeconds: 14 * 24 * 3600,
+      coverAmount: "500",
+      seedDeposits: [{ lender: "CAROL", amount: "1000" }],
+      log: (m) => console.log(`  ${m}`),
+    });
+  }
 }

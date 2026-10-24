@@ -1,3 +1,4 @@
+import { redactEndpoint, networkName } from "@moonshift/shared";
 import { getClient, disconnectClient } from "./client.js";
 
 export interface FeatureStatus {
@@ -9,7 +10,8 @@ export interface FeatureStatus {
 
 export interface FeatureReport {
   timestamp: string;
-  endpoint: string;
+  network: string;
+  endpoint: string; // redacted, safe to print
   features: Record<string, FeatureStatus>;
 }
 
@@ -23,6 +25,14 @@ export const TARGET_FEATURES = [
   "PriceOracle",
 ] as const;
 
+// Lending stack (XLS-65 vault, XLS-66 loans). Enabled on devnet only today.
+export const LENDING_FEATURES = [
+  "LendingProtocol",
+  "LendingProtocolV1_1",
+  "SingleAssetVault",
+  "MPTokensV1",
+] as const;
+
 export async function checkFeatures(): Promise<FeatureReport> {
   const client = await getClient();
   const res = await client.request({ command: "feature" });
@@ -30,7 +40,7 @@ export async function checkFeatures(): Promise<FeatureReport> {
   const rawFeatures = res.result.features as Record<string, any>;
   const report: Record<string, FeatureStatus> = {};
 
-  for (const target of TARGET_FEATURES) {
+  for (const target of [...TARGET_FEATURES, ...LENDING_FEATURES]) {
     let found: FeatureStatus | null = null;
     for (const [id, f] of Object.entries(rawFeatures)) {
       if (f.name && f.name.toLowerCase() === target.toLowerCase()) {
@@ -57,7 +67,8 @@ export async function checkFeatures(): Promise<FeatureReport> {
 
   return {
     timestamp: new Date().toISOString(),
-    endpoint: client.url,
+    network: networkName(),
+    endpoint: redactEndpoint(client.url),
     features: report,
   };
 }

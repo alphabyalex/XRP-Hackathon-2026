@@ -1,0 +1,29 @@
+{
+  "_note": "Public XLS-65/66 IDs on devnet, written by packages/xrpl. Safe to commit. Never put seeds here.",
+  "network": "devnet",
+  "broker": "rsWQVjDESTe9JsS3DXL92icYXtpBF4Xktw",
+  "rounds": [
+    {
+      "round": 1,
+      "vaultId": "3F449538CB3991C8659CD0D45EDD37088E76EB8D458E0DE0C4988CFCEB29371C",
+      "loanBrokerId": "9561A2D286D42C1E3B9B5156651A75D1C36540911EB85D55F6C36646E6052E3D",
+      "vaultAccount": "rMgztSjPX56tqfE1SyEaSTMXTYaK44xEKg",
+      "brokerAccount": "rfMFFg9xaKfMVYJxpXMASyhJEPTJyUFsKk",
+      "shareMptId": "00000001E2F30F4E192FB906F43F817D87BE324DB18C023D",
+      "subscriptionDate": "2026-10-24T16:57:25.000Z",
+      "redemptionDate": "2026-11-07T16:57:25.000Z",
+      "createdTx": "259162D3DF8C43815609DF8E42D9C37286EBD291240E8FAD8CE963B0AA85F4F2"
+    },
+    {
+      "round": 2,
+      "vaultId": "124B3A6FDC9DAD99077C6F461EAAAFE2B565FBD7C817770AA4F735215F02EEB9",
+      "loanBrokerId": "53DA7D4CA8C1AB9C2384F0644AF51B88924E192B1BB763F26F4D6F8D8AB94AFA",
+      "vaultAccount": "rnwQY5m1ggf2Z3fnKAjZJE5aML9ogCDPDF",
+      "brokerAccount": "rNuXR2yz1Mh4zXiimihQVHfm4USFrtDcw2",
+      "shareMptId": "000000012DA7E71AE297E820B63B8CB7BD75C69B97DE771B",
+      "subscriptionDate": "2026-10-27T16:57:30.000Z",
+      "redemptionDate": "2026-11-10T16:57:30.000Z",
+      "createdTx": "7523ADDAAD1D959A5D6B56EA3E4775C68F32A74ED8039ECF3F5A6F7922986FD4"
+    }
+  ]
+}

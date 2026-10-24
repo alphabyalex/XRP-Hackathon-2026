@@ -45,3 +45,24 @@ export {
 export { checkFeatures } from "./features.js";
 export { getClient, disconnectClient } from "./client.js";
 export { getAccountWallet, getAccountAddress, loadAccountsJson } from "./wallets.js";
+
+// XLS-65 vaults and XLS-66 loan brokers (devnet lending)
+export {
+  BROKER_ACCOUNT,
+  BROKER_DEFAULTS,
+  createVault,
+  depositToVault,
+  withdrawFromVault,
+  getVault,
+  getVaultShares,
+  setupLoanBroker,
+  depositCover,
+  getLoanBroker,
+  createRound,
+  pruneRounds,
+  loadLendingState,
+  currentRound,
+  findRound,
+  roundPhase,
+} from "./lending.js";
+export { ensureLendingRounds } from "./setup.js";

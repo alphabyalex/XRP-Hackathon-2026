@@ -2,6 +2,9 @@
 // (services/compute, services/pricing) until we wire a codegen step.
 // Brand name, tagline and colors live in one place: ./brand.ts.
 
+import { txExplorerUrl } from "./network";
+
+// Testnet default only. Use networkInfo() from ./network for the active network.
 export const XRPL_WSS = process.env.XRPL_WSS ?? "wss://s.altnet.rippletest.net:51233";
 
 export const STABLE = { code: "TDX", display: "USDC (test)", decimals: 6 } as const;
@@ -41,8 +44,7 @@ export const LOAN = {
 
 export const PORTS = { web: 3000, api: 4000, compute: 5000, pricing: 6000 } as const;
 
-export const EXPLORER_BASE = "https://testnet.xrpl.org/transactions/";
-
+// Explorer link for the active NETWORK (devnet or testnet).
 export function explorerUrl(hash: string): string {
-  return `${EXPLORER_BASE}${hash}`;
+  return txExplorerUrl(hash);
 }

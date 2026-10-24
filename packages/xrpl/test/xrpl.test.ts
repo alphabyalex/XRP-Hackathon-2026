@@ -1,5 +1,16 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
+import {
+  ceil6,
+  isoToRipple,
+  networkInfo,
+  pctToTenthBps,
+  redactEndpoint,
+  rippleToIso,
+  tenthBpsToPct,
+  txExplorerUrl,
+  vaultPhase,
+} from "@moonshift/shared";
 import { BatchFlags, xrpToDrops, dropsToXrp } from "xrpl";
 import {
   getSigningAlgorithm,
@@ -93,6 +104,34 @@ async function runTests() {
   assert.equal(xrpToDrops("1"), "1000000");
   assert.equal(dropsToXrp("1000000"), 1);
   console.log("  Passed: Exact drops to XRP conversion");
+
+  // 9. Network switch: seed names, endpoints, explorer links
+  console.log("\nTest 9: Network switch");
+  assert.equal(getSeedEnvKey("ALICE", "testnet"), "ALICE_SEED");
+  assert.equal(getSeedEnvKey("ALICE", "devnet"), "DEVNET_ALICE_SEED");
+  assert.equal(redactEndpoint("wss://abc.xrp-testnet.quiknode.pro/SECRETTOKEN/"), "wss://abc.xrp-testnet.quiknode.pro/<redacted>");
+  assert.equal(redactEndpoint("wss://s.devnet.rippletest.net:51233"), "wss://s.devnet.rippletest.net:51233");
+  assert.ok(txExplorerUrl("ABC", "devnet").startsWith("https://devnet.xrpl.org/transactions/"));
+  const savedQn = process.env.QUICKNODE_WSS;
+  process.env.QUICKNODE_WSS = "wss://example.quiknode.pro/token/";
+  assert.ok(!networkInfo("devnet").wss.includes("quiknode"), "devnet must never use Quicknode");
+  if (savedQn === undefined) delete process.env.QUICKNODE_WSS;
+  else process.env.QUICKNODE_WSS = savedQn;
+  console.log("  Passed: per-network seed keys, redaction, devnet never routes to Quicknode");
+
+  // 10. Lending math helpers
+  console.log("\nTest 10: Lending math");
+  assert.equal(ceil6("166.667427702245843"), "166.667428");
+  assert.equal(ceil6("500.002283106738"), "500.002284");
+  assert.equal(ceil6("12"), "12.000000");
+  assert.equal(ceil6("1e-7"), "0.000001");
+  assert.equal(pctToTenthBps(12), 12000);
+  assert.equal(tenthBpsToPct(50000), "50.000");
+  assert.equal(rippleToIso(isoToRipple("2026-10-24T12:00:00.000Z")), "2026-10-24T12:00:00.000Z");
+  assert.equal(vaultPhase("2026-01-02T00:00:00Z", "2026-01-03T00:00:00Z", new Date("2026-01-01T00:00:00Z")), "subscription");
+  assert.equal(vaultPhase("2026-01-02T00:00:00Z", "2026-01-03T00:00:00Z", new Date("2026-01-02T12:00:00Z")), "investment");
+  assert.equal(vaultPhase("2026-01-02T00:00:00Z", "2026-01-03T00:00:00Z", new Date("2026-01-04T00:00:00Z")), "redemption");
+  console.log("  Passed: ceil6 rounding, 1/10 bp units, ripple time, vault phases");
 
   console.log("\n==================================================================");
   console.log("              ALL UNIT AND SUITE TESTS PASSED!                    ");
