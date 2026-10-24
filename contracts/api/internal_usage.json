@@ -1,6 +1,6 @@
 {
   "endpoint": "POST /internal/usage",
-  "headers": { "X-GB-Internal-Key": "<INTERNAL_API_KEY>" },
+  "headers": { "X-MS-Internal-Key": "<INTERNAL_API_KEY>" },
   "note": "Called by services/compute after each inference request. Same shape as contracts/compute/usage_event.json.",
   "request": {
     "request_id": "req_abc123",

@@ -22,7 +22,7 @@ class UsageReporter:
         if not self.api_url:
             return False
         payload = event.model_dump(mode="json")
-        headers = {"X-GB-Internal-Key": self.internal_api_key}
+        headers = {"X-MS-Internal-Key": self.internal_api_key}
         for attempt in range(3):
             try:
                 async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:

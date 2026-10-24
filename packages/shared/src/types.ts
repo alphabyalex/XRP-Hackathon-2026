@@ -192,7 +192,7 @@ export interface ChatCompletionResponse {
     message: { role: "assistant"; content: string };
     finish_reason: string;
   }[];
-  x_gb: ChatCompletionExtra;
+  x_ms: ChatCompletionExtra;
 }
 
 export interface BookingRequest {
@@ -217,6 +217,7 @@ export interface UsageEvent {
   charge: DecimalString;
   started_at: IsoDateTime;
   finished_at: IsoDateTime;
+  simulated?: boolean;
 }
 
 // ---------------------------------------------------------------------------

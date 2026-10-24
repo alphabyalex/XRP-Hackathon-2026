@@ -1,6 +1,6 @@
 {
   "endpoint": "POST /admin/dividends/:id/approve",
-  "headers": { "X-GB-Admin-Key": "<ADMIN_KEY>" },
+  "headers": { "X-MS-Admin-Key": "<ADMIN_KEY>" },
   "request": {},
   "response": {
     "id": "div_abc123",

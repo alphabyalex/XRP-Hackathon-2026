@@ -25,7 +25,7 @@ MONEY_QUANTUM = Decimal("0.000001")
 @dataclass(frozen=True, slots=True)
 class ChatResult:
     body: dict[str, object]
-    x_gb: dict[str, object]
+    x_ms: dict[str, object]
 
 
 def charge_for(rate: RateCard, input_tokens: int, output_tokens: int) -> Decimal:
@@ -132,7 +132,7 @@ class ComputeRouter:
         self, request: ChatCompletionRequest, *, buyer: str, booking: str | None, simulated_demand: bool = False
     ) -> ChatResult:
         if not buyer.strip():
-            raise ComputeError("INVALID_REQUEST", "X-GB-Buyer is required.", 400)
+            raise ComputeError("INVALID_REQUEST", "X-MS-Buyer is required.", 400)
         public_request = booking is None
         input_estimate = sum(estimate_text_tokens(message.content) for message in request.messages)
         if public_request and input_estimate > self.settings.public_input_token_limit:
@@ -195,7 +195,7 @@ class ComputeRouter:
             simulated=simulated or simulated_demand,
         )
         await self.usage_reporter.report(event)
-        x_gb: dict[str, object] = {
+        x_ms: dict[str, object] = {
             "request_id": request_id,
             "gpu_id": worker.gpu_id,
             "model": completion.model,
@@ -223,13 +223,13 @@ class ComputeRouter:
                 "completion_tokens": completion.output_tokens,
                 "total_tokens": completion.input_tokens + completion.output_tokens,
             },
-            "x_gb": x_gb,
+            "x_ms": x_ms,
         }
-        return ChatResult(body=body, x_gb=x_gb)
+        return ChatResult(body=body, x_ms=x_ms)
 
 
 async def sse_events(result: ChatResult) -> AsyncIterator[str]:
-    """Return OpenAI-shaped SSE plus Groundbreak metadata in the final event."""
+    """Return OpenAI-shaped SSE plus Moonshift metadata in the final event."""
 
     body = result.body
     choices = body["choices"]
@@ -246,5 +246,5 @@ async def sse_events(result: ChatResult) -> AsyncIterator[str]:
         "choices": [{"index": 0, "delta": message, "finish_reason": "stop"}],
     }
     yield f"data: {json.dumps(chunk)}\n\n"
-    yield f"data: {json.dumps({'object': 'groundbreak.metadata', 'x_gb': result.x_gb})}\n\n"
+    yield f"data: {json.dumps({'object': 'moonshift.metadata', 'x_ms': result.x_ms})}\n\n"
     yield "data: [DONE]\n\n"

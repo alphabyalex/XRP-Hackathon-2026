@@ -23,7 +23,7 @@ async def run(rps: float, duration: int, buyer: str, api_url: str) -> None:
         raise ValueError("rps must be greater than zero")
     interval = 1 / rps
     deadline = time.monotonic() + duration
-    headers = {"X-GB-Buyer": buyer, "X-GB-Simulated": "true"}
+    headers = {"X-MS-Buyer": buyer, "X-MS-Simulated": "true"}
     async with httpx.AsyncClient(timeout=90) as client:
         while time.monotonic() < deadline:
             payload = {
@@ -33,14 +33,14 @@ async def run(rps: float, duration: int, buyer: str, api_url: str) -> None:
             try:
                 # Demand goes through apps/api so its usage enters the revenue ledger.
                 response = await client.post(f"{api_url.rstrip('/')}/inference/chat", json=payload, headers=headers)
-                print(response.status_code, response.json().get("x_gb", {}).get("request_id", ""))
+                print(response.status_code, response.json().get("x_ms", {}).get("request_id", ""))
             except httpx.HTTPError as error:
                 print(f"simulated request failed: {error}")
             await asyncio.sleep(interval)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate simulated Groundbreak inference demand")
+    parser = argparse.ArgumentParser(description="Generate simulated Moonshift inference demand")
     parser.add_argument("--rps", type=float, required=True)
     parser.add_argument("--duration", type=int, required=True)
     parser.add_argument("--buyer", default="DEV")

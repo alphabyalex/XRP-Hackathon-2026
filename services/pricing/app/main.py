@@ -1,4 +1,4 @@
-"""Groundbreak pricing service (FastAPI, port 6000). Contract: A9.3 in docs/CONTRACTS.md."""
+"""Moonshift pricing service (FastAPI, port 6000). Contract: A9.3 in docs/CONTRACTS.md."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from app.money import to_dec
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
-app = FastAPI(title="Groundbreak pricing", version="0.1.0")
+app = FastAPI(title="Moonshift pricing", version="0.1.0")
 
 
 @app.exception_handler(ValueError)
@@ -26,10 +26,10 @@ async def value_error(_: Request, exc: ValueError) -> JSONResponse:
     return JSONResponse(status_code=422, content={"error": {"code": "INVALID_INPUT", "message": str(exc)}})
 
 
-def internal_key(x_gb_internal_key: str | None = Header(default=None)) -> None:
+def internal_key(x_ms_internal_key: str | None = Header(default=None)) -> None:
     """Enforced only when INTERNAL_API_KEY is set, so local dev works without it."""
-    if C.INTERNAL_API_KEY and x_gb_internal_key != C.INTERNAL_API_KEY:
-        raise HTTPException(status_code=401, detail="bad or missing X-GB-Internal-Key")
+    if C.INTERNAL_API_KEY and x_ms_internal_key != C.INTERNAL_API_KEY:
+        raise HTTPException(status_code=401, detail="bad or missing X-MS-Internal-Key")
 
 
 def _opt(v: str | None) -> Decimal | None:

@@ -1,4 +1,4 @@
-# Groundbreak Compute
+# Moonshift Compute
 
 `services/compute` is Kristian's Python 3.11 FastAPI service. It owns model
 serving, GPU selection, booking preemption, inference metering, and the usage
@@ -34,7 +34,7 @@ Try a mock request:
 ```powershell
 Invoke-RestMethod http://127.0.0.1:5000/v1/chat/completions `
   -Method Post `
-  -Headers @{ "X-GB-Buyer" = "DEV" } `
+  -Headers @{ "X-MS-Buyer" = "DEV" } `
   -ContentType "application/json" `
   -Body '{"messages":[{"role":"user","content":"Explain booked GPU time."}]}'
 ```
@@ -42,21 +42,21 @@ Invoke-RestMethod http://127.0.0.1:5000/v1/chat/completions `
 ## API contract
 
 - `POST /v1/chat/completions` accepts a text-only OpenAI-compatible request.
-  It requires `X-GB-Buyer`; `X-GB-Booking` grants active, exclusive booked
+  It requires `X-MS-Buyer`; `X-MS-Booking` grants active, exclusive booked
   access. Public requests are capped at 2,000 approximate input tokens and
   256 output tokens.
-- Successful responses add `x_gb` with `request_id`, `gpu_id`, `model`, token
+- Successful responses add `x_ms` with `request_id`, `gpu_id`, `model`, token
   counts, six-decimal `charge`, route reason, and `simulated` status. Booked
   calls have a `0.000000` charge because the contract paid beforehand. The
   optional `skipped_gpus` array records booking, runway, load, offline, or
   model-mismatch reasons observed while choosing a public worker.
-- `stream: true` uses server-sent events. The final event has the `x_gb`
+- `stream: true` uses server-sent events. The final event has the `x_ms`
   metadata, followed by `[DONE]`.
 - `GET /gpus` returns worker state, model, simulation label, throughput setting,
   and one-hour utilization.
 - `GET /gpus/{id}/calendar?from=<ISO>&to=<ISO>` returns `BOOKED` and
   `INFERENCE` intervals. Calendar times must include a UTC offset.
-- `POST /bookings` requires `X-GB-Internal-Key`. It reserves a redemption's
+- `POST /bookings` requires `X-MS-Internal-Key`. It reserves a redemption's
   slot or returns `409` with `SLOT_TAKEN`.
 
 Every public-admission check and booking conflict check is serialized by a
@@ -123,7 +123,7 @@ $env:API_URL = "http://127.0.0.1:4000"
 python -m sim.load --rps 0.5 --duration 600 --buyer DEV
 ```
 
-The API should forward its selected buyer to this service as `X-GB-Buyer` and
+The API should forward its selected buyer to this service as `X-MS-Buyer` and
 preserve the simulator label when it records usage.
 
 ## Roadmap adapters

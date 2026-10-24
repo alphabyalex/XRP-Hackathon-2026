@@ -17,6 +17,9 @@ import type {
 
 const MOCK = process.env.MOCK_PRICING !== "0";
 const PRICING_URL = process.env.PRICING_URL ?? "http://localhost:6000";
+// Every pricing route checks this header when INTERNAL_API_KEY is set.
+const AUTH = { "X-MS-Internal-Key": process.env.INTERNAL_API_KEY ?? "" };
+const JSON_AUTH = { "Content-Type": "application/json", ...AUTH };
 
 function inMinutes(n: number): string {
   return new Date(Date.now() + n * 60 * 1000).toISOString();
@@ -24,7 +27,7 @@ function inMinutes(n: number): string {
 
 export async function getInferenceRates(gpuId: GpuId): Promise<InferenceRatesResponse> {
   if (!MOCK) {
-    const res = await fetch(`${PRICING_URL}/rates/inference?gpu_id=${gpuId}`);
+    const res = await fetch(`${PRICING_URL}/rates/inference?gpu_id=${gpuId}`, { headers: AUTH });
     return (await res.json()) as InferenceRatesResponse;
   }
   return {
@@ -39,7 +42,7 @@ export async function getInferenceRates(gpuId: GpuId): Promise<InferenceRatesRes
 
 export async function getContractPrice(gpuId: GpuId, slotStart: string): Promise<ContractPriceResponse> {
   if (!MOCK) {
-    const res = await fetch(`${PRICING_URL}/price/contract?gpu_id=${gpuId}&slot_start=${encodeURIComponent(slotStart)}`);
+    const res = await fetch(`${PRICING_URL}/price/contract?gpu_id=${gpuId}&slot_start=${encodeURIComponent(slotStart)}`, { headers: AUTH });
     return (await res.json()) as ContractPriceResponse;
   }
   return {
@@ -54,7 +57,7 @@ export async function getContractPrice(gpuId: GpuId, slotStart: string): Promise
 
 export async function getNav(gpuId: GpuId): Promise<NavResponse> {
   if (!MOCK) {
-    const res = await fetch(`${PRICING_URL}/nav?gpu_id=${gpuId}`);
+    const res = await fetch(`${PRICING_URL}/nav?gpu_id=${gpuId}`, { headers: AUTH });
     return (await res.json()) as NavResponse;
   }
   return {
@@ -72,7 +75,7 @@ export async function proposeDividends(req: DividendsProposeRequest): Promise<Di
   if (!MOCK) {
     const res = await fetch(`${PRICING_URL}/dividends/propose`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: JSON_AUTH,
       body: JSON.stringify(req),
     });
     return (await res.json()) as DividendsProposeResponse;
@@ -106,7 +109,7 @@ export async function quoteLoan(req: LoanQuoteRequest): Promise<LoanQuoteRespons
   if (!MOCK) {
     const res = await fetch(`${PRICING_URL}/loans/quote`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: JSON_AUTH,
       body: JSON.stringify(req),
     });
     return (await res.json()) as LoanQuoteResponse;
@@ -128,7 +131,7 @@ export async function explain(req: AgentExplainRequest): Promise<AgentExplainRes
   if (!MOCK) {
     const res = await fetch(`${PRICING_URL}/agent/explain`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: JSON_AUTH,
       body: JSON.stringify(req),
     });
     return (await res.json()) as AgentExplainResponse;

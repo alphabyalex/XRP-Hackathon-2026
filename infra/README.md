@@ -1,4 +1,4 @@
-# Groundbreak AWS GPU runbook
+# Moonshift AWS GPU runbook
 
 This folder describes the intended AWS setup. It contains no credentials,
 account IDs, SSH keys, or secret values. Do not use a root account.
@@ -43,9 +43,9 @@ variable. They write an untracked UTC start/stop line to `infra/.state/hours.csv
 for a simple running-hours log.
 
 ```bash
-export AWS_PROFILE=groundbreak-kristian
+export AWS_PROFILE=moonshift-kristian
 export AWS_REGION=us-east-2
-export GB_INSTANCE_ID=i-REPLACE_WITH_EXISTING_INSTANCE_ID
+export MS_INSTANCE_ID=i-REPLACE_WITH_EXISTING_INSTANCE_ID
 ./infra/start.sh
 # Use the worker, then stop it promptly.
 ./infra/stop.sh

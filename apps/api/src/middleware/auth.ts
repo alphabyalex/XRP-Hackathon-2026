@@ -1,20 +1,20 @@
 import type { Request, Response, NextFunction } from "express";
 
 export function requireInternalKey(req: Request, res: Response, next: NextFunction): void {
-  const key = req.header("X-GB-Internal-Key");
+  const key = req.header("X-MS-Internal-Key");
   const expected = process.env.INTERNAL_API_KEY;
   if (!expected || key !== expected) {
-    res.status(401).json({ error: { code: "UNAUTHORIZED", message: "missing or bad X-GB-Internal-Key" } });
+    res.status(401).json({ error: { code: "UNAUTHORIZED", message: "missing or bad X-MS-Internal-Key" } });
     return;
   }
   next();
 }
 
 export function requireAdminKey(req: Request, res: Response, next: NextFunction): void {
-  const key = req.header("X-GB-Admin-Key");
+  const key = req.header("X-MS-Admin-Key");
   const expected = process.env.ADMIN_KEY;
   if (!expected || key !== expected) {
-    res.status(401).json({ error: { code: "UNAUTHORIZED", message: "missing or bad X-GB-Admin-Key" } });
+    res.status(401).json({ error: { code: "UNAUTHORIZED", message: "missing or bad X-MS-Admin-Key" } });
     return;
   }
   next();

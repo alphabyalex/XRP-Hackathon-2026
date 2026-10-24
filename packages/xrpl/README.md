@@ -95,11 +95,11 @@ Public addresses are committed in `contracts/accounts.testnet.json`.
 - **Behavior**: Places an `OfferCreate` with `tfImmediateOrCancel` crossing treasury compute contract offers.
 
 ### `redeemContracts(p: RedeemContractsParams): Promise<RedeemContractsResult>`
-- **Behavior**: Sends contract tokens back to `CONTRACT_ISSUER` with hex Memo `{ type: "GB_REDEEM", gpuId, slotStart, slots }`. Paying an IOU back to its issuer burns the token.
+- **Behavior**: Sends contract tokens back to `CONTRACT_ISSUER` with hex Memo `{ type: "MS_REDEEM", gpuId, slotStart, slots }`. Paying an IOU back to its issuer burns the token.
 - **Return**: Includes `redemptionId` equal to the transaction hash.
 
 ### `payForInference(p: PayForInferenceParams): Promise<TxResult>`
-- **Behavior**: Sends TDX payment from buyer to GPU treasury with hex Memo `{ type: "GB_CREDITS", gpuId }`.
+- **Behavior**: Sends TDX payment from buyer to GPU treasury with hex Memo `{ type: "MS_CREDITS", gpuId }`.
 
 ### `payDividends(p: PayDividendsParams): Promise<TxResult[]>`
 - **Behavior**: Groups hosting fee and shareholder payouts into atomic `Batch` transactions (up to 8 inner Payments each) with `tfAllOrNothing`, `tfInnerBatchTxn`, `Fee: "0"`, and consecutive sequences.
@@ -110,7 +110,7 @@ Public addresses are committed in `contracts/accounts.testnet.json`.
 - **Return**: `{ loanId, escrowTx, disburseTx }`.
 
 ### `repayLoan(p: { loanId: string }): Promise<TxResult>`
-- **Behavior**: Borrower sends principal in TDX to `LENDING_POOL` with Memo `{ type: "GB_REPAY", loanId }`.
+- **Behavior**: Borrower sends principal in TDX to `LENDING_POOL` with Memo `{ type: "MS_REPAY", loanId }`.
 
 ### `settleLoan(p: { loanId: string }): Promise<TxResult>`
 - **Behavior**:

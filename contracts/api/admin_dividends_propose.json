@@ -1,6 +1,6 @@
 {
   "endpoint": "POST /admin/dividends/propose",
-  "headers": { "X-GB-Admin-Key": "<ADMIN_KEY>" },
+  "headers": { "X-MS-Admin-Key": "<ADMIN_KEY>" },
   "request": { "gpuId": "gpu-a" },
   "response": {
     "id": "div_abc123",

@@ -1,6 +1,6 @@
 {
   "endpoint": "POST /admin/oracle/publish",
-  "headers": { "X-GB-Admin-Key": "<ADMIN_KEY>" },
+  "headers": { "X-MS-Admin-Key": "<ADMIN_KEY>" },
   "request": { "gpuId": "gpu-a" },
   "response": {
     "hash": "ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF12345678",

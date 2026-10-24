@@ -14,14 +14,14 @@ browser.
 Every internal call that creates a booking uses:
 
 ```text
-X-GB-Internal-Key: <INTERNAL_API_KEY>
+X-MS-Internal-Key: <INTERNAL_API_KEY>
 ```
 
 Compute posts completed usage back to:
 
 ```text
 POST {API_URL}/internal/usage
-X-GB-Internal-Key: <INTERNAL_API_KEY>
+X-MS-Internal-Key: <INTERNAL_API_KEY>
 ```
 
 `request_id` is the idempotency key. The API must accept a retry of the same
@@ -33,12 +33,12 @@ For `POST /inference/chat`, the API should forward the OpenAI-compatible JSON
 body unchanged to `POST {COMPUTE_URL}/v1/chat/completions`, adding:
 
 ```text
-X-GB-Buyer: DEV | ALICE | BOB | CAROL
-X-GB-Booking: <redemptionId>     # only for an active redeemed slot
-X-GB-Simulated: true             # only for `sim.load` traffic
+X-MS-Buyer: DEV | ALICE | BOB | CAROL
+X-MS-Booking: <redemptionId>     # only for an active redeemed slot
+X-MS-Simulated: true             # only for `sim.load` traffic
 ```
 
-Return the compute response body unchanged so the web app can show its `x_gb`
+Return the compute response body unchanged so the web app can show its `x_ms`
 block. It contains the routed GPU, measured final token counts, a six-decimal
 TDX charge, the route decision, and whether the worker is simulated.
 
@@ -46,7 +46,7 @@ When `stream: true`, proxy the `text/event-stream` response without buffering.
 The final event is:
 
 ```json
-{"object":"groundbreak.metadata","x_gb":{"request_id":"..."}}
+{"object":"moonshift.metadata","x_ms":{"request_id":"..."}}
 ```
 
 It is followed by the normal `[DONE]` event. The API can record the normal

@@ -108,7 +108,7 @@ length, RLUSD escrow blocked. Trust these, don't re-derive them.
 
 ## A9.2 `services/compute` (Python FastAPI :5000, owner Kristian)
 
-- `POST /v1/chat/completions`: OpenAI-compatible body + header `X-GB-Buyer: <account>`, optional `X-GB-Booking: <redemptionId>`. Returns OpenAI-compatible body + `x_gb: { request_id, gpu_id, model, input_tokens, output_tokens, charge, routed_reason, simulated }`. On rejection: HTTP 409/503 `{ error: { code, message } }`, codes `GPU_BOOKED | NO_ELIGIBLE_GPU | INSUFFICIENT_RUNWAY | PRICE_CAP_EXCEEDED | UPSTREAM_ERROR`.
+- `POST /v1/chat/completions`: OpenAI-compatible body + header `X-MS-Buyer: <account>`, optional `X-MS-Booking: <redemptionId>`. Returns OpenAI-compatible body + `x_ms: { request_id, gpu_id, model, input_tokens, output_tokens, charge, routed_reason, simulated }`. On rejection: HTTP 409/503 `{ error: { code, message } }`, codes `GPU_BOOKED | NO_ELIGIBLE_GPU | INSUFFICIENT_RUNWAY | PRICE_CAP_EXCEEDED | UPSTREAM_ERROR`.
 - `GET /gpus`: `[{ id, state, model, simulated, tokens_per_sec, utilization_pct_1h }]`, state is `READY|SERVING|DRAINING|BOOKED|OFFLINE`.
 - `GET /gpus/{id}/calendar?from=&to=`: `[{ start, end, kind, ref }]`, kind is `BOOKED|INFERENCE|HOLD`.
 - `POST /bookings` (internal): `{ gpu_id, slot_start, slots, redemption_id, holder }` -> `{ booking_id }`, or 409 `SLOT_TAKEN`.
@@ -151,7 +151,7 @@ Admin (requires `ADMIN_KEY`):
 - `POST /admin/demo/reset`
 - `POST /admin/sim/start|stop`
 
-Internal (requires `X-GB-Internal-Key`):
+Internal (requires `X-MS-Internal-Key`):
 - `POST /internal/usage` (from compute)
 
 Live updates: SSE at `GET /events`. Event types: `usage`, `tx`, `calendar`, `dividend`, `loan`.

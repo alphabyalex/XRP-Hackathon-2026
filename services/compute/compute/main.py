@@ -1,4 +1,4 @@
-"""FastAPI application exposing the Groundbreak compute contract on port 5000."""
+"""FastAPI application exposing the Moonshift compute contract on port 5000."""
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await scheduler.load()
         yield
 
-    app = FastAPI(title="Groundbreak Compute", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Moonshift Compute", version="0.1.0", lifespan=lifespan)
     app.state.settings = settings
     app.state.scheduler = scheduler
     app.state.router = router
@@ -86,7 +86,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/bookings")
     async def create_booking(
         booking: BookingRequest,
-        internal_key: str | None = Header(default=None, alias="X-GB-Internal-Key"),
+        internal_key: str | None = Header(default=None, alias="X-MS-Internal-Key"),
     ) -> dict[str, str]:
         if internal_key != settings.internal_api_key:
             raise ComputeError("UNAUTHORIZED", "A valid internal API key is required.", 401)
@@ -96,9 +96,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/v1/chat/completions")
     async def chat_completions(
         chat: ChatCompletionRequest,
-        buyer: str | None = Header(default=None, alias="X-GB-Buyer"),
-        booking: str | None = Header(default=None, alias="X-GB-Booking"),
-        simulated_demand: str | None = Header(default=None, alias="X-GB-Simulated"),
+        buyer: str | None = Header(default=None, alias="X-MS-Buyer"),
+        booking: str | None = Header(default=None, alias="X-MS-Booking"),
+        simulated_demand: str | None = Header(default=None, alias="X-MS-Simulated"),
     ):
         result = await router.chat(
             chat,
