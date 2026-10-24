@@ -82,11 +82,13 @@ export function HomeContent() {
               <p>Each one is an NVIDIA T4 running on AWS. Prices come from the order book on the XRP Ledger DEX. Yield is last 24 hours of payouts, annualized.</p>
             </div>
           </Reveal>
-          <AppWindow tabs={["Market", "Portfolio", "Borrow", "Playground"]} activeTab="Market" acct={<>{ACCOUNT_DISPLAY}&nbsp;&nbsp;<AccountBalance /> USDC</>}>
-            <div className="tbl">
-              <MarketTable views={views} />
-            </div>
-          </AppWindow>
+          <Reveal>
+            <AppWindow tabs={["Market", "Portfolio", "Borrow", "Playground"]} activeTab="Market" acct={<>{ACCOUNT_DISPLAY}&nbsp;&nbsp;<AccountBalance /> USDC</>}>
+              <div className="tbl">
+                <MarketTable views={views} />
+              </div>
+            </AppWindow>
+          </Reveal>
         </div>
       </section>
 
@@ -104,7 +106,8 @@ export function HomeContent() {
               </div>
             </Reveal>
             <div className="sched-grid">
-              <div>
+              <Reveal>
+                <div>
                 <ScheduleRows slots={featured.slots} nowIndex={featured.nowIndex} windowStart={featured.windowStart} />
                 <div className="key">
                   <span>
@@ -138,7 +141,8 @@ export function HomeContent() {
                     <b>{fmt(featured.split.holders / 1000, 6)} USDC</b>
                   </div>
                 </div>
-              </div>
+                </div>
+              </Reveal>
               <Reveal>
                 <TradePanel
                   gpuId={featured.gpu.id}
@@ -207,6 +211,27 @@ export function HomeContent() {
             <div className="dev">
               <CodeSample />
               <PlaygroundTry />
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      <section className="enter" id="enter">
+        <div className="wrap enter-in">
+          <Reveal>
+            <div className="enter-kicker">
+              <span />
+              The app
+              <span />
+            </div>
+            <h2>Enter the app</h2>
+            <p>
+              Trade GPU-A and GPU-B on the XRP Ledger, book a five-minute slot, or borrow against the shares you hold.
+            </p>
+            <div className="ctas">
+              <Button href="/market" arrow>
+                Enter app
+              </Button>
             </div>
           </Reveal>
         </div>
