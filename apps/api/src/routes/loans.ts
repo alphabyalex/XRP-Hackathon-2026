@@ -7,6 +7,7 @@ import { logTx } from "../db/helpers.js";
 import { broadcast } from "../sse.js";
 import * as svc from "../lending/service.js";
 import { lendingAvailable } from "../adapters/lendingAdapter.js";
+import { actorFor } from "../middleware/session.js";
 
 export const loansRouter = Router();
 
@@ -18,11 +19,18 @@ loansRouter.post("/loans/open", async (req, res) => {
       return;
     }
     try {
-      res.json(await svc.openFromQuote((req.body as any).quoteId));
+      res.json(await svc.openFromQuote((req.body as any).quoteId, (b) => actorFor(req, b)));
     } catch (e) {
       const err = e as any;
-      res.status(err instanceof svc.LendingError ? err.status : 500).json({ error: { code: err.code ?? "INTERNAL", message: err.message } });
+      res.status(typeof err?.status === "number" ? err.status : 500).json({ error: { code: err.code ?? "INTERNAL", message: err.message } });
     }
+    return;
+  }
+  // Legacy testnet loan (pre XLS-66): acts for the signed-in account only.
+  try {
+    req.body = { ...(req.body ?? {}), borrower: actorFor(req, (req.body as any)?.borrower) };
+  } catch (e) {
+    res.status(401).json({ error: { code: "NOT_CONNECTED", message: (e as Error).message } });
     return;
   }
   const { borrower, gpuId, collateralShares } = req.body as {
@@ -86,10 +94,10 @@ loansRouter.post("/loans/:id/repay", async (req, res) => {
   // XLS-66 loans: pay off, release collateral, delete the loan.
   if (db.prepare(`SELECT 1 FROM xls_loans WHERE id = ?`).get(loanId)) {
     try {
-      res.json(await svc.repay(loanId, ((req.body ?? {}) as any).mode ?? "full"));
+      res.json(await svc.repay(loanId, ((req.body ?? {}) as any).mode ?? "full", (b) => actorFor(req, b)));
     } catch (e) {
       const err = e as any;
-      res.status(err instanceof svc.LendingError ? err.status : 500).json({ error: { code: err.code ?? "INTERNAL", message: err.message } });
+      res.status(typeof err?.status === "number" ? err.status : 500).json({ error: { code: err.code ?? "INTERNAL", message: err.message } });
     }
     return;
   }

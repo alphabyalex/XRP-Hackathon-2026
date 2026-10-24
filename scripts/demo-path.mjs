@@ -4,18 +4,31 @@
 // Same calls the web pages make: /lend deposit, /borrow quote + open,
 // stress to margin call, stress to liquidation, restore, second loan, repay.
 
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 const API = process.env.API_URL || "http://localhost:4000";
-// Its own throwaway borrower, never ALICE: ALICE is the pitch borrower and
-// this script liquidates a loan every run, which would wreck her score.
+// Its own system borrower (DEV): users act through their wallet session, a
+// script names a system account with the internal key.
 const BORROWER = process.env.DEMO_CHECK_BORROWER || "DEV";
-if (BORROWER === "ALICE") throw new Error("demo:check never borrows as ALICE; set DEMO_CHECK_BORROWER to another account");
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+function envValue(name) {
+  if (process.env[name]) return process.env[name];
+  const file = path.join(ROOT, ".env");
+  if (!fs.existsSync(file)) return undefined;
+  const m = new RegExp(`^[ \t]*${name}[ \t]*=[ \t]*(.*)$`, "m").exec(fs.readFileSync(file, "utf8"));
+  return m ? m[1].trim().replace(/^["']|["']$/g, "") : undefined;
+}
+// Same default npm run demo gives the api when .env has none.
+const INTERNAL_KEY = envValue("INTERNAL_API_KEY") || "moonshift-local-demo-key";
 const rows = [];
 let failed = false;
 
 async function call(method, path, body) {
   const res = await fetch(`${API}${path}`, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-MS-Internal-Key": INTERNAL_KEY },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({}));

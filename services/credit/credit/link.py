@@ -123,6 +123,13 @@ class Linker:
             if info.get("account_data", {}).get("RegularKey") != derived:
                 raise LinkError(422, "KEY_ADDRESS_MISMATCH", "publicKey is neither the master key nor the RegularKey")
         self.db.execute("DELETE FROM link_challenges WHERE id = ?", (ch["id"],))
+        at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+        self.db.execute(
+            "INSERT OR REPLACE INTO verified_wallets VALUES (?, ?, ?, ?)", (ch["network"], target, public_key, at)
+        )
+        if not ch["borrower"]:
+            # Sign-in before the account exists: the api links the wallet to its account next.
+            return {"verified": True, "network": ch["network"], "address": target, "verifiedAt": at}
         return self.connect_wallet(ch["borrower"], ch["network"], target, now, public_key)
 
     # ---- connected wallet (testnet): replaces the configured payment history for its borrower ----
@@ -130,8 +137,14 @@ class Linker:
     def connect_wallet(
         self, borrower: str, network: str, address: str, now: datetime, public_key: str | None = None
     ) -> dict[str, Any]:
-        """public_key set: ownership proven by a signed challenge. None: a pasted address, read-only."""
+        """public_key set, or the wallet signed a challenge before: ownership verified. Otherwise a
+        pasted address, read-only."""
         at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+        if public_key is None:
+            rows = self.db.execute(
+                "SELECT public_key FROM verified_wallets WHERE network = ? AND address = ?", (network, address)
+            )
+            public_key = rows[0]["public_key"] if rows else None
         self.db.execute(
             "INSERT OR REPLACE INTO wallets (borrower, network, address, public_key, verified, connected_at, connect_score) "
             "VALUES (?, ?, ?, ?, ?, ?, NULL)",

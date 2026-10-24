@@ -54,6 +54,13 @@ CREATE TABLE IF NOT EXISTS demo_links (
   mainnet_address TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS verified_wallets (
+  network TEXT NOT NULL,
+  address TEXT NOT NULL,
+  public_key TEXT NOT NULL,
+  verified_at TEXT NOT NULL,
+  PRIMARY KEY (network, address)
+);
 CREATE TABLE IF NOT EXISTS wallets (
   borrower TEXT PRIMARY KEY,
   network TEXT NOT NULL,

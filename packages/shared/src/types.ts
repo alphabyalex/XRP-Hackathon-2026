@@ -16,7 +16,9 @@ export type AccountName =
   | "ALICE"
   | "BOB"
   | "CAROL"
-  | "DEV";
+  | "DEV"
+  // A user's Moonshift account: a devnet account the api holds for a connected wallet.
+  | `U_${string}`;
 
 export type IsoDateTime = string; // ISO 8601 UTC
 export type DecimalString = string; // e.g. "12.500000", at most 6 decimals

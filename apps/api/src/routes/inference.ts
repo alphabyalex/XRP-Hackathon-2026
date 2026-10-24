@@ -13,7 +13,8 @@ inferenceRouter.post("/inference/chat", async (req, res) => {
     res.status(400).json({ error: { code: "BAD_REQUEST", message: "messages required" } });
     return;
   }
-  const buyer = body.buyer ?? "DEV";
+  // The signed-in account pays; the developer playground account otherwise. Never a name from the browser.
+  const buyer = req.user?.name ?? "DEV";
   const startedAt = new Date().toISOString();
 
   try {

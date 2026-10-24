@@ -32,6 +32,7 @@ import * as pricing from "../adapters/pricingClient.js";
 import * as compute from "../adapters/computeClient.js";
 import { swr, timed } from "./swr.js";
 import { ServiceUnavailable } from "../adapters/serviceFetch.js";
+import { accountForWallet, type UserAccount } from "../users/accounts.js";
 
 export class LendingError extends Error {
   constructor(
@@ -374,7 +375,15 @@ export async function listLoans(borrower?: string): Promise<XlsLoanRecord[]> {
 // Open and repay
 // ---------------------------------------------------------------------------
 
-export async function openFromQuote(quoteId: string): Promise<XlsLoanRecord> {
+// actor(named) resolves who is acting (the signed-in account, or a trusted
+// script's system account); a quote or loan can only be used by its owner.
+type Actor = (named: string) => AccountName;
+
+function mustOwn(actor: Actor | undefined, owner: string) {
+  if (actor && actor(owner) !== owner) throw new LendingError("NOT_YOURS", "This loan belongs to another account.", 403);
+}
+
+export async function openFromQuote(quoteId: string, actor?: Actor): Promise<XlsLoanRecord> {
   const qrow = db.prepare(`SELECT * FROM loan_quotes WHERE id = ?`).get(quoteId) as any;
   if (!qrow) throw new LendingError("QUOTE_NOT_FOUND", "unknown quoteId; request a new quote", 404);
   if (qrow.used) throw new LendingError("QUOTE_USED", "this quote already opened a loan", 409);
@@ -382,7 +391,8 @@ export async function openFromQuote(quoteId: string): Promise<XlsLoanRecord> {
   const q = JSON.parse(qrow.body) as LoanQuoteApiResponse;
   if (q.quote.decision !== "approve") throw new LendingError("QUOTE_DECLINED", `risk declined this loan: ${q.quote.reasons.join(", ") || "LTV above max"}`, 409);
   const name = lending.nameOf(q.borrower);
-  if (!name) throw new LendingError("BORROWER_NOT_CONFIGURED", "borrower must be a demo account that can countersign", 400);
+  if (!name) throw new LendingError("BORROWER_NOT_CONFIGURED", "This account cannot sign loans.", 400);
+  mustOwn(actor, name);
 
   db.prepare(`UPDATE loan_quotes SET used = 1 WHERE id = ?`).run(quoteId);
   let opened;
@@ -441,9 +451,10 @@ export async function openFromQuote(quoteId: string): Promise<XlsLoanRecord> {
   return (await loanRecord(opened.loanId))!;
 }
 
-export async function repay(id: string, mode: "full" | "next" = "full"): Promise<XlsLoanRecord> {
+export async function repay(id: string, mode: "full" | "next" = "full", actor?: Actor): Promise<XlsLoanRecord> {
   const r = getRow(id);
   if (!r) throw new LendingError("NOT_FOUND", "unknown loanId", 404);
+  mustOwn(actor, r.borrower);
   if (r.status === "repaid" || r.status === "liquidated" || r.status === "defaulted") {
     throw new LendingError("ALREADY_SETTLED", `loan is already ${r.status}`, 409);
   }
@@ -756,32 +767,41 @@ async function walletCall<T>(path: string, init: { method?: string; body?: unkno
   }
 }
 
-export function walletChallenge(borrower: string) {
+export function walletChallenge() {
+  // No borrower yet: the account is looked up (or created) once the signature checks out.
   return walletCall<{ challengeId: string; message: string; messageHex: string; expiresAt: string }>("/link/challenge", {
-    body: { borrower: lending.addressOf(borrower), network: "testnet" },
+    body: { borrower: "", network: "testnet" },
   });
 }
 
-export async function walletVerify(borrower: string, b: { challengeId: string; publicKey: string; signature: string; address?: string }) {
-  const w = await walletCall<Record<string, unknown>>("/link/verify", { body: b });
-  credit.invalidateProfile(CREDIT_NETWORK(), lending.addressOf(borrower));
-  return w;
+export interface SignedIn {
+  wallet: { address: string; network: string; verified: true; status: "verified"; connectedAt: string };
+  account: { address: string; created: boolean; setupMs: number };
 }
 
-export async function walletConnect(borrower: string, address: string) {
-  const w = await walletCall<Record<string, unknown>>("/link/wallet", { body: { borrower: lending.addressOf(borrower), address, network: "testnet" } });
-  credit.invalidateProfile(CREDIT_NETWORK(), lending.addressOf(borrower));
-  return w;
+// Crossmark signed the challenge: verify it, then the wallet's Moonshift account
+// (a ready one from the pool, or a new one), then link the wallet's history to
+// that account in the credit service.
+export async function walletSignIn(b: { challengeId: string; publicKey: string; signature: string; address?: string }): Promise<SignedIn> {
+  const v = await walletCall<{ address: string; network: string; verifiedAt: string }>("/link/verify", { body: b });
+  const { user, created, setupMs } = await accountForWallet(v.address, v.network);
+  await walletCall("/link/wallet", { body: { borrower: user.address, address: v.address, network: v.network } });
+  credit.invalidateProfile(CREDIT_NETWORK(), user.address);
+  return {
+    wallet: { address: v.address, network: v.network, verified: true, status: "verified", connectedAt: v.verifiedAt },
+    account: { address: user.address, created, setupMs },
+  };
 }
 
-export async function walletDisconnect(borrower: string) {
-  const out = await walletCall<Record<string, unknown>>(`/link/wallet/${lending.addressOf(borrower)}`, { method: "DELETE" });
-  credit.invalidateProfile(CREDIT_NETWORK(), lending.addressOf(borrower));
-  return out;
-}
-
-export function walletGet(borrower: string) {
-  return walletCall<{ borrower: string; wallet: Record<string, unknown> | null }>(`/link/wallet/${lending.addressOf(borrower)}`);
+// The signed-in wallet, its account and the wallet's newest transactions.
+export async function walletMe(user: UserAccount | null) {
+  if (!user) return { wallet: null, account: null, activity: [] };
+  const linked = await walletCall<{ wallet: Record<string, unknown> | null; activity?: unknown[] }>(`/link/wallet/${user.address}`).catch(() => null);
+  return {
+    wallet: { address: user.wallet, network: user.walletNetwork, verified: true, status: "verified", connectedAt: user.createdAt },
+    account: { address: user.address },
+    activity: linked?.activity ?? [],
+  };
 }
 
 // The credit service rescored a borrower after live wallet activity.

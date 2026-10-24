@@ -80,24 +80,14 @@ async def build_profile(
         try:
             if wallet:
                 own = {"verified": wallet["verified"], "status": wallet["status"], "borrower": address}
-                with_wallet = await combine.build(
+                # The connected wallet is the user: its history plus their Moonshift loans.
+                body = await combine.build(
                     network,
                     address,
                     {"network": wallet["network"], "address": wallet["address"], "ownership": own},
                     refresh,
-                    reference=link,
                     refresh_link=refresh_link,
                 )
-                # The wallet is blended in by its confidence, on top of the borrower's own profile.
-                if link:
-                    base = await combine.build(network, address, link, refresh)
-                else:
-                    base, _ = await profile.build(network, address, refresh)
-                connect_score = wallet["connectScore"]
-                if connect_score is None:
-                    connect_score = with_wallet["score"]
-                    linker().set_connect_score(address, connect_score)
-                body = combine.blend(base, with_wallet, connect_score)
             elif link:
                 body = await combine.build(network, address, link, refresh)
             else:
@@ -234,7 +224,10 @@ WALLET_NETWORKS = ("testnet",)
 def link_challenge(req: ChallengeRequest) -> dict:
     if req.network != "mainnet" and req.network not in WALLET_NETWORKS:
         raise CreditError(422, "INVALID_NETWORK", "network must be mainnet or testnet")
-    addrs = [req.borrower] + ([req.mainnetAddress] if req.mainnetAddress or req.network == "mainnet" else [])
+    # A wallet sign-in may come before its Moonshift account exists: borrower empty.
+    addrs = ([req.borrower] if req.borrower or req.network == "mainnet" else []) + (
+        [req.mainnetAddress] if req.mainnetAddress or req.network == "mainnet" else []
+    )
     for addr in addrs:
         if not CLASSIC_ADDRESS.match(addr):
             raise CreditError(422, "INVALID_ADDRESS", f"{addr} is not a classic XRPL address")
@@ -249,7 +242,7 @@ async def link_verify(req: VerifyRequest) -> dict:
         raise CreditError(422, "KEY_ADDRESS_MISMATCH", "account not found") from None
     except UpstreamError as e:
         raise CreditError(502, "UPSTREAM_ERROR", str(e)) from None
-    if out.get("network") in WALLET_NETWORKS:
+    if out.get("network") in WALLET_NETWORKS and out.get("borrower"):
         await wallet_connected(out)
     return out
 
@@ -293,10 +286,20 @@ async def wallet_connected(w: dict) -> None:
     a profile to compare against."""
     monitor().add(w["network"], w["address"], [], datetime.now(UTC))
     log.info("wallet connected: %s on %s (%s)", w["address"], w["network"], w["status"])
-    try:
-        await build_profile(live.BORROWER_NETWORK, w["borrower"], refresh_link=True)
-    except CreditError as e:
-        log.info("first score for %s failed: %s", w["address"], e.code)
+
+    async def first_score() -> None:
+        try:
+            await build_profile(live.BORROWER_NETWORK, w["borrower"], refresh_link=True)
+        except CreditError as e:
+            log.info("first score for %s failed: %s", w["address"], e.code)
+
+    # In the background: sign-in answers at once; the page's profile request scores it anyway.
+    task = asyncio.get_running_loop().create_task(first_score())
+    _background.add(task)
+    task.add_done_callback(_background.discard)
+
+
+_background: set[asyncio.Task[None]] = set()
 
 
 _rescorer: live.Rescorer | None = None
