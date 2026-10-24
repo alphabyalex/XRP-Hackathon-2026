@@ -21,6 +21,7 @@ const FACTOR_TEXT: Record<string, string> = {
   trustlines: "Trust lines",
   balanceStability: "Balance stability",
   largestOutflowRatio: "Largest outflow ratio",
+  largeOutflows: "Outflows over half the balance",
   msRepaysOnTime: "Moonshift repayments on time",
   msRepaysLate: "Moonshift repayments late",
   msMarginCalls: "Margin calls",

@@ -59,6 +59,7 @@ export function mockProfile(network: string, address: string, accountName?: stri
     trustlines: f(2 + (h[6] % 4), 2, "TRUSTLINES_1_PLUS"),
     balanceStability: f(Number((0.4 + (h[7] % 50) / 100).toFixed(2)), 3, "BALANCE_STABLE"),
     largestOutflowRatio: f(Number((0.2 + (h[8] % 50) / 100).toFixed(2)), h[8] % 50 > 30 ? -4 : 0, h[8] % 50 > 30 ? "LARGE_OUTFLOW_50PCT" : "NO_LARGE_OUTFLOW", pick(3)),
+    largeOutflows: f(0, 0, "NO_REPEATED_LARGE_OUTFLOWS"),
     msRepaysOnTime: f(0, 0, "NO_MS_REPAYS"),
     msRepaysLate: f(0, 0, "NO_LATE_REPAYS"),
     msMarginCalls: f(0, 0, "NO_MARGIN_CALLS"),
