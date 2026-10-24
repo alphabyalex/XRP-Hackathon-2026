@@ -194,3 +194,13 @@ Remaining upstream limitations:
 - The compute response has combined revenue only, so source totals are allocated using its documented rate weights, rather than independently measured source receipts.
 - Historical loan payment log rows lack amounts. Those activity amounts remain null, shown blank. Share trade quantities are displayed in shares; their logs do not include cash consideration.
 - BRAND.md does not exist in the checkout. Explicit supplied brand rules and existing brand tokens were used.
+
+## Portfolio follow-up: returns and live GPU rental prices (2026-10-24)
+
+### Data
+- User selected cloud GPU rental rates in USD per hour. Added read-only /gpu-prices and /account/:account/returns?days=7|30|90.
+- Verified GPU Economy's public JSON feed and documentation. The live feed returned 79 GPU models. Uses published provider rate-card medians, explicit USD/hour units, source timestamps, CC BY 4.0 attribution and per-model source links.
+- Upstream polling defaults to 900 seconds with conditional ETag requests, 10-second timeouts, request coalescing, persistent last-good data, separate history/current failure handling and stale flags. GPU_PRICE_REFRESH_SECONDS can increase the interval; the minimum remains 900 seconds as requested by the source. No keys or environment-file edits are needed.
+- Weekly history includes only the source's own observations. Reconstructed history is excluded. Local observations use publication timestamps, survive restarts, retain 366 days and return the latest seven days to bound payload size.
+- Returns are actual received dividends per GPU, zero-filled over UTC calendar days, with cumulative cash distributions. They exclude unrealized gains and do not claim ROI percentages without cost basis. The receipt transaction timestamp takes precedence when available.
+- Validation: all four workspace typechecks and six unit tests pass, including return boundaries, missing prices, source isolation, ETag 304 and failed/malformed feed handling.

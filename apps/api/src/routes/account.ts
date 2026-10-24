@@ -6,8 +6,27 @@ import * as compute from "../adapters/computeClient.js";
 import * as pricing from "../adapters/pricingClient.js";
 import * as svc from "../lending/service.js";
 import { db } from "../db/db.js";
+import { buildReturns } from "../marketData/returns.js";
 
 export const accountRouter = Router();
+accountRouter.get("/account/:account/returns", (req, res) => {
+  const days = Number(req.query.days ?? 30);
+  if (![7, 30, 90].includes(days)) {
+    res.status(400).json({ error: { code: "BAD_RANGE", message: "Choose 7, 30 or 90 days" } }); return;
+  }
+  try {
+    const name = svc.asAccountName(req.params.account);
+    const address = lending.addressOf(name);
+    const receipts = db.prepare(`SELECT r.gpu_id AS gpuId, p.amount, COALESCE(t.created_at, r.created_at) AS time
+      FROM payouts p JOIN dividend_runs r ON p.dividend_run_id=r.id
+      LEFT JOIN tx_log t ON t.hash=p.tx_hash
+      WHERE (p.account=? OR p.account=?) AND p.tx_hash IS NOT NULL AND COALESCE(t.created_at, r.created_at)>=?`)
+      .all(name, address, new Date(Date.now() - 91 * 86400000).toISOString()) as { gpuId: string; amount: string; time: string }[];
+    res.json(buildReturns(name, days, receipts));
+  } catch {
+    res.status(502).json({ error: { code: "RETURNS_UNAVAILABLE", message: "Returns are temporarily unavailable" } });
+  }
+});
 const cache = new Map<string, { expires: number; value: AccountResponse }>();
 const pending = new Map<string, Promise<AccountResponse>>();
 let revision = 0;
@@ -48,7 +67,7 @@ export async function buildAccount(input: string): Promise<AccountResponse> {
     const locked = open.filter(l => l.gpuId === gpu.id && l.ledger?.collateral?.locked).reduce((s,l) => s + n(l.collateralShares),0);
     const shares = free + locked;
     const prior = rows(`SELECT price FROM oracle_history WHERE gpu_id=? AND ts<=? ORDER BY ts DESC LIMIT 1`, gpu.id, since(1))[0];
-    return { gpuId: gpu.id, label: gpu.label, hardware: gpu.hw, slots, free: fix6(free), locked: fix6(locked), shares: fix6(shares), sharePrice: oracle.price, value: fix6(shares * n(oracle.price)), change24h: prior && n(prior.price)>0 ? fix6((n(oracle.price)/n(prior.price)-1)*100) : null, yield: nav.implied_yield_pct, earned7d: fix6(earned(7,gpu.id)), ownershipPct: fix6(shares/1000) };
+    return { gpuId: gpu.id, label: gpu.label, hardware: gpu.hw.replace(/\s*\(simulated[^)]*\)/gi, ""), slots, free: fix6(free), locked: fix6(locked), shares: fix6(shares), sharePrice: oracle.price, value: fix6(shares * n(oracle.price)), change24h: prior && n(prior.price)>0 ? fix6((n(oracle.price)/n(prior.price)-1)*100) : null, yield: nav.implied_yield_pct, earned7d: fix6(earned(7,gpu.id)), ownershipPct: fix6(shares/1000) };
   }).filter(h => n(h.shares)>0);
   const gpuPerformance = gpuData.filter(d => holdings.some(h => h.gpuId===d.gpu.id)).map(({gpu, history}) => {
     const dayMap = new Map<string, {booked:number; inference:number; active:number; minutes:number}>();

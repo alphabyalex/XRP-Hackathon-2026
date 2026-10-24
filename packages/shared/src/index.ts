@@ -5,3 +5,4 @@ export * from "./network";
 export * from "./lending";
 export * from "./underwriting";
 export * from "./account";
+export * from "./marketData";

@@ -7,6 +7,8 @@ import { PORTS } from "@moonshift/shared";
 import { gpusRouter } from "./routes/gpus.js";
 import { portfolioRouter } from "./routes/portfolio.js";
 import { accountRouter } from "./routes/account.js";
+import { gpuPricesRouter } from "./routes/gpuPrices.js";
+import { startGpuPricePolling } from "./marketData/gpuPrices.js";
 import { txRouter } from "./routes/tx.js";
 import { sharesRouter } from "./routes/shares.js";
 import { contractsRouter } from "./routes/contracts.js";
@@ -30,6 +32,7 @@ app.use(express.json());
 app.use(gpusRouter);
 app.use(portfolioRouter);
 app.use(accountRouter);
+app.use(gpuPricesRouter);
 app.use(txRouter);
 
 // public writes
@@ -57,4 +60,5 @@ app.listen(PORT, () => {
     `network: ${process.env.NETWORK ?? "testnet"}  mocks: MOCK_XRPL=${process.env.MOCK_XRPL ?? "1"} MOCK_COMPUTE=${process.env.MOCK_COMPUTE ?? "1"} MOCK_PRICING=${process.env.MOCK_PRICING ?? "1"} MOCK_RISK=${process.env.MOCK_RISK ?? "1"} MOCK_CREDIT=${process.env.MOCK_CREDIT ?? "1"}`
   );
   startBackgroundJobs();
+  startGpuPricePolling();
 });
