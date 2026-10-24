@@ -43,4 +43,24 @@ If something stalls:
 
 The run below was produced by `npm run demo:check` after `npm run demo:reset`, on devnet. All hashes open at devnet.xrpl.org.
 
-RUN_TABLE_PLACEHOLDER
+Run on 2026-10-24 at about 14:20 EDT. It took 86 s end to end, and every step passed. The run before it, also from a fresh reset, passed too.
+
+| # | Step | What it proves | Tx |
+|---|---|---|---|
+| 1 | Lender deposits 50 USDC (round 2) | XLS-65 VaultDeposit into a closed-ended vault | [D787F812](https://devnet.xrpl.org/transactions/D787F8129C0D7F448382194AEE441860024645918912EC04352CC3DCA276C76C) |
+| 2 | Borrower escrows 100 GPA shares | GPU shares locked as collateral (EscrowCreate, MS_COLLATERAL) | [A044F0CF](https://devnet.xrpl.org/transactions/A044F0CF0D6AFDCBECDEFF7C50F063237807585C229CE7651D5215BDDF255E75) |
+| 3 | Loan opens: 100 USDC from the vault | XLS-66 LoanSet, broker signs, borrower countersigns | [C9CE477E](https://devnet.xrpl.org/transactions/C9CE477EAE9529D25F8E6330EB607CEA0690CEC843F5BB8436CCE261ECA06638) |
+| 4 | GPU price crash 5.00 to 1.95 | On-ledger PriceOracle update (OracleSet) | [38B554C2](https://devnet.xrpl.org/transactions/38B554C2B64DC51954B2982DE42F0E74F0FF2853B0E2E0DEE218457D07B47E9C) |
+| 5 | Margin call at 51.3% LTV | MS_MARGIN_CALL memo on the borrower's ledger history | [4AE4354D](https://devnet.xrpl.org/transactions/4AE4354DCB9CF6ED02161B67B65C4BCDDBC8EE9F5F813D1DCED52892D579320F) |
+| 6 | GPU price crash to 1.57 | OracleSet | [A82FD340](https://devnet.xrpl.org/transactions/A82FD340364890BA54A7CF992707697836975741D328B62087DB6CEACE840C32) |
+| 7 | Liquidation at 63.8% LTV | Escrowed shares seized (EscrowFinish, MS_LIQUIDATION); XLS-66 default follows after grace | [D9C06D1F](https://devnet.xrpl.org/transactions/D9C06D1FE129AD486DA12FBA8302DA4E8EE069041884B2877FD623CA26607F66) |
+| 8 | Oracle restored to 5.00 | OracleSet | [DDB43D65](https://devnet.xrpl.org/transactions/DDB43D65F3C0B1DB9CB5733E82DAA225B624516BCBF57F78D3643321D109855C) |
+| 9 | Second loan: 60 USDC against 80 GPA | XLS-66 LoanSet | [3E68F509](https://devnet.xrpl.org/transactions/3E68F5097C4C939189FFDA7FB32A0E15CE6A4028E86E98A7F4E27386EC1C5BEB) |
+| 10 | Borrower pays off early | XLS-66 LoanPay with real interest (MS_REPAY) | [2180EE6A](https://devnet.xrpl.org/transactions/2180EE6A8D682448ECD207ACDF62CC6B9CF51722065EC6AB9F629F13E7F6EC9A) |
+| 11 | Collateral back in the same ledger | Batch (all or nothing): EscrowFinish + Payment back to borrower | [08C08BCB](https://devnet.xrpl.org/transactions/08C08BCB3E7D63CA580BB754F4FE2CB12272DA16890A3D0AF7A0A278EB9522FE) |
+| 12 | Loan closed | XLS-66 LoanDelete | [4890B025](https://devnet.xrpl.org/transactions/4890B025D33EE06F97C508024A146925F1D9887D291931BB5BD748ED9FFF84DC) |
+
+Sources in this run:
+- Ledger: real devnet.
+- Oracle: read live from the ledger.
+- Credit, risk and memo: the api's built-in models, labeled simulated, because Python 3.11+ is not installed on the demo machine yet.
