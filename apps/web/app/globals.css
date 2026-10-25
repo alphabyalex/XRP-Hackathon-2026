@@ -2006,8 +2006,11 @@ section.s.close-bottom {
 }
 @media (max-width: 900px) {
   .task-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
+}
+.task-grid > .trade {
+  min-width: 0;
 }
 .task-describe textarea {
   width: 100%;
@@ -2123,7 +2126,7 @@ button.cal7-cell.free {
 }
 @media (max-width: 960px) {
   .shares-view {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 .shares-main {
@@ -2227,6 +2230,14 @@ button.cal7-cell.free {
 }
 @media (max-width: 420px) {
   .nav-end .nav-tab {
+    display: none;
+  }
+}
+@media (max-width: 520px) {
+  .rent-tab th:nth-child(2),
+  .rent-tab td:nth-child(2),
+  .rent-tab th:nth-child(3),
+  .rent-tab td:nth-child(3) {
     display: none;
   }
 }

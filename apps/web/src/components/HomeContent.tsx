@@ -31,9 +31,11 @@ export function HomeContent() {
   const views = GPUS.map((g) => gpus[g.id]).filter(Boolean).map((g) => gpuView(g, now));
   const featured = views.find((v) => v.gpu.id === "gpu-a") ?? views[0];
 
+  // Counted only while compute reports the GPU connected (an offline GPU's shares still trade).
+  const live = views.filter((v) => v.gpu.state !== "OFFLINE");
   const paidLastNight = views.reduce((s, v) => s + v.split.holders, 0);
   // From the same slots the schedules draw, so the number and the bars agree.
-  const avgUtil = views.length ? views.reduce((s, v) => s + utilizationOf(v.slots, v.nowIndex), 0) / views.length : 0;
+  const avgUtil = live.length ? live.reduce((s, v) => s + utilizationOf(v.slots, v.nowIndex), 0) / live.length : 0;
 
   return (
     <main id="top">
@@ -44,8 +46,8 @@ export function HomeContent() {
               Own a <em>share</em> of a GPU.
             </h1>
             <p className="sub">
-              Moonshift splits real GPUs into shares on the XRP Ledger. Right now {gpuWords(views.length)} {views.length === 1 ? "is" : "are"} taking customer tasks, busy{" "}
-              <LiveNumber value={avgUtil} digits={1} suffix="%" /> of the last 20 hours, and last night they paid their holders{" "}
+              Moonshift splits real GPUs into shares on the XRP Ledger. Right now {gpuWords(live.length)} {live.length === 1 ? "is" : "are"} taking customer tasks, busy{" "}
+              <LiveNumber value={avgUtil} digits={1} suffix="%" /> of the last 20 hours. Last night shareholders were paid{" "}
               <LiveNumber value={paidLastNight} digits={2} /> USDC.
             </p>
             <div className="ctas">
@@ -70,7 +72,8 @@ export function HomeContent() {
                 of the last 20 hours working
               </div>
               <div>
-                <b>{views.length}</b>GPUs live on the XRP Ledger
+                <b>{live.length}</b>
+                {live.length === 1 ? "GPU" : "GPUs"} live on the XRP Ledger
               </div>
             </div>
           </Reveal>
