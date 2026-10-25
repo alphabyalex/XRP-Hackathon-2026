@@ -5,10 +5,13 @@
 // from /loans. Outstanding and utilization are charted from the series the
 // api returns, else from each live refresh as it arrives.
 import type { XlsLoanRecord } from "@moonshift/shared";
+import { useEffect, useState } from "react";
 import { fmt, shortHash } from "@/lib/format";
 import { pct } from "@/lib/lendingApi";
 import { LiveBars, LiveLine, useTween, type Bar, type LinePoint } from "../charts";
 import { StatusChip, TxLink } from "../LendingBits";
+import { Segmented } from "../Segmented";
+import { filterLoanBook, lendingRangePoints, LENDING_RANGES, type LendingRange, type LoanBookSort } from "@/lib/lendingHistory";
 
 export type Totals = {
   outstanding: number | null;
@@ -49,7 +52,7 @@ export function rowFromLoan(l: XlsLoanRecord): BookRow {
     liquidationLtv: Number(l.liquidationLtv),
     state: l.status,
     network: l.network,
-    tx: l.txs.seize ?? l.txs.release ?? l.txs.loanSet ?? null,
+    tx: [l.txs.seize, l.txs.release, l.txs.loanSet].find(hash => /^[A-F0-9]{64}$/i.test(hash ?? "")) ?? null,
     openedAt: l.openedAt,
   };
 }
@@ -80,15 +83,27 @@ export function Dashboard({
   utilizationSeries: LinePoint[];
   rows: BookRow[] | null;
 }) {
-  const open = (rows ?? []).filter(owing);
-  const closed = (rows ?? []).filter((r) => !owing(r)).slice(0, 8);
+  const [range, setRange] = useState<LendingRange>("24h");
+  const [search, setSearch] = useState("");
+  const [gpu, setGpu] = useState("all");
+  const [state, setState] = useState("all");
+  const [sort, setSort] = useState<LoanBookSort>("newest");
+  const [limit, setLimit] = useState(20);
+  useEffect(() => setLimit(20), [search, gpu, state, sort]);
+  const now = Date.now();
+  const outstanding = lendingRangePoints(outstandingSeries, range, now);
+  const utilization = lendingRangePoints(utilizationSeries, range, now);
+  const filtered = filterLoanBook(rows ?? [], { search, gpu, state, sort });
+  const shown = filtered.slice(0, limit);
   // Every loan's APR at the moment it opened, and principal originated per hour: both from the loans themselves.
-  const aprPoints: LinePoint[] = (rows ?? [])
+  const originations: LinePoint[] = (rows ?? [])
     .filter((r) => r.openedAt)
     .map((r) => ({ t: new Date(r.openedAt!).getTime(), v: r.apr * 100 }));
+  const aprPoints = lendingRangePoints(originations, range, now);
+  const selectedOriginations = new Set(aprPoints.map(point => point.t));
   const hourly = new Map<number, number>();
   for (const r of rows ?? []) {
-    if (!r.openedAt) continue;
+    if (!r.openedAt || !selectedOriginations.has(new Date(r.openedAt).getTime())) continue;
     const h = Math.floor(new Date(r.openedAt).getTime() / 3600e3) * 3600e3;
     hourly.set(h, (hourly.get(h) ?? 0) + r.principal);
   }
@@ -98,10 +113,10 @@ export function Dashboard({
     { k: "Outstanding", v: <><Tween v={totals.outstanding} /> <small>USDC</small></> },
     { k: "Available to lend", v: <><Tween v={totals.available} /> <small>USDC</small></> },
     { k: "Utilization", v: <Tween v={totals.utilization} suffix="%" /> },
-    { k: "Weighted APR", v: totals.weightedApr === null ? "No debt owed" : <Tween v={totals.weightedApr} suffix="%" /> },
+    { k: "Recorded weighted APR", v: totals.weightedApr === null ? "Unavailable" : <Tween v={totals.weightedApr} suffix="%" /> },
     { k: "First-loss cover", v: <><Tween v={totals.cover} /> <small>USDC</small></> },
-    { k: "Margin calls", v: <Tween v={totals.marginCalls} d={0} /> },
-    { k: "Defaults", v: <Tween v={totals.defaults} d={0} /> },
+    { k: "Recorded margin calls", v: <Tween v={totals.marginCalls} d={0} /> },
+    { k: "Recorded defaults", v: <Tween v={totals.defaults} d={0} /> },
   ];
 
   return (
@@ -115,26 +130,38 @@ export function Dashboard({
         ))}
       </div>
 
+      <div className="dash-range-head"><div><b>Recorded lending activity</b><span>Refreshes every 5 seconds</span></div>
+        <div className="dash-ranges" role="group" aria-label="Chart timeframe"><Segmented options={[...LENDING_RANGES]} value={range} onChange={setRange} /></div>
+      </div>
       <div className="dash-charts">
         <div className="trade card">
           <span className="lbl">Outstanding</span>
-          <LiveLine points={outstandingSeries} unit="USDC" height={170} label="Outstanding over time" empty="Collecting live points" />
+          <LiveLine points={outstanding} unit="USDC" height={170} label="Recorded outstanding over time" empty="No recorded observations in this range" />
         </div>
         <div className="trade card">
           <span className="lbl">Utilization</span>
-          <LiveLine points={utilizationSeries} unit="%" height={170} label="Utilization over time" empty="Collecting live points" />
+          <LiveLine points={utilization} unit="%" height={170} label="Recorded utilization over time" empty="No recorded observations in this range" />
         </div>
         <div className="trade card">
           <span className="lbl">APR of each loan at origination</span>
-          <LiveLine points={aprPoints} unit="%" height={170} area={false} label="APR over time" empty="No loans yet" />
+          <LiveLine points={aprPoints} unit="%" height={170} area={false} label="Validated loan origination APR" empty="No loan originations in this range" />
         </div>
         <div className="trade card">
           <span className="lbl">Principal originated per hour</span>
-          <LiveBars bars={bars} unit="USDC" height={170} label="Originations" empty="No loans yet" />
+          <LiveBars bars={bars} unit="USDC" height={170} label="Validated principal originations" empty="No loan originations in this range" />
         </div>
       </div>
+      <p className="dash-history-note">Charts use recorded observations and verified loan transactions. Sparse periods stay sparse.</p>
 
       <h3 className="sub-h dash-h">Loan book</h3>
+      <div className="dash-book-controls">
+        <label className="dash-book-search">Find borrower or loan<input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Address or loan ID" /></label>
+        <label>GPU<select value={gpu} onChange={event => setGpu(event.target.value)}><option value="all">All GPUs</option>{[...new Set((rows ?? []).map(row => row.gpuId))].sort().map(id => <option key={id} value={id}>{id.toUpperCase()}</option>)}</select></label>
+        <label>State<select value={state} onChange={event => setState(event.target.value)}><option value="all">All states</option><option value="active">Owing</option><option value="closed">Closed</option><option value="margin_call">Margin call</option><option value="defaulted">Defaulted</option></select></label>
+        <label>Sort by<select aria-label="Sort by" value={sort} onChange={event => setSort(event.target.value as LoanBookSort)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="principal">Largest principal</option><option value="owed">Largest owed</option><option value="apr">Highest APR</option></select></label>
+      </div>
+      {rows !== null && <p className="dash-history-note">{shown.length} of {filtered.length} matching loans</p>}
+      <p className="dash-history-note">Round totals cover the full lending round. This table shows verified recorded loans.</p>
       {rows === null ? (
         <p className="note">Loading the loan book...</p>
       ) : (
@@ -154,14 +181,14 @@ export function Dashboard({
               </tr>
             </thead>
             <tbody>
-              {open.length === 0 && (
+              {shown.length === 0 && (
                 <tr>
                   <td colSpan={9} className="note">
-                    Nobody has debt outstanding right now.
+                    No verified loans match these filters.
                   </td>
                 </tr>
               )}
-              {[...open, ...closed].map((r) => (
+              {shown.map((r) => (
                 <tr key={r.id} className={owing(r) ? undefined : "closed"}>
                   <td>{shortHash(r.borrower)}</td>
                   <td>{r.gpuId.toUpperCase()}</td>
@@ -184,7 +211,7 @@ export function Dashboard({
           </table>
         </div>
       )}
-      {closed.length > 0 && <p className="note">Closed loans are shown below the open ones, newest first.</p>}
+      {filtered.length > limit && <button type="button" className="dash-more" onClick={() => setLimit(value => value + 20)}>Show 20 more loans</button>}
     </div>
   );
 }

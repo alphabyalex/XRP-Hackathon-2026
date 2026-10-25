@@ -4,6 +4,7 @@
 // built-in keeper), the demo stress control, and the background defaulter.
 
 import { createHash, randomUUID } from "crypto";
+import { getClient } from "@moonshift/xrpl";
 import {
   GPUS,
   explorerUrl,
@@ -30,6 +31,7 @@ import * as lending from "../adapters/lendingAdapter.js";
 import { isListed } from "../gpuHealth.js";
 import * as credit from "../adapters/creditClient.js";
 import * as risk from "../adapters/riskClient.js";
+import { realLoanOrigin, transactionVerifier } from "./verifiedHistory.js";
 import * as pricing from "../adapters/pricingClient.js";
 import * as compute from "../adapters/computeClient.js";
 import { swr, timed } from "./swr.js";
@@ -338,6 +340,7 @@ async function searchMax(base: Omit<Parameters<typeof risk.quote>[0], "principal
 // ---------------------------------------------------------------------------
 // Loan records
 // ---------------------------------------------------------------------------
+const loanListCache = swr<XlsLoanRecord[]>("loan records", 2000, 4000);
 
 function rowToRecord(row: any) {
   return {
@@ -374,11 +377,13 @@ function addTx(id: string, step: string, tx: TxResult | null | undefined) {
   if (!r) return;
   r.txs[step] = tx.hash;
   db.prepare(`UPDATE xls_loans SET txs = ? WHERE id = ?`).run(JSON.stringify(r.txs), id);
+  loanListCache.invalidate();
 }
 
 function setStatus(id: string, status: XlsLoanStatus, extra: Record<string, string | null> = {}) {
   const sets = ["status = ?", ...Object.keys(extra).map((k) => `${k} = ?`)].join(", ");
   db.prepare(`UPDATE xls_loans SET ${sets} WHERE id = ?`).run(status, ...Object.values(extra), id);
+  loanListCache.invalidate();
 }
 
 export async function loanRecord(id: string): Promise<XlsLoanRecord | null> {
@@ -396,16 +401,28 @@ export async function loanRecord(id: string): Promise<XlsLoanRecord | null> {
   };
 }
 
+export const validatedHistoryTransaction = transactionVerifier(async hash => {
+  const client = await getClient();
+  const response = await client.request({ command: "tx", transaction: hash, binary: false });
+  const meta = response.result.meta;
+  return response.result.validated === true && typeof meta === "object" && meta !== null && "TransactionResult" in meta && meta.TransactionResult === "tesSUCCESS";
+});
+
 export async function listLoans(borrower?: string): Promise<XlsLoanRecord[]> {
+  return loanListCache.get(`${lending.lendingNetwork()}:${borrower ?? "all"}`, () => readLoans(borrower));
+}
+async function readLoans(borrower?: string): Promise<XlsLoanRecord[]> {
+  const live = process.env.MOCK_XRPL === "0";
+  const realOnly = live ? " AND simulated=0 AND id NOT LIKE 'MOCK%'" : "";
   const rows = borrower
-    ? (db.prepare(`SELECT id FROM xls_loans WHERE borrower = ? OR borrower_address = ? ORDER BY opened_at DESC`).all(borrower, borrower) as { id: string }[])
-    : (db.prepare(`SELECT id FROM xls_loans ORDER BY opened_at DESC`).all() as { id: string }[]);
-  const out: XlsLoanRecord[] = [];
-  for (const { id } of rows) {
-    const rec = await loanRecord(id);
-    if (rec) out.push(rec);
-  }
-  return out;
+    ? (db.prepare(`SELECT id, simulated, txs FROM xls_loans WHERE (borrower = ? OR borrower_address = ?)${realOnly} ORDER BY opened_at DESC`).all(borrower, borrower) as { id: string; simulated: number; txs: string }[])
+    : (db.prepare(`SELECT id, simulated, txs FROM xls_loans WHERE 1=1${realOnly} ORDER BY opened_at DESC`).all() as { id: string; simulated: number; txs: string }[]);
+  const verified = live ? await Promise.all(rows.map(async row => {
+    const origin = realLoanOrigin(row);
+    return origin && await validatedHistoryTransaction(origin) ? row : null;
+  })) : rows;
+  const records = await Promise.all(verified.map(row => row ? loanRecord(row.id) : null));
+  return records.filter((row): row is XlsLoanRecord => row !== null);
 }
 
 // ---------------------------------------------------------------------------
@@ -482,6 +499,7 @@ export async function openFromQuote(quoteId: string, actor?: Actor): Promise<Xls
     lending.MOCK ? 1 : 0
   );
   logTx(opened.escrowTx as TxResult, "loan.escrow", name, `${name} escrowed ${q.collateralShares} ${q.gpuId.toUpperCase()} shares as collateral`);
+  loanListCache.invalidate();
   logTx(opened.loanSetTx as TxResult, "loan.open", name, `${name} borrowed ${q.principal} USDC from vault round ${opened.round} (XLS-66 LoanSet)`);
   broadcast("loan", { id: opened.loanId, type: "opened", status: "open", borrower: name, txs: { escrow: opened.escrowTx.hash, loanSet: opened.loanSetTx.hash } });
   broadcast("vault", { round: opened.round });

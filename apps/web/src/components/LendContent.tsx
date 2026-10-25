@@ -14,6 +14,7 @@ import type { LinePoint } from "./charts";
 import { Markets, marketsFromApi, marketsFromVault } from "./lending/Markets";
 import { Dashboard, owing, rowFromLoan, type BookRow, type Totals } from "./lending/Dashboard";
 import "./lending/lending.css";
+import { recordedLoan } from "@/lib/lendingHistory";
 
 type Tab = "markets" | "dashboard";
 const TABS: { value: Tab; label: string }[] = [
@@ -29,7 +30,7 @@ const asPct = (v: unknown) => {
 };
 
 const frac = (v: unknown) => {
-  const p = asPct(v);
+  const p = n(v);
   return p === null ? null : p / 100;
 };
 
@@ -48,7 +49,7 @@ function rowFromApi(r: any): BookRow {
     gpuId: String(r.gpuId ?? ""),
     principal: Number(r.principal ?? 0),
     outstanding: n(r.outstanding),
-    apr: (asPct(r.apr) ?? 0) / 100,
+    apr: (n(r.apr) ?? 0) / 100,
     // The loan book sends LTVs as percents ("23.6"); the table works in fractions.
     ltv: frac(r.ltv),
     marginCallLtv: frac(r.marginCallLtv),
@@ -100,7 +101,7 @@ export function LendContent() {
             setVault(v);
             setErr(null);
             const r = v.investing;
-            if (r) {
+            if (r && v.simulated === false) {
               const t = Date.now();
               setLiveOut((p) => [...p, { t, v: Number(r.debtTotal) }].slice(-MAX_POINTS));
               setLiveUtil((p) => [...p, { t, v: Number(r.utilizationPct) }].slice(-MAX_POINTS));
@@ -108,7 +109,7 @@ export function LendContent() {
           })
           .catch((e) => setErr((e as Error).message)),
         listLoans()
-          .then((l) => setLoans(l.loans))
+          .then((l) => setLoans(l.loans.filter(recordedLoan)))
           .catch(() => {}),
         lendingMarkets().then(setMarketsRaw),
         lendingDashboard().then(setDashRaw),
@@ -148,7 +149,9 @@ export function LendContent() {
 
   const markets = marketsFromApi(marketsRaw) ?? (vault ? marketsFromVault(vault) : null);
 
-  const rowsApi = Array.isArray(bookRaw?.loans) ? (bookRaw.loans as any[]).map(rowFromApi) : null;
+  const verifiedDashboard = dashRaw?.verifiedLoanHistory === true && dashRaw?.seriesBasis === "observed_ledger_balances";
+  const rowsApi = Array.isArray(bookRaw?.loans) && bookRaw.loans.every((row: any) => typeof row.simulated === "boolean")
+    ? (bookRaw.loans as any[]).filter(recordedLoan).map(rowFromApi) : null;
   const rows: BookRow[] | null = rowsApi ?? (loans ? loans.map(rowFromLoan) : null);
   // Weighted by what is still owed (principal when the ledger view is missing).
   const openRows = (rows ?? []).filter(owing);
@@ -159,13 +162,13 @@ export function LendContent() {
   })();
   const inv = vault?.investing;
   const totals: Totals = {
-    outstanding: n(dashRaw?.outstanding) ?? n(inv?.debtTotal),
-    available: n(dashRaw?.available) ?? n(inv?.assetsAvailable),
-    utilization: asPct(dashRaw?.utilization) ?? n(inv?.utilizationPct),
-    weightedApr: asPct(dashRaw?.weightedApr) ?? weighted,
-    defaults: n(dashRaw?.defaults) ?? (rows ? rows.filter((r) => r.state === "liquidated" || r.state === "defaulted").length : null),
-    marginCalls: n(dashRaw?.marginCalls) ?? (loans ? loans.filter((l) => l.marginCallAt).length : null),
-    cover: n(dashRaw?.cover) ?? n(inv?.coverAvailable),
+    outstanding: (verifiedDashboard ? n(dashRaw?.outstanding) : null) ?? n(inv?.debtTotal),
+    available: (verifiedDashboard ? n(dashRaw?.available) : null) ?? n(inv?.assetsAvailable),
+    utilization: (verifiedDashboard ? n(dashRaw?.utilization) : null) ?? n(inv?.utilizationPct),
+    weightedApr: (verifiedDashboard ? n(dashRaw?.weightedApr) : null) ?? weighted,
+    defaults: (verifiedDashboard ? n(dashRaw?.defaults) : null) ?? (rows ? rows.filter((r) => r.state === "liquidated" || r.state === "defaulted").length : null),
+    marginCalls: (verifiedDashboard ? n(dashRaw?.marginCalls) : null) ?? (loans ? loans.filter((l) => l.marginCallAt).length : null),
+    cover: (verifiedDashboard ? n(dashRaw?.cover) : null) ?? n(inv?.coverAvailable),
   };
 
   return (
@@ -187,8 +190,8 @@ export function LendContent() {
         ) : (
           <Dashboard
             totals={totals}
-            outstandingSeries={seriesFrom(dashRaw, "outstanding") ?? liveOut}
-            utilizationSeries={seriesFrom(dashRaw, "utilization", true) ?? liveUtil}
+            outstandingSeries={(verifiedDashboard ? seriesFrom(dashRaw, "outstanding") : null) ?? liveOut}
+            utilizationSeries={(verifiedDashboard ? seriesFrom(dashRaw, "utilization") : null) ?? liveUtil}
             rows={rows}
           />
         )}

@@ -14,8 +14,13 @@ import { actorFor } from "../middleware/session.js";
 import { listedGpus } from "../gpuHealth.js";
 import { sharePrice } from "../sharePrice.js";
 import { handle } from "./lending.js";
+import { isLedgerHash, ledgerBalanceObservation, sampleObservations } from "../lending/verifiedHistory.js";
 
 export const lendingViewsRouter = Router();
+db.exec(`CREATE TABLE IF NOT EXISTS lending_dashboard_observations (
+  network TEXT NOT NULL, round INTEGER NOT NULL, observed_at TEXT NOT NULL,
+  outstanding TEXT NOT NULL, utilization TEXT, PRIMARY KEY(network,round,observed_at)
+); CREATE INDEX IF NOT EXISTS lending_dashboard_observed_time ON lending_dashboard_observations(observed_at);`);
 
 const n = (v: unknown) => Number(v ?? 0);
 const OPEN = new Set(["open", "margin_call"]);
@@ -66,20 +71,19 @@ lendingViewsRouter.get(
     } catch {
       source = "unavailable";
     }
-    const loans = db.prepare(`SELECT apr, opened_at FROM xls_loans ORDER BY opened_at`).all() as { apr: string; opened_at: string }[];
+    const loans = await svc.listLoans();
     const now = new Date().toISOString();
-    const series = loans.map((l) => ({ at: l.opened_at, apr: (n(l.apr) * 100).toFixed(2) }));
-    if (base !== null) series.push({ at: now, apr: base.toFixed(2) });
-    return { baseAprPct: base === null ? null : base.toFixed(2), source, series, updatedAt: now };
+    const series = loans.map((l) => ({ at: l.openedAt, apr: (n(l.apr) * 100).toFixed(2) }));
+    return { baseAprPct: base === null ? null : base.toFixed(2), source, series, seriesBasis: "validated_loan_originations", updatedAt: now };
   })
 );
 
 // Each round's real events (deposits, loans) from the tx log, newest first.
-function roundHistory(round: number) {
-  const rows = db
-    .prepare(`SELECT kind, summary, explorer_url, created_at FROM tx_log WHERE (kind LIKE 'vault.%' OR kind = 'loan.open' OR kind = 'loan.pay') AND summary LIKE ? ORDER BY created_at DESC LIMIT 12`)
-    .all(`%round ${round}%`) as { kind: string; summary: string; explorer_url: string; created_at: string }[];
-  return rows.map((r) => ({ label: r.created_at.slice(0, 16).replace("T", " "), value: r.summary.replace(/\s*\(XLS-\d+ [A-Za-z]+\)/, ""), explorerUrl: r.explorer_url || null }));
+async function roundHistory(round: number) {
+  const rows = db.prepare(`SELECT hash, summary, explorer_url, created_at FROM tx_log WHERE (kind LIKE 'vault.%' OR kind = 'loan.open' OR kind = 'loan.pay') AND summary LIKE ? ORDER BY created_at DESC LIMIT 30`).all(`%round ${round}%`) as { hash: string; summary: string; explorer_url: string; created_at: string }[];
+  const checked = await Promise.all(rows.map(async row => isLedgerHash(row.hash) && await svc.validatedHistoryTransaction(row.hash) ? row : null));
+  return checked.filter((row): row is (typeof rows)[number] => row !== null).slice(0, 12)
+    .map(r => ({ label: r.created_at.slice(0, 16).replace("T", " "), value: r.summary.replace(/\s*\(XLS-\d+ [A-Za-z]+\)/, ""), explorerUrl: r.explorer_url || null }));
 }
 
 // GET /lending/markets: one entry per vault round, from the ledger.
@@ -92,9 +96,9 @@ lendingViewsRouter.get(
     if (v.investing) rounds.set(v.investing.round, v.investing);
     if (v.subscribing) rounds.set(v.subscribing.round, v.subscribing);
     const gpus = GPUS.filter((g) => listedGpus().some((l) => l.id === g.id)).map((g) => g.label.replace(/\s+/, "-"));
-    const markets = [...rounds.values()]
+    const markets = await Promise.all([...rounds.values()]
       .sort((a, b) => b.round - a.round)
-      .map((r) => {
+      .map(async (r) => {
         const apr = n(r.targetApyPct ?? r.lenderApyPct);
         return {
           id: `round-${r.round}`,
@@ -112,9 +116,9 @@ lendingViewsRouter.get(
           opensAt: r.subscriptionDate,
           maturesAt: r.redemptionDate,
           explorerUrl: r.explorerUrl,
-          history: roundHistory(r.round),
+          history: await roundHistory(r.round),
         };
-      });
+      }));
     return { markets };
   })
 );
@@ -140,60 +144,46 @@ lendingViewsRouter.get(
         network: l.network,
         txs: l.txs,
         openedAt: l.openedAt,
+        simulated: l.simulated,
+        originValidated: !l.simulated,
       }));
     const outstandingTotal = rows.reduce((s, r) => s + n(r.outstanding), 0);
     return { outstandingTotal: fix6(outstandingTotal), loans: rows };
   })
 );
 
-// GET /lending/dashboard: totals now, and outstanding and utilization rebuilt from each loan's
-// open and close times and each deposit (tx log), so the series is the book's history.
+// Observed balances of the actual lending round. Sparse history stays sparse.
 lendingViewsRouter.get(
   "/lending/dashboard",
   handle(async () => {
     const [v, loans] = await Promise.all([lending.vaultOverview(), svc.listLoans()]);
     const inv = v.investing;
-    const open = loans.filter((l) => OPEN.has(l.status));
-    const outstanding = open.reduce((s, l) => s + outstandingOf(l), 0);
-    const assetsNow = n(inv?.assetsTotal);
-    const weighted = open.reduce((s, l) => s + n(l.principal), 0);
-    const weightedApr = weighted > 0 ? (open.reduce((s, l) => s + n(l.principal) * n(l.apr), 0) / weighted) * 100 : null;
-
-    // Close time of a closed loan: the tx log entry of its last step.
-    const closedAt = (l: (typeof loans)[number]): string | null => {
-      if (OPEN.has(l.status)) return null;
-      const hashes = Object.values(l.txs ?? {});
-      if (!hashes.length) return l.liquidatedAt ?? null;
-      const row = db.prepare(`SELECT MAX(created_at) AS t FROM tx_log WHERE hash IN (${hashes.map(() => "?").join(",")})`).get(...hashes) as { t: string | null };
-      return row.t ?? l.liquidatedAt ?? null;
-    };
-    const deposits = (db.prepare(`SELECT summary, created_at FROM tx_log WHERE kind = 'vault.deposit' ORDER BY created_at`).all() as { summary: string; created_at: string }[]).map((d) => ({
-      at: d.created_at,
-      amount: n(/deposited ([\d.]+)/.exec(d.summary)?.[1]),
-    }));
-    const events = [
-      ...loans.map((l) => ({ at: l.openedAt, d: n(l.principal) })),
-      ...loans.map((l) => ({ at: closedAt(l), d: -n(l.principal) })).filter((e): e is { at: string; d: number } => !!e.at),
-    ].sort((a, b) => a.at.localeCompare(b.at));
-    let out = 0;
-    const series = events.map((e) => {
-      out = Math.max(0, out + e.d);
-      // Assets at that time: today's assets less the deposits made after it.
-      const assets = assetsNow - deposits.filter((d) => d.at > e.at).reduce((s, d) => s + d.amount, 0);
-      return { at: e.at, outstanding: fix6(out), utilization: assets > 0 ? ((out / assets) * 100).toFixed(2) : null };
-    });
-    series.push({ at: new Date().toISOString(), outstanding: fix6(outstanding), utilization: assetsNow > 0 ? ((outstanding / assetsNow) * 100).toFixed(2) : null });
-
+    const open = loans.filter(l => OPEN.has(l.status));
+    const balance = ledgerBalanceObservation(v);
+    const outstanding = balance?.outstanding ?? null;
+    const weighted = open.reduce((sum, loan) => sum + n(loan.principal), 0);
+    const weightedApr = weighted > 0 ? open.reduce((sum, loan) => sum + n(loan.principal) * n(loan.apr), 0) / weighted * 100 : null;
+    const observedAt = new Date().toISOString();
+    const utilization = balance?.utilization?.toFixed(2) ?? null;
+    if (balance && inv && outstanding !== null) {
+      db.prepare(`INSERT OR IGNORE INTO lending_dashboard_observations (network,round,observed_at,outstanding,utilization) VALUES (?,?,?,?,?)`)
+        .run(v.network, inv.round, observedAt, fix6(outstanding), utilization);
+    }
+    const since = new Date(Date.now() - 7 * 86400e3).toISOString();
+    const observations = inv && !v.simulated ? db.prepare(`SELECT observed_at AS at,outstanding,utilization FROM lending_dashboard_observations WHERE network=? AND round=? AND observed_at>=? ORDER BY observed_at`)
+      .all(v.network, inv.round, since) as { at: string; outstanding: string; utilization: string | null }[] : [];
+    db.prepare("DELETE FROM lending_dashboard_observations WHERE observed_at<?").run(since);
     return {
-      outstanding: fix6(outstanding),
-      available: fix6(inv?.assetsAvailable),
-      utilization: assetsNow > 0 ? ((outstanding / assetsNow) * 100).toFixed(2) : null,
+      outstanding: outstanding === null ? null : fix6(outstanding),
+      available: balance ? fix6(balance.available) : null,
+      utilization,
       weightedApr: weightedApr === null ? null : weightedApr.toFixed(2),
-      defaults: loans.filter((l) => l.status === "liquidated" || l.status === "defaulted").length,
-      marginCalls: loans.filter((l) => l.marginCallAt).length,
-      cover: fix6(inv?.coverAvailable),
-      series,
-      updatedAt: new Date().toISOString(),
+      defaults: loans.filter(l => l.status === "liquidated" || l.status === "defaulted").length,
+      marginCalls: loans.filter(l => l.marginCallAt).length,
+      cover: balance ? fix6(balance.cover) : null,
+      series: sampleObservations(observations),
+      seriesBasis: "observed_ledger_balances", verifiedLoanHistory: !v.simulated,
+      updatedAt: observedAt,
     };
   })
 );
@@ -233,5 +223,3 @@ lendingViewsRouter.get(
     return { applications: rows.map((r) => ({ id: r.id, kind: r.kind, name: r.name, company: r.company, status: r.status, createdAt: r.created_at })) };
   })
 );
-
-
