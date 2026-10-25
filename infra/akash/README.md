@@ -27,9 +27,13 @@ Letters match the application registry and `akash_manager.py`. Filename letters
 were corrected to match the hardware mapping. The legacy `deploy.yaml` is a
 separate T4 specification, not proof of a second live GPU or current lease specs.
 
-GPU-A's node specification requests 4 vCPU, 16 GiB RAM and 50 GiB storage. Verify
-lease city and region before setting `GPU_A_CITY` and `GPU_A_REGION`. Unknown
-location is null, never inferred from a hostname or a prepared placement profile.
+GPU-A's saved lease SDL was read without mutation on 2026-10-25: 4 vCPU, 16 GiB
+RAM, 100 GiB storage and one GPU. The catalog and prepared node-A manifest now
+match those verified resources. Its provider catalog record advertises city `LIS`,
+country `PT` and `location-region=eu-southwest`. The catalog displays Lisbon and
+Portugal from those verified attributes, not from the ingress hostname. Set
+`GPU_A_CITY` and `GPU_A_REGION` when a separately authorized relocation changes
+the lease. Other unverified GPU locations remain unavailable.
 
 Prices and availability come from live health, GPU Economy median observations,
 the router fleet and timestamped AWS comparison feeds. No frozen market prices

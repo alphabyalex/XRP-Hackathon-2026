@@ -52,3 +52,7 @@ Updated 2026-10-25 04:55 ET. Branch `tharun`.
 - No Akash lease changes, no AKT spending, no new paid AWS resources and no Vercel deployment tonight.
 
 - Bedrock is opt-in with `BEDROCK_ENABLED=1` on Alex's machine. All Bedrock paths use deterministic fallback here even when unrelated local AWS credentials exist. Pricing tests 26/26 and current four-workspace typecheck pass.
+
+- Read-only Akash saved SDL verification found actual GPU-A storage is 100GiB (not the older node manifest's 50GiB). Catalog, contract and prepared manifest corrected to the verified 4vCPU/16GiB/100GiB. No lease changed.
+
+- Read-only existing provider catalog confirms city=LIS,country=PT,location-region=eu-southwest. Catalog now shows Lisbon (LIS), eu-southwest, Portugal; no location was guessed from a hostname.
