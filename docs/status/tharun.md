@@ -4,6 +4,24 @@ Updated after each phase. Newest phase first in Done.
 
 ## Done
 
+### Main Synchronization & Monorepo Merge (2026-10-24)
+- **Monorepo Merge & Integration**:
+  - Pulled and cleanly merged `origin/main` containing updates from teammates Alex, Kristian, and Lucy: router fleet service, brokerage-style portfolio account page, Crossmark wallet session management, and 24-hour market history.
+  - Resolved conflict in `packages/shared/src/constants.ts` preserving the multi-cloud specs: GPU-A on AWS EC2 g4dn.xlarge, GPU-B on Akash dCloud.
+  - Installed `@crossmarkio/sdk` dependency; validated 0 TypeScript errors across `@moonshift/web`, `@moonshift/api`, `@moonshift/shared`, and `@moonshift/xrpl`.
+  - Verified 100% test pass rate across all monorepo test suites:
+    - `services/compute`: 13/13 passed.
+    - `services/pricing`: 11/11 passed.
+    - `services/risk`: 39/39 passed.
+    - `services/credit`: 93/93 passed.
+    - `services/router`: 21/21 passed.
+    - `packages/xrpl`: 10/10 passed.
+    - `apps/api`: 6/6 passed.
+  - Next.js production build (`next build`) succeeded with all static and dynamic routes compiled.
+  - Verified all 6 live backend services on ports 3000, 4000, 5001, 6100, 7001, 7100 responding HTTP 200.
+  - Verified live Akash GPU deployment (DSEQ `1792883508772`) on provider `akash1hgulk6aekakqzc0v6wukrd3dy9n90f5gkl4ezk` at `$117.50/month` (~$0.160/hr).
+  - Pushed updated commits cleanly to `origin/tharun` and synchronized `origin/main`. Confirmed zero secrets and zero em dashes across all commits.
+
 ### Transparent Resource Pricing & Akash Lifecycle Manager (2026-10-24)
 - **Transparent Hardware Resource Pricing Index**:
   - Modeled component-level hardware pricing across GPU acceleration, vCPU processing, system RAM, and NVMe SSD storage in `packages/shared/src/constants.ts` and `types.ts`.
