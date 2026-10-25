@@ -112,11 +112,20 @@ export async function recordTrade(gpuId: GpuId, hash: string, address: string): 
   void import("./marketMaker.js").then((m) => m.syncOracle(gpuId)).catch(() => {});
 }
 
-// Hourly closes for the last `days` days (the chart), oldest first.
+// When this GPU's price was last reset (null if never). Charts start here: points before a reset
+// belong to the old price.
+export function resetAt(gpuId: GpuId): string | null {
+  const row = db.prepare(`SELECT reset_at FROM share_reference WHERE gpu_id = ?`).get(gpuId) as { reset_at: string | null } | undefined;
+  return row?.reset_at ?? null;
+}
+
+// Hourly closes for the last `days` days, from the last reset at the earliest (the chart), oldest first.
 export function priceHistory(gpuId: GpuId, days = 7): { t: number; price: number }[] {
+  const since = new Date(Date.now() - days * 86400e3).toISOString();
+  const reset = resetAt(gpuId);
   const rows = db
     .prepare(`SELECT ts, price FROM share_prices WHERE gpu_id = ? AND ts >= ? ORDER BY ts`)
-    .all(gpuId, new Date(Date.now() - days * 86400e3).toISOString()) as { ts: string; price: string }[];
+    .all(gpuId, reset && reset > since ? reset : since) as { ts: string; price: string }[];
   const byHour = new Map<number, number>();
   for (const r of rows) byHour.set(Math.floor(new Date(r.ts).getTime() / 3600e3), Number(r.price));
   return [...byHour.entries()].map(([h, price]) => ({ t: h * 3600e3, price }));

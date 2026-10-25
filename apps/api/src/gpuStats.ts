@@ -12,7 +12,7 @@ import * as xrpl from "./adapters/xrplAdapter.js";
 import * as compute from "./adapters/computeClient.js";
 import * as pricing from "./adapters/pricingClient.js";
 import { historyCalendar } from "./marketHistory.js";
-import { change24hPct, openPrice, priceWindowStart, sharePrice } from "./sharePrice.js";
+import { change24hPct, openPrice, priceWindowStart, resetAt, sharePrice } from "./sharePrice.js";
 
 const HOUR = 3600e3;
 const num = (v: unknown) => Number(v ?? 0);
@@ -50,7 +50,10 @@ export function payoutYield(gpuId: GpuId, price: string | number): { paidPerShar
 
 export async function gpuStats(gpuId: GpuId) {
   const gpu = GPUS.find((g) => g.id === gpuId)!;
-  const since = new Date(Date.now() - 24 * HOUR).toISOString();
+  // Fills, ticks and volume start at the later of 24 h ago and the last price reset.
+  const reset = resetAt(gpuId);
+  const day0 = new Date(Date.now() - 24 * HOUR).toISOString();
+  const since = reset && reset > day0 ? reset : day0;
   const explorer = networkInfo().explorer;
   const [market, nav, holders, depth, working] = await Promise.all([
     sharePrice(gpuId),
@@ -71,7 +74,10 @@ export async function gpuStats(gpuId: GpuId) {
   // Recorded prices for the candles, last 7 days (sharePrice.ts records each one it serves).
   const points = db
     .prepare(`SELECT ts, price FROM share_prices WHERE gpu_id = ? AND ts >= ? ORDER BY ts`)
-    .all(gpuId, new Date(Date.now() - 7 * 24 * HOUR).toISOString()) as { ts: string; price: string }[];
+    .all(gpuId, (() => {
+      const week = new Date(Date.now() - 7 * 24 * HOUR).toISOString();
+      return reset && reset > week ? reset : week;
+    })()) as { ts: string; price: string }[];
   const ticks = [
     ...points.map((p) => ({ t: p.ts, price: fix6(p.price) })),
     ...fills.map((f) => ({ t: f.at, price: fix6(f.price), qty: fix6(f.qty) })),
