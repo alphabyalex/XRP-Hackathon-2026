@@ -58,6 +58,8 @@ def _has_local_credentials() -> bool:
     # Do not probe EC2 metadata from a laptop with no AWS credentials.
     return bool(
         os.getenv("AWS_ACCESS_KEY_ID")
+        # A Bedrock API key (boto3 reads it for bedrock-runtime by itself).
+        or os.getenv("AWS_BEARER_TOKEN_BEDROCK")
         or os.getenv("AWS_PROFILE")
         or os.getenv("AWS_WEB_IDENTITY_TOKEN_FILE")
         or Path(os.getenv("AWS_SHARED_CREDENTIALS_FILE", "~/.aws/credentials")).expanduser().is_file()
@@ -102,13 +104,15 @@ def estimate_task(req: TaskEstimateRequest) -> dict:
         outcome = "invalid_output"
         try:
             raw = _pool.submit(_converse, req).result(timeout=min(C.BEDROCK_TIMEOUT_SECONDS, 12))
-            parsed = Sizing.model_validate_json(raw)
+            # The model may wrap the object in a code fence or a sentence; take the object itself.
+            start, end = raw.find("{"), raw.rfind("}")
+            parsed = Sizing.model_validate_json(raw[start : end + 1] if start >= 0 and end > start else raw)
             expected_model = SERVING_MODEL if req.type == "inference" else None
             if parsed.model != expected_model:
                 raise ValueError("Unsupported model")
             sizing, source, outcome = parsed, "bedrock", "ok"
-        except (ValidationError, ValueError):
-            pass
+        except (ValidationError, ValueError) as error:
+            log.info("task_sizing rejected the model output: %s", str(error).splitlines()[0][:160])
         except Exception as error:  # Every unavailable AWS path is a deterministic estimate.
             outcome = type(error).__name__
     latency = int((time.monotonic() - started) * 1000)
