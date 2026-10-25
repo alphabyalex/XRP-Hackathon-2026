@@ -13,6 +13,7 @@ os.environ.update(
         "ORCHESTRATOR": "local",
         "PRICE_SOURCES": "none",
         "SETTLEMENT": "off",
+        "LEDGER_SIGNER": "api",  # router-signed tests swap in tests/fake_ledger.py; nothing reaches a real ledger
         "AWS_DEPLOY": "0",
         "AWS_LAUNCH": "0",
         "EXTERNAL_LAUNCH": "0",

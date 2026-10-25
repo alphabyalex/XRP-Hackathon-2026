@@ -17,6 +17,7 @@ from typing import Any
 import httpx
 
 from router import config as C
+from router import ledger as L
 from router import metrics
 from router import optimizer as O
 from router import settle as S
@@ -151,7 +152,7 @@ class Orders:
             "priceUsdc": plan["priceUsdc"],  # the estimate
             "estimateUsdc": plan["priceUsdc"],
             "bufferPct": req.bufferPct,
-            "capUsdc": S.money(float(plan["priceUsdc"]) * (1 + req.bufferPct / 100)),
+            "capUsdc": S.cap_for(plan["priceUsdc"], req.bufferPct),
             "taskType": req.taskType,
             "cancelled": False,
             "pause": None,
@@ -168,6 +169,7 @@ class Orders:
             "assignments": assignments,
             "constraints": spec_dict(spec)["constraints"],
             "payment": None,
+            "escrows": [],  # every escrow locked for this order: the cap, then any top-ups
             "segments": [],
             "moves": [],
             "progress": {"done": 0, "total": spec.size, "unit": spec.unit, "pct": 0.0},
@@ -196,19 +198,52 @@ class Orders:
 
     # ---- pay ----
 
+    def _on_ledger(self) -> bool:
+        """The router signs and submits its own XRPL transactions (escrow + Batch settlement)."""
+        return C.SETTLEMENT != "off" and C.LEDGER_SIGNER == "router"
+
+    async def _lock_funds(self, order: dict[str, Any], amount: str, memo: dict[str, Any]) -> dict[str, Any]:
+        """Lock `amount` from the buyer: an XRPL escrow the router signs, or (api path, or a custodial
+        user account only apps/api can sign for) a plain MS_ORDER Payment through apps/api."""
+        buyer = order["buyer"]
+        if self._on_ledger() and L.backend().can_sign(buyer):
+            b = L.backend()
+            nonce = L.new_nonce()
+            window = max(C.ESCROW_MIN_SECONDS, int(3 * float(order["etaSeconds"]) + C.PAUSE_TIMEOUT_SECONDS + 600))
+            try:
+                cancel_after = await b.close_time() + window
+                tx = await b.escrow_create(
+                    buyer, S.ORDER_TREASURY, amount, b.condition(nonce)["condition"], cancel_after,
+                    ("MS_ORDER", {**memo, "nonce": nonce}),
+                )
+            except Exception as e:  # noqa: BLE001 (any ledger or network failure fails the payment)
+                raise S.PaymentFailed(f"MS_ORDER escrow: {str(e)[:160] or type(e).__name__}") from None
+            escrow = {
+                "owner": tx["owner"],
+                "sequence": tx["sequence"],
+                "nonce": nonce,
+                "amountUsdc": amount,
+                "cancelAfter": cancel_after,
+                "hash": tx["hash"],
+                "explorerUrl": L.explorer(tx["hash"]),
+            }
+            order.setdefault("escrows", []).append(escrow)
+            return {"hash": tx["hash"], "validated": tx["validated"], "explorerUrl": escrow["explorerUrl"], "kind": "escrow",
+                    "escrowSequence": tx["sequence"], "cancelAfter": cancel_after}
+        if self._on_ledger():
+            log.info("order %s: %s has no router signing key, MS_ORDER goes through apps/api", order["orderId"], buyer)
+        tx = await S.pay(buyer, S.ORDER_TREASURY, amount, "MS_ORDER", memo)
+        return {**tx, "explorerUrl": S.explorer(tx), "kind": "payment"}
+
     async def pay(self, order_id: str) -> dict[str, Any]:
         order = self.get(order_id)
         assert order is not None
         if order.get("payment"):
             return order
         try:
-            # The cap is set aside on the ledger: provable before any work runs.
-            tx = await S.pay(
-                order["buyer"],
-                S.ORDER_TREASURY,
-                order["capUsdc"],
-                "MS_ORDER",
-                {"orderId": order_id, "mode": order["mode"], "capUsdc": order["capUsdc"]},
+            # The cap is locked on the ledger before any work runs: an escrow only settlement can open.
+            tx = await self._lock_funds(
+                order, order["capUsdc"], {"orderId": order_id, "mode": order["mode"], "capUsdc": order["capUsdc"]}
             )
         except S.PaymentFailed as e:
             await self.release(order_id)
@@ -220,12 +255,16 @@ class Orders:
             "to": S.ORDER_TREASURY,
             "amountUsdc": order["capUsdc"],
             "hash": tx.get("hash"),
-            "explorerUrl": S.explorer(tx),
+            "explorerUrl": tx.get("explorerUrl"),
             "validated": tx.get("validated"),
+            "kind": tx["kind"],
+            "escrowSequence": tx.get("escrowSequence"),
+            "cancelAfter": tx.get("cancelAfter"),
         }
         order["status"] = "paid"
         self.emit(
-            order, "paid", {"amountUsdc": order["capUsdc"], "hash": tx.get("hash"), "explorerUrl": S.explorer(tx)}
+            order, "paid", {"amountUsdc": order["capUsdc"], "hash": tx.get("hash"), "explorerUrl": tx.get("explorerUrl"),
+                            "kind": tx["kind"]}
         )
         return order
 
@@ -263,19 +302,18 @@ class Orders:
             raise RouterError(404, "UNKNOWN_ORDER", f"no order {order_id}")
         if order["status"] in FINAL or order["status"] == "completed" or order.get("cancelled"):
             raise RouterError(409, "ORDER_CLOSED", "this order is no longer running")
-        old = S.cap(order)
-        if not cap_usdc > old:
+        old = S.cap_dec(order)
+        new = S.ceil6(S.dec(cap_usdc))
+        if not new > old:
             raise RouterError(422, "INVALID_CAP", "the new cap must be higher than the current one")
-        delta = S.money(cap_usdc - old)
+        delta = S.money(new - old)
         try:
-            tx = await S.pay(
-                order["buyer"], S.ORDER_TREASURY, delta, "MS_ORDER",
-                {"orderId": order_id, "capUsdc": S.money(cap_usdc), "topUp": True},
-            )
+            tx = await self._lock_funds(order, delta, {"orderId": order_id, "capUsdc": S.money(new), "topUp": True})
         except S.PaymentFailed as e:
             raise RouterError(502, "PAYMENT_FAILED", str(e)) from None
-        order["capUsdc"] = S.money(cap_usdc)
-        order["topUps"].append({"amountUsdc": delta, "hash": tx.get("hash"), "explorerUrl": S.explorer(tx)})
+        order["capUsdc"] = S.money(new)
+        order["topUps"].append({"amountUsdc": delta, "hash": tx.get("hash"), "explorerUrl": tx.get("explorerUrl"),
+                                "kind": tx["kind"]})
         self.emit(order, "capRaised", {"capUsdc": order["capUsdc"], "amountUsdc": delta, "hash": tx.get("hash")})
         if ev := self.waiters.get(order_id):
             ev.set()
@@ -704,36 +742,107 @@ class Orders:
             except httpx.HTTPError as e:
                 log.info("usage report for %s failed: %s", order["orderId"], type(e).__name__)
 
+    async def _settle_steps(
+        self, order: dict[str, Any], lines: list[dict[str, Any]], refund: Any
+    ) -> list[L.Step]:
+        """Every transaction of the settlement, in order: open the escrows, pay each GPU and provider, refund."""
+        b = L.backend()
+        oid = order["orderId"]
+        steps = [
+            L.Step("finish", tag=f"escrow:{i}", escrow=e, memo_type="MS_ORDER_FINISH", memo={"orderId": oid})
+            for i, e in enumerate(order.get("escrows") or [])
+        ]
+        for line in lines:
+            base = {"orderId": oid, "gpuId": line["gpuId"], "tokensOrMinutes": line["served"]}
+            if S.dec(line["toPoolUsdc"]) > 0:
+                steps.append(L.Step("pay", tag=f"pool:{line['gpuId']}", to=line["to"], amount=line["toPoolUsdc"],
+                                    memo_type="MS_SETTLE", memo={**base, "share": "pool"}))
+            if S.dec(line["providerCostUsdc"]) > 0:
+                account = await b.ensure_provider_account(line["provider"])
+                line["providerAccount"] = account
+                steps.append(L.Step("pay", tag=f"provider:{line['gpuId']}", to=account, amount=line["providerCostUsdc"],
+                                    memo_type="MS_SETTLE", memo={**base, "share": "provider", "provider": line["provider"]}))
+        if S.dec(refund) > 0:
+            steps.append(L.Step("pay", tag="refund", to=order["buyer"], amount=S.money(refund),
+                                memo_type="MS_REFUND", memo={"orderId": oid}))
+        return steps
+
+    async def _settle_on_ledger(self, order: dict[str, Any], lines: list[dict[str, Any]], refund: Any) -> None:
+        """Router-signed settlement from the order treasury. Progress is saved per step, so a retry resumes."""
+        b = L.backend()
+        expired = [e for e in order.get("escrows") or [] if int(e["cancelAfter"]) <= await b.close_time() + 30]
+        if expired:
+            # Past CancelAfter an escrow can no longer be finished: cancel it, which returns the full amount
+            # to the buyer on-ledger. The served work is not charged (Moonshift absorbs it).
+            steps = [L.Step("cancel", tag=f"escrow:{i}", escrow=e, memo_type="MS_ORDER_CANCEL", memo={"orderId": order["orderId"]})
+                     for i, e in enumerate(order["escrows"])]
+            order["settlementNote"] = "ESCROW_EXPIRED"
+            for line in lines:
+                line.update(amountUsdc=S.money(0), toPoolUsdc=S.money(0), providerCostUsdc=S.money(0))
+        elif order.get("settlementSteps"):
+            steps = [L.Step.from_dict(d) for d in order["settlementSteps"]]
+        else:
+            steps = await self._settle_steps(order, lines, refund)
+        order["settlementSteps"] = [x.to_dict() for x in steps]
+        self.save(order)
+        try:
+            await b.run_steps(S.ORDER_TREASURY, steps)
+        finally:
+            order["settlementSteps"] = [x.to_dict() for x in steps]
+            self.save(order)
+        by_tag = {x.tag: x for x in steps}
+        for line in lines:
+            if pool := by_tag.get(f"pool:{line['gpuId']}"):
+                line.update(hash=pool.hash, explorerUrl=L.explorer(pool.hash), batch=pool.batch)
+            if prov := by_tag.get(f"provider:{line['gpuId']}"):
+                line.update(providerHash=prov.hash, providerExplorerUrl=L.explorer(prov.hash))
+        if expired:
+            total = S.money(sum((S.dec(e["amountUsdc"]) for e in order["escrows"]), S.ZERO))
+            first = steps[0].hash if steps else None
+            order["refund"] = {"to": order["buyer"], "amountUsdc": total, "hash": first, "explorerUrl": L.explorer(first),
+                               "via": "EscrowCancel"}
+        elif rf := by_tag.get("refund"):
+            order["refund"] = {"to": order["buyer"], "amountUsdc": rf.amount, "hash": rf.hash,
+                               "explorerUrl": L.explorer(rf.hash), "batch": rf.batch}
+        finishes = [x for x in steps if x.kind == "finish"]
+        if finishes and order.get("payment"):
+            order["payment"]["finishHash"] = finishes[0].hash
+            order["payment"]["finishExplorerUrl"] = L.explorer(finishes[0].hash)
+
     async def settle(self, order_id: str) -> dict[str, Any]:
         order = self.get(order_id)
         assert order is not None
         if order["status"] == "settled" or not order.get("payment"):
             return order
         lines = S.settlement_lines(order)
-        done_lines = []
-        for line in lines:
-            entry: dict[str, Any] = {**line}
-            if float(line["toPoolUsdc"]) > 0:
-                tx = await S.pay(
-                    S.ORDER_TREASURY,
-                    line["to"],
-                    line["toPoolUsdc"],
-                    "MS_SETTLE",
-                    {"orderId": order_id, "gpuId": line["gpuId"], "tokensOrMinutes": line["served"]},
-                )
-                entry.update(hash=tx.get("hash"), explorerUrl=S.explorer(tx))
-            done_lines.append(entry)
+        refund = S.refund_dec(order, lines)
+        if self._on_ledger():
+            await self._settle_on_ledger(order, lines, refund)
+            done_lines = lines
+        else:
+            done_lines = []
+            for line in lines:
+                entry: dict[str, Any] = {**line}
+                if S.dec(line["toPoolUsdc"]) > 0:
+                    tx = await S.pay(
+                        S.ORDER_TREASURY,
+                        line["to"],
+                        line["toPoolUsdc"],
+                        "MS_SETTLE",
+                        {"orderId": order_id, "gpuId": line["gpuId"], "tokensOrMinutes": line["served"]},
+                    )
+                    entry.update(hash=tx.get("hash"), explorerUrl=S.explorer(tx))
+                done_lines.append(entry)
+            if refund > 0:
+                tx = await S.pay(S.ORDER_TREASURY, order["buyer"], S.money(refund), "MS_REFUND", {"orderId": order_id})
+                order["refund"] = {
+                    "to": order["buyer"],
+                    "amountUsdc": S.money(refund),
+                    "hash": tx.get("hash"),
+                    "explorerUrl": S.explorer(tx),
+                }
         order["settlements"] = done_lines
-        refund = S.refund_amount(order, lines)
-        if refund >= 0.000001:
-            tx = await S.pay(S.ORDER_TREASURY, order["buyer"], S.money(refund), "MS_REFUND", {"orderId": order_id})
-            order["refund"] = {
-                "to": order["buyer"],
-                "amountUsdc": S.money(refund),
-                "hash": tx.get("hash"),
-                "explorerUrl": S.explorer(tx),
-            }
-        order["charged"] = S.money(sum(float(x["amountUsdc"]) for x in lines))
+        order["charged"] = S.money(sum((S.dec(x["amountUsdc"]) for x in done_lines), S.ZERO))
         order["status"] = "cancelled" if order.get("cancelled") else "settled"
         actual = sum(float(x["served"]) * float(x["unitPriceUsdc"]) for x in order["segments"])
         metrics.settled(order_id, order["mode"], float(order["priceUsdc"]), actual)
