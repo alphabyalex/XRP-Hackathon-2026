@@ -41,7 +41,9 @@ PORT = int(_env("PORT", "7200"))
 INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "")
 API_URL = _env("API_URL", "http://localhost:4000").rstrip("/")
 COMPUTE_URL = _env("COMPUTE_URL", "http://localhost:5001").rstrip("/")
-EXPLORER = _env("XRPL_EXPLORER", "https://devnet.xrpl.org").rstrip("/")
+# XRPL network for the order escrow and settlement. devnet or testnet only; mainnet is refused.
+NETWORK = _env("NETWORK", "devnet").lower()
+EXPLORER = _env("XRPL_EXPLORER", f"https://{'testnet' if NETWORK == 'testnet' else 'devnet'}.xrpl.org").rstrip("/")
 DB_PATH = Path(_env("ROUTER_DB_PATH", str(SERVICE_DIR / "data" / "router.db")))
 
 # ---- Backends: every external dependency has a local / mock mode ------------------------
@@ -52,7 +54,14 @@ QUEUE_BACKEND = _env("QUEUE_BACKEND", "local").lower()  # local | sqs
 ORCHESTRATOR = _env("ORCHESTRATOR", "local").lower()  # local | stepfunctions
 # Price adapters: PRICE_SOURCES=all|none|comma list of collectors to call live; the rest use fixtures.
 PRICE_SOURCES = _env("PRICE_SOURCES", "none").lower()
-SETTLEMENT = _env("SETTLEMENT", "api").lower()  # api (devnet through apps/api) | off
+SETTLEMENT = _env("SETTLEMENT", "api").lower()  # api | ledger (both: settle on XRPL) | off (tests only)
+# Who signs: router (default) = services/router signs and submits with xrpl-py (EscrowCreate, Batch
+# EscrowFinish + payouts + refund). api = the older path, plain Payments through apps/api /internal/router/pay.
+LEDGER_SIGNER = _env("LEDGER_SIGNER", "router").lower()
+ORDER_TREASURY = "PROTOCOL_FEES"  # receives every order escrow and pays the settlement
+LEDGER_BATCH = _flag("LEDGER_BATCH", "1")  # 0 = always settle one transaction at a time
+# The buyer's escrow can be cancelled (full refund) after max(ESCROW_MIN_SECONDS, 3 x ETA + pause timeout).
+ESCROW_MIN_SECONDS = int(_env("ESCROW_MIN_SECONDS", "7200"))
 
 # ---- Cloud flags (billable actions default off) -----------------------------------------
 

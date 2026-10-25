@@ -30,6 +30,10 @@ Everything is local and mock by default (no cloud account needed).
 | `QUEUE_BACKEND` | `local` | `local` or `sqs` |
 | `ORCHESTRATOR` | `local` | `local` or `stepfunctions` |
 | `SETTLEMENT` | `api` | `api` (devnet through apps/api) or `off` |
+| `LEDGER_SIGNER` | `router` | `router`: services/router signs its own XRPL transactions (cap locked in an EscrowCreate, settled by one all-or-nothing Batch: EscrowFinish + MS_SETTLE to each GPU treasury and provider account + MS_REFUND). `api`: the older plain Payments through apps/api `/internal/router/pay` |
+| `NETWORK` | `devnet` | `devnet` or `testnet` for the router's own transactions; mainnet is refused. Seeds are read from the repo `.env` (`DEVNET_<NAME>_SEED` / `<NAME>_SEED`) |
+| `LEDGER_BATCH` | `1` | `0` settles one transaction at a time instead of in a Batch |
+| `ESCROW_MIN_SECONDS` | `7200` | Minimum time before the buyer can cancel the escrow and take the whole cap back |
 | `AWS_REGION` | `us-east-2` | Price List calls always go to us-east-1 |
 | `AWS_DEPLOY`, `AWS_LAUNCH`, `EXTERNAL_LAUNCH` | `0` | anything billable stays off unless a human sets these |
 | `CLOUDWATCH`, `BEDROCK_EXPLAIN` | `0` | metrics and the "why" text |
