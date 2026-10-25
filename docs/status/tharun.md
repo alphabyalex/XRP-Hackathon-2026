@@ -4,6 +4,17 @@ Updated after each phase. Newest phase first in Done.
 
 ## Done
 
+### UI Refinement, Sticky Footer Bar & Resource Index Removal (2026-10-24)
+- **UI Clean-up & Cohesive Styling**:
+  - Removed `ResourcePricingBreakdown.tsx` and all references in `MarketContent.tsx` and `GpuDetailContent.tsx` per prompt instructions.
+  - Streamlined `MarketTable.tsx` eliminating visual clutter, inline badges, and redundant subtitles to restore a clean, minimalist table view.
+  - Created a modern, pinned footer bar in `Footer.tsx` with Moonshift branding, navigation links (`Market`, `Portfolio`, `Borrow`, `Lend`, `Developers`, `Router`), and live green pulse `XRPL Testnet` pill.
+  - Pinned footer to bottom across light/dark themes via flex layout (`body { min-height: 100vh; display: flex; flex-direction: column; }`, `main { flex: 1 0 auto; }`, `footer { margin-top: auto; }`).
+  - Fixed `cfn-lint` binary path resolution in `services/router/tests/test_collection.py` (`sys.executable` bin fallback).
+  - Verified 100% test pass rate across the monorepo: 291/291 passing (`@moonshift/xrpl`, `compute`, `pricing`, `risk`, `credit`, `router`).
+  - Validated clean Next.js production build (`npm run build`) and HTTP 200 on all 8 web routes.
+  - Zero em dashes, zero secret leaks.
+
 ### Dynamic Compute Fleet Scaling & Multi-Node Architecture (2026-10-24)
 - **Eliminated Hardcoded 2-GPU Constraints Across Compute & Architecture**:
   - Generalized `services/compute/compute/scheduler.py` from a fixed 2-worker dictionary to a dynamic registry supporting arbitrary worker fleets (`settings.gpu_nodes` configurable via `GPU_NODES`).

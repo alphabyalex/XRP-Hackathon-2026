@@ -1,6 +1,7 @@
 import json
 import shutil
 import subprocess
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -127,7 +128,7 @@ def test_staleness_tiers():
 
 
 def test_sam_template_validates():
-    exe = shutil.which("cfn-lint") or str(Path(__file__).resolve().parent.parent / ".venv" / "bin" / "cfn-lint")
+    exe = shutil.which("cfn-lint") or str(Path(sys.executable).parent / "cfn-lint")
     r = subprocess.run([exe, str(INFRA / "template.yaml")], capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
 
