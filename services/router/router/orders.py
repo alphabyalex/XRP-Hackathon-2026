@@ -608,10 +608,10 @@ class Orders:
         oid, done, reason = order["orderId"], 0.0, "PLANNED"
         while True:
             start = now_utc()
-            # An in-process worker runs rented minutes RENTAL_TIME_SCALE times faster than the clock, so it
-            # holds the GPU only for that real time; booking the full rented minutes on the compute calendar
-            # left a window no one used that made the next rental on this GPU drain and fail.
-            compressed = not entry.endpoint and C.RENTAL_TIME_SCALE > 1
+            # Rented time runs RENTAL_TIME_SCALE times faster than the clock (the router times it; no worker
+            # runs a rental), so the GPU is held only for that real time; booking the full rented minutes on
+            # the compute calendar left a window no one used that made the next rental on this GPU drain and fail.
+            compressed = C.RENTAL_TIME_SCALE > 1
             if entry.computeGpuId and not compressed:
                 await self._book_compute(order, entry, start, minutes - done)
             else:
