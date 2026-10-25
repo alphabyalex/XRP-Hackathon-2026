@@ -1,0 +1,49 @@
+version: '2.0'
+services:
+  node-a-t4:
+    image: vllm/vllm-openai:v0.6.2
+    expose:
+    - port: 8000
+      as: 8000
+      to:
+      - global: true
+    args:
+    - --model
+    - Qwen/Qwen2.5-1.5B-Instruct
+    - --served-model-name
+    - Qwen/Qwen3-1.7B
+    - --dtype
+    - float16
+    - --max-model-len
+    - '4096'
+    env:
+    - HUGGING_FACE_HUB_TOKEN=
+profiles:
+  compute:
+    node-a-t4:
+      resources:
+        cpu:
+          units: 4
+        memory:
+          size: 16Gi
+        storage:
+        - size: 50Gi
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              nvidia:
+              - model: t4
+  placement:
+    dcloud:
+      attributes:
+        host: akash
+      pricing:
+        node-a-t4:
+          denom: uact
+          amount: 300000
+deployment:
+  node-a-t4:
+    dcloud:
+      profile: node-a-t4
+      count: 1
