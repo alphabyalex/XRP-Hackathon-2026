@@ -177,11 +177,16 @@ export function ComputeCheckout() {
         onChange={setBuffer}
       />
       <p className="note cap-line">
-        {plan?.feasible
-          ? `Estimate ${taskUsdc(estimate)} USDC · You pay at most ${taskUsdc(cap)} USDC`
-          : tooBig
-            ? maxText
-            : quoteErr ?? (quote ? "No GPU can take this task right now" : " ")}
+        {/* two halves that each stay whole; a narrow panel breaks between them */}
+        {plan?.feasible ? (
+          <>
+            <span>Estimate {taskUsdc(estimate)} USDC</span> · <span>You pay at most {taskUsdc(cap)} USDC</span>
+          </>
+        ) : tooBig ? (
+          maxText
+        ) : (
+          quoteErr ?? (quote ? "No GPU can take this task right now" : " ")
+        )}
       </p>
       {wallet ? (
         <Button disabled={busy || !plan?.feasible || tooBig} onClick={submit}>

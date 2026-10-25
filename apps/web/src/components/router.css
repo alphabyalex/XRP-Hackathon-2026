@@ -88,6 +88,9 @@
 .task-types button:hover:not(.on) {
   color: var(--ink);
 }
+.cap-line span {
+  white-space: nowrap;
+}
 .rent-card .task-deadline {
   margin-top: 14px;
 }
