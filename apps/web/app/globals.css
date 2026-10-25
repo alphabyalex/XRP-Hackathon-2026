@@ -1127,6 +1127,12 @@ input[type="range"]::-moz-range-thumb {
   font-weight: 600;
   line-height: 1;
 }
+.bignum small {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--ink2);
+}
 .ledger {
   margin-top: 28px;
   display: flex;

@@ -44,6 +44,8 @@ export interface VaultState {
   sharesOutstanding: DecimalString;
   sharePrice: DecimalString; // TDX per vault share
   lenderApyPct: string; // estimate: weighted loan APR x (1 - management fee) x utilization
+  targetApyPct?: string; // risk service round APY at target utilization, net of expected loss
+  earnedApyPct?: string; // risk service realized APY: what the round's loans earn so far
   subscriptionDate: IsoDateTime;
   redemptionDate: IsoDateTime;
   explorerUrl: string; // vault pseudo-account on the explorer

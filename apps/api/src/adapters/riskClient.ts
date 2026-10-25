@@ -201,6 +201,26 @@ export function localBookStats(grade?: string): BookStats {
   return { periodDays: 30, borrowers: grades.length * 100, grades, simulated: true };
 }
 
+// Kristian's round APY (services/risk vault.py): the target at 80% utilization
+// net of expected loss, and what the round's loans earn so far.
+export interface RoundApy {
+  realizedApy: string;
+  targetApy: string;
+}
+
+export async function roundApy(req: { round: number; assets: string; lentOut: string; weightedApr: string }): Promise<RoundApy> {
+  const assets = Number(req.assets);
+  const apr = Number(req.weightedApr);
+  const local = (): RoundApy => ({ realizedApy: r6(assets > 0 ? (apr * Number(req.lentOut)) / assets : 0), targetApy: r6(apr * 0.8) });
+  if (mockFlag("MOCK_RISK") || !(assets > 0)) return local();
+  try {
+    const q = new URLSearchParams({ round: String(req.round), assets: req.assets, lentOut: req.lentOut, weightedApr: req.weightedApr });
+    return await serviceJson<RoundApy>("risk", `${RISK_URL()}/vault/round-apy?${q}`, { timeoutMs: 4000 });
+  } catch {
+    return local();
+  }
+}
+
 export async function bookStats(grade?: string): Promise<{ stats: BookStats; source: DataSource }> {
   if (mockFlag("MOCK_RISK")) return { stats: localBookStats(grade), source: "mock" };
   try {

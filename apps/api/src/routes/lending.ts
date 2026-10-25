@@ -5,6 +5,7 @@ import * as credit from "../adapters/creditClient.js";
 import * as risk from "../adapters/riskClient.js";
 import { sources } from "../adapters/serviceFetch.js";
 import { logTx } from "../db/helpers.js";
+import { db } from "../db/db.js";
 import { broadcast } from "../sse.js";
 import * as svc from "../lending/service.js";
 import { actorFor, asActor, clearedSessionCookie, cookieValue, sessionCookie } from "../middleware/session.js";
@@ -37,7 +38,32 @@ export function handle(fn: (req: Request, res: Response) => Promise<unknown>) {
 // Vault (lenders)
 // ---------------------------------------------------------------------------
 
-lendingRouter.get("/vault", handle(async () => lending.vaultOverview()));
+// Principal-weighted APR the round's loans pay, else the whole book's: the
+// rate a lender's deposit is expected to earn when it is lent.
+function weightedApr(round: number): string {
+  const q = (where: string, ...args: number[]) =>
+    db.prepare(`SELECT SUM(CAST(principal AS REAL) * CAST(apr AS REAL)) AS w, SUM(CAST(principal AS REAL)) AS p FROM xls_loans ${where}`).get(...args) as {
+      w: number | null;
+      p: number | null;
+    };
+  const own = q("WHERE round = ?", round);
+  const book = own.p ? own : q("");
+  return book.p ? ((book.w ?? 0) / book.p).toFixed(6) : "0";
+}
+
+lendingRouter.get(
+  "/vault",
+  handle(async () => {
+    const v = await lending.vaultOverview();
+    const withApy = async <T extends { round: number; assetsTotal: string; debtTotal: string }>(r: T | null) => {
+      if (!r) return r;
+      const apy = await risk.roundApy({ round: r.round, assets: r.assetsTotal, lentOut: r.debtTotal, weightedApr: weightedApr(r.round) });
+      return { ...r, targetApyPct: (Number(apy.targetApy) * 100).toFixed(2), earnedApyPct: (Number(apy.realizedApy) * 100).toFixed(2) };
+    };
+    const [investing, subscribing] = await Promise.all([withApy(v.investing), withApy(v.subscribing)]);
+    return { ...v, investing, subscribing };
+  })
+);
 
 lendingRouter.get(
   "/vault/positions/:account",

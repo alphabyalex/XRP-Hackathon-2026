@@ -25,9 +25,14 @@ function RoundCard({ v, title, network, children }: { v: VaultState; title: stri
         <span className={`chip chip-${v.phase === "investment" ? "open" : "phase"}`}>{v.phase}</span>
       </div>
       <div className="bignum" style={{ marginTop: 10 }}>
-        {fmt(Number(v.assetsTotal), 2)} USDC
+        {v.targetApyPct ?? v.lenderApyPct}% <small>target APY</small>
       </div>
+      <p className="note" style={{ marginTop: 4 }}>Earned so far {v.earnedApyPct ?? v.lenderApyPct}% APY</p>
       <div className="facts" style={{ marginTop: 14 }}>
+        <div>
+          <span>Deposits</span>
+          <b>{fmt(Number(v.assetsTotal), 2)} USDC</b>
+        </div>
         <div>
           <span>Lent out</span>
           <b>
@@ -37,10 +42,6 @@ function RoundCard({ v, title, network, children }: { v: VaultState; title: stri
         <div>
           <span>Available</span>
           <b>{fmt(Number(v.assetsAvailable), 2)}</b>
-        </div>
-        <div>
-          <span>Lender APY (from open loans)</span>
-          <b>{v.lenderApyPct}%</b>
         </div>
         <div>
           <span>First-loss cover</span>
