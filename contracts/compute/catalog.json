@@ -17,10 +17,10 @@
         "vramGb": 16,
         "vcpu": 4,
         "ramGb": 16,
-        "storageGb": 50,
+        "storageGb": 100,
         "location": {
-          "city": null,
-          "region": null
+          "city": "Lisbon (LIS)",
+          "region": "eu-southwest, Portugal"
         },
         "model": "Qwen2.5-1.5B-Instruct",
         "status": "serving",
@@ -47,7 +47,7 @@
   },
   "notes": [
     "Only a configured GPU endpoint that passes its health check appears.",
-    "Specs match infra/akash/nodes/node-a-t4.yaml. City and region remain null until verified lease metadata is configured.",
+    "Resources verified by read-only saved SDL for existing deployment 1792883508772 on 2026-10-25: 4 vCPU,16 GiB RAM,100 GiB storage. Provider record advertises city=LIS,country=PT,location-region=eu-southwest. Environment overrides support future relocation.",
     "rentalUsdPerHour equals the fresh GPU Economy median. Null means unavailable, never free.",
     "economy, awsSpot and awsOnDemand, when present, have {usdPerHour,updatedAt,source,sourceUrl}; AWS values also have region and instanceType.",
     "AWS comparisons accept live collector records only, not fixtures or static defaults.",

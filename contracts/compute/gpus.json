@@ -1,7 +1,6 @@
 {
   "endpoint": "GET /gpus",
   "response": [
-    { "id": "gpu-a", "state": "READY", "model": "Qwen/Qwen3-1.7B", "simulated": false, "tokens_per_sec": 42.5, "utilization_pct_1h": 18.2 },
-    { "id": "gpu-b", "state": "READY", "model": "Qwen/Qwen3-1.7B", "simulated": true, "tokens_per_sec": 40.0, "utilization_pct_1h": 9.0 }
+    { "id": "gpu-a", "state": "READY", "model": "Qwen/Qwen2.5-1.5B-Instruct", "simulated": false, "tokens_per_sec": 30.0, "utilization_pct_1h": 0.0 }
   ]
 }

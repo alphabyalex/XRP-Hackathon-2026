@@ -20,7 +20,12 @@ uvicorn router.main:app --port 7200
 
 The default fleet contains the existing Akash Network T4 running Qwen2.5-1.5B-Instruct.
 Public AWS prices are comparisons. They do not imply that Moonshift owns EC2 GPU capacity.
-Only a passing endpoint health check and live price benchmark allow task admission.
+Own-fleet rental and task rates use the same live GPU Economy median exposed by
+the API's independent `/gpu-prices` cache. The router reads that snapshot every
+15 seconds in the background. Quote requests use memory and make no price-feed
+network calls. Missing or stale medians disable pricing without an AWS or static
+fallback. All modes use the same hourly rate and duration on one physical GPU.
+Only a passing endpoint health check and live median allow task admission.
 Development fixtures are available only when `FLEET_SOURCE=mock` is explicitly selected.
 
 ## Switches

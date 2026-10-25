@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+import math
+
+import httpx
 
 from router import collectors
 from router import config as C
-from router.catalog import Offer, iso, now_utc
+from router.catalog import Offer, gpu_key, iso, now_utc, parse_time
 from router.collectors.base import CollectContext
 from router.fleet import FleetEntry, FleetState, GpuView, load_entries
 
@@ -19,6 +22,8 @@ class Service:
     catalog_as_of: str = ""
     entries: list[FleetEntry] = field(default_factory=list)
     state: FleetState = field(default_factory=FleetState)
+    economy_rates: dict[str, dict] = field(default_factory=dict)
+    _economy_checked: datetime | None = None
 
     def load_catalog(self, offers: list[Offer], errors: dict[str, str] | None = None) -> None:
         """Replace offers that were re-collected; keep the last good snapshot for the rest."""
@@ -29,9 +34,46 @@ class Service:
             self.offers = {key: offer for key, offer in self.offers.items() if offer.priceSource == "live"}
         self.errors = errors or {}
         self.catalog_as_of = max((o.asOf for o in self.offers.values() if o.priceSource != "static"), default="")
-        self.entries = load_entries(self.offers)
+        self.entries = load_entries(self.offers, self.economy_rates)
         executable = {e.offer.key for e in self.entries if e.offerFound}
         self.offers = {k: o.with_(executable=k in executable) for k, o in self.offers.items()}
+
+    async def refresh_economy(self, transport: httpx.AsyncBaseTransport | None = None) -> None:
+        """Refresh one shared price snapshot in the background, never in a quote request."""
+        if C.FLEET_SOURCE == "mock":
+            return
+        now = now_utc()
+        if self._economy_checked and (now - self._economy_checked).total_seconds() < 15:
+            return
+        self._economy_checked = now
+        try:
+            async with httpx.AsyncClient(transport=transport, timeout=3) as client:
+                response = await client.get(f"{C.API_URL}/gpu-prices")
+                response.raise_for_status()
+                data = response.json()
+            published = parse_time(data["sourceUpdatedAt"])
+            checked = parse_time(data["checkedAt"])
+            if (data.get("stale") or data.get("source", {}).get("name") != "GPU Economy"
+                    or not -300 <= (now - published).total_seconds() < 48 * 3600
+                    or not -300 <= (now - checked).total_seconds() < 1800):
+                self.economy_rates = {}
+            else:
+                rates = {}
+                for gpu in data["gpus"]:
+                    model = gpu_key(gpu.get("name") or gpu.get("id") or "")
+                    try:
+                        rate = float(gpu.get("rentalUsdPerHour"))
+                    except (TypeError, ValueError):
+                        continue
+                    if model and math.isfinite(rate) and rate > 0:
+                        rates[model] = {"pricePerGpuHourUsd": rate, "asOf": data["sourceUpdatedAt"],
+                                        "checkedAt": data["checkedAt"], "source": "GPU Economy",
+                                        "sourceUrl": gpu.get("sourceUrl"), "offerKey": f"gpu-economy#{gpu['id']}"}
+                self.economy_rates = rates
+            self.entries = load_entries(self.offers, self.economy_rates)
+        except (httpx.HTTPError, KeyError, TypeError, ValueError):
+            # Retain the last observed snapshot only while its publisher and check timestamps remain valid.
+            self.entries = load_entries(self.offers, self.economy_rates)
 
     def collect(self, names: list[str] | None = None, ctx: CollectContext | None = None) -> None:
         offers, errors = collectors.run(names, ctx)

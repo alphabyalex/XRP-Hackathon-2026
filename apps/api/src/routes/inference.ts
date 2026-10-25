@@ -1,40 +1,40 @@
 import { Router } from "express";
 import * as compute from "../adapters/computeClient.js";
 import { ComputeError } from "../adapters/computeClient.js";
-import { recordUsage } from "../db/helpers.js";
-import { broadcast } from "../sse.js";
+import { routerPublic } from "./router.js";
 import type { InferenceChatBody } from "@moonshift/shared";
 
 export const inferenceRouter = Router();
 
-inferenceRouter.post("/inference/chat", async (req, res) => {
+inferenceRouter.post("/inference/chat", async (req, res, next) => {
   const body = req.body as InferenceChatBody;
   if (!body.messages?.length) {
     res.status(400).json({ error: { code: "BAD_REQUEST", message: "messages required" } });
     return;
   }
+  // Unreserved public inference must use the same real payment/cap/refund path
+  // as task checkout. A usage meter alone is not a settled ledger payment.
+  if (!body.bookingId) {
+    const sendJson = res.json.bind(res);
+    res.json = ((result: any) => {
+      if (!result?.choices) return sendJson(result);
+      return sendJson({ ...result, x_ms: {
+        ...result.x_ms, request_id: result.x_ms.order_id, gpu_id: result.x_ms.gpus?.[0]?.toLowerCase() ?? null,
+        model: result.model, charge: result.x_ms.price_usdc,
+        input_tokens: null, output_tokens: result.usage?.completion_tokens ?? null,
+        routed_reason: "Live GPU task with validated settlement", simulated: false,
+      } });
+    }) as typeof res.json;
+    req.url = "/v1/chat/completions";
+    routerPublic(req, res, next);
+    return;
+  }
   // The signed-in account pays; the developer playground account otherwise. Never a name from the browser.
   const buyer = req.user?.name ?? "DEV";
-  const startedAt = new Date().toISOString();
-
   try {
     const result = await compute.chatCompletions({ messages: body.messages }, buyer, body.bookingId);
-    const finishedAt = new Date().toISOString();
-
-    recordUsage({
-      request_id: result.x_ms.request_id,
-      gpu_id: result.x_ms.gpu_id,
-      buyer,
-      booking_id: body.bookingId ?? null,
-      input_tokens: result.x_ms.input_tokens,
-      output_tokens: result.x_ms.output_tokens,
-      charge: result.x_ms.charge,
-      started_at: startedAt,
-      finished_at: finishedAt,
-      simulated: result.x_ms.simulated,
-    });
-    broadcast("usage", result.x_ms);
-
+    // Compute's UsageReporter sends the metered event once. Recording it here
+    // as well would count the same request twice in downstream revenue.
     res.json(result);
   } catch (err) {
     if (err instanceof ComputeError) {

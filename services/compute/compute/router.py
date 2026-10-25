@@ -28,7 +28,12 @@ class ChatResult:
     x_ms: dict[str, object]
 
 
-def charge_for(rate: RateCard, input_tokens: int, output_tokens: int) -> Decimal:
+def charge_for(rate: RateCard, input_tokens: int, output_tokens: int, runtime_seconds: float | None = None) -> Decimal:
+    if rate.hourly_usd is not None:
+        if runtime_seconds is None or runtime_seconds < 0:
+            raise ValueError("A live rental charge requires measured or explicitly estimated runtime")
+        amount = rate.hourly_usd * Decimal(str(runtime_seconds)) / Decimal("3600")
+        return amount.quantize(MONEY_QUANTUM, rounding=ROUND_HALF_UP)
     amount = rate.base_fee + (
         Decimal(input_tokens) * rate.input_per_mtok + Decimal(output_tokens) * rate.output_per_mtok
     ) / Decimal("1000000")
@@ -79,7 +84,7 @@ class ComputeRouter:
                 continue
             rate = await self.rates.get(worker.gpu_id)
             status = await worker.status()
-            estimated_charge = charge_for(rate, input_tokens, max_tokens)
+            estimated_charge = charge_for(rate, input_tokens, max_tokens, self._estimated_runtime(worker, max_tokens))
             candidates.append(
                 (
                     estimated_charge,
@@ -120,9 +125,11 @@ class ComputeRouter:
     async def _booked_worker(
         self, request_id: str, buyer: str, booking: str, max_tokens: int
     ) -> tuple[GpuSupervisor, str]:
+        if not booking.strip():
+            raise ComputeError("BOOKING_NOT_FOUND", "No active booking matches this buyer and reservation.", 404)
         worker = await self.scheduler.booking_worker(booking, buyer)
         if not worker:
-            raise ComputeError("GPU_BOOKED", "No active booking matches this buyer and redemption.", 409)
+            raise ComputeError("BOOKING_NOT_FOUND", "No active booking matches this buyer and reservation.", 404)
         booking_id = await worker.admit_booked(
             request_id, booking, buyer, self._estimated_runtime(worker, max_tokens)
         )
@@ -146,7 +153,7 @@ class ComputeRouter:
         max_tokens = min(requested_max_tokens, self.settings.public_max_tokens) if public_request else requested_max_tokens
         request_id = f"req_{uuid.uuid4().hex}"
         booking_id: str | None = None
-        if booking:
+        if booking is not None:
             worker, booking_id = await self._booked_worker(request_id, buyer, booking, max_tokens)
             rate: RateCard | None = None
             routed_reason = "ACTIVE_BOOKING"
@@ -156,6 +163,7 @@ class ComputeRouter:
             routed_reason = "LOWEST_ESTIMATED_PRICE"
 
         started_at = datetime.now(UTC)
+        runtime_started = time.monotonic()
         try:
             completion = await asyncio.wait_for(
                 self.providers[worker.gpu_id].complete(
@@ -176,9 +184,12 @@ class ComputeRouter:
             await worker.release(request_id, succeeded=False)
             raise
 
+        runtime_seconds = max(0.0, time.monotonic() - runtime_started)
         finished_at = datetime.now(UTC)
         await worker.release(request_id, succeeded=True)
-        charge = Decimal("0") if booking_id else charge_for(rate or await self.rates.get(worker.gpu_id), completion.input_tokens, completion.output_tokens)
+        charge = Decimal("0") if booking_id else charge_for(
+            rate or await self.rates.get(worker.gpu_id), completion.input_tokens, completion.output_tokens, runtime_seconds
+        )
         charge_text = f"{charge.quantize(MONEY_QUANTUM):f}"
         simulated = self.settings.mock or worker.simulated
 
@@ -206,6 +217,11 @@ class ComputeRouter:
             "routed_reason": routed_reason,
             "simulated": simulated,
             "skipped_gpus": skipped,
+            "charge_basis": "prepaid_booking" if booking_id else "live_hourly_rate_times_measured_request_runtime" if rate and rate.hourly_usd is not None else "explicit_mock_rate",
+            "measured_runtime_seconds": round(runtime_seconds, 6),
+            "hourly_usd": str(rate.hourly_usd) if rate and rate.hourly_usd is not None else None,
+            "price_updated_at": rate.updated_at if rate else None,
+            "planning_runtime_is_estimate": True,
         }
         body: dict[str, object] = {
             "id": f"chatcmpl_{uuid.uuid4().hex}",

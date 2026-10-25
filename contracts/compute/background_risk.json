@@ -1,0 +1,11 @@
+{
+  "liveMode": "MOCK=0",
+  "status": {"endpoint": "GET /monte-carlo/status", "response": {}},
+  "switch": {
+    "endpoint": "POST /monte-carlo/switch-demo",
+    "status": 503,
+    "response": {"error": {"code": "FEATURE_UNAVAILABLE", "message": "GPU background risk processing is not available."}}
+  },
+  "gpuStatus": "GET /gpus omits monte_carlo in live mode.",
+  "reason": "The local CPU toy is a test fixture. No remote GPU tensor backend or measured GPU risk telemetry exists. Live inference is independent of this unavailable capability."
+}

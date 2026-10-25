@@ -32,6 +32,7 @@ class OrderIn(BaseModel):
     deadlineSeconds: float | None = Field(default=None, gt=0)  # noqa: N815
     budgetUsdc: str | float | None = None  # noqa: N815
     constraints: ConstraintsIn = Field(default_factory=ConstraintsIn)
+    gpuId: str | None = Field(default=None, pattern=r"^gpu-[a-z0-9-]{1,40}$")  # noqa: N815
 
     def request_count(self) -> int:
         if isinstance(self.requests, list):
@@ -40,7 +41,7 @@ class OrderIn(BaseModel):
 
 
 def to_spec(o: OrderIn) -> O.OrderSpec:
-    cons = O.Constraints(o.constraints.gpuModel, o.constraints.region, tuple(sorted(o.constraints.excludeProviders)))
+    cons = O.Constraints(o.constraints.gpuModel, o.constraints.region, tuple(sorted(o.constraints.excludeProviders)), o.gpuId)
     budget = float(o.budgetUsdc) if o.budgetUsdc not in (None, "") else None
     if o.kind == "inference":
         n = o.request_count()
@@ -76,6 +77,7 @@ def spec_dict(spec: O.OrderSpec) -> dict[str, Any]:
                 "gpuModel": spec.constraints.gpuModel,
                 "region": spec.constraints.region,
                 "excludeProviders": list(spec.constraints.excludeProviders),
+                "gpuId": spec.constraints.gpuId,
             }.items()
             if v
         },
@@ -91,6 +93,13 @@ def limits(views: list[GpuView]) -> dict[str, Any]:
 
 def check_size(spec: O.OrderSpec, views: list[GpuView]) -> None:
     """Refuse a task the fleet cannot finish in MAX_TASK_DAYS (never shrink it to fit)."""
+    if spec.constraints.gpuId is not None:
+        pinned = next((view for view in views if view.id == spec.constraints.gpuId), None)
+        if pinned is None:
+            raise RouterError(404, "UNKNOWN_GPU", "The requested GPU is not registered.")
+        if not pinned.executable or not pinned.available:
+            raise RouterError(409, "GPU_OFFLINE", "The requested GPU is not available.")
+        views = [pinned]
     cap = O.max_gpu_hours(views)
     if cap > 0 and O.gpu_hours(spec, views) > cap + 1e-9:
         raise RouterError(422, "TOO_LARGE", f"Max {cap:g} GPU-hours")

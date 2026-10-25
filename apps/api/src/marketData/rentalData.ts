@@ -14,7 +14,7 @@ export interface FleetRow {
   moonshiftGpuId?: string | null;
   computeGpuId?: string | null;
   endpoint?: boolean;
-  state?: { available?: boolean; activeJobs?: number };
+  state?: { available?: boolean; activeJobs?: number; reason?: string | null; bookedWindows?: { start: string; end: string }[] };
 }
 
 export interface AwsOffer {
@@ -56,8 +56,14 @@ export function nodeAvailability(gpuId: string, fleet: FleetRow[] | null, update
     return { total: 1, free: null, busy: null, reserved: null, updatedAt: null };
   }
   const busy = matching.some(row => row.state!.activeJobs! > 0) ? 1 : 0;
-  const free = !busy && matching.some(row => row.state!.available === true) ? 1 : 0;
-  return { total: 1, free, busy, reserved: 1 - free - busy, updatedAt };
+  const now = updatedAt ? Date.parse(updatedAt) : Date.now();
+  const booked = matching.some(row => row.state?.bookedWindows?.some(window => Date.parse(window.start) <= now && now < Date.parse(window.end)));
+  const available = matching.some(row => row.state!.available === true);
+  // Offline or unpriced does not mean reserved. Only an actual current booking
+  // may be counted as a reservation, and a booked card is never counted as free.
+  const reserved = booked ? 1 : available || busy ? 0 : null;
+  const free = !busy && !booked && available ? 1 : 0;
+  return { total: 1, free, busy, reserved, updatedAt };
 }
 
 export function observedChange24h(observations: { time: string; rentalUsdPerHour: string | null }[], current: string | null, now = Date.now()): string | null {

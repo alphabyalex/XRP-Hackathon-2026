@@ -1,0 +1,18 @@
+{
+  "routes": ["POST /quote", "POST /orders", "GET /fleet"],
+  "policy": "Own-fleet hourly rates use the live GPU Economy median from the API's independent /gpu-prices cache. AWS is comparison metadata only. Quotes use one in-memory snapshot refreshed in the background every 15 seconds.",
+  "singlePhysicalGpu": "All modes use the same hourly median and duration. No tier premium, slowdown or extra parallel card is invented.",
+  "unavailable": "A missing, stale, null or nonpositive median disables task admission. GET /fleet reports null for unavailable prices. There is no AWS or static rate fallback.",
+  "request": {"kind": "rental", "minutes": 60, "gpuId": "gpu-a"},
+  "pinPolicy": "gpuId is optional. A supplied GPU must exist and be healthy. It is carried through planning and execution. A pinned task never silently moves to another GPU.",
+  "pinErrors": {
+    "unknown": {"status": 404, "code": "UNKNOWN_GPU"},
+    "offline": {"status": 409, "code": "GPU_OFFLINE"}
+  },
+  "observedVerification": {
+    "sourceUpdatedAt": "2026-10-25T08:40:00.163Z",
+    "model": "T4",
+    "pricePerGpuHourUsd": "0.550000",
+    "oneHourTotalAllModes": "0.550000"
+  }
+}

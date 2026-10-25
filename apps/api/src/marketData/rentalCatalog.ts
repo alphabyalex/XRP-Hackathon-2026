@@ -79,8 +79,10 @@ export function refreshRentalCatalog(): Promise<RentalCatalog> {
         .all("gpu-a", new Date(Date.now() - 24 * 3600_000).toISOString()) as { time: string; utilizationPct: number }[])
         .map(sample => ({ ...sample, t: sample.time, pct: sample.utilizationPct }));
       gpus.push({ id: "gpu-a", label: "GPU-A", provider: "Akash Network", card: "NVIDIA T4", vramGb: 16,
-        vcpu: 4, ramGb: 16, storageGb: 50,
-        location: { city: process.env.GPU_A_CITY?.trim() || null, region: process.env.GPU_A_REGION?.trim() || null },
+        vcpu: 4, ramGb: 16, storageGb: 100,
+        // Read-only provider record verified 2026-10-25: city=LIS, country=PT,
+        // location-region=eu-southwest. Environment overrides support relocation.
+        location: { city: process.env.GPU_A_CITY?.trim() || "Lisbon (LIS)", region: process.env.GPU_A_REGION?.trim() || "eu-southwest, Portugal" },
         model: "Qwen2.5-1.5B-Instruct", status: "serving", updatedAt: online.checkedAt!,
         prices: { rentalUsdPerHour: economy?.usdPerHour ?? null, currency: "USD", economy, awsSpot: aws.spot[0] ?? null,
           awsOnDemand: aws.onDemand[0] ?? null, change24hPct: observedChange24h(rate?.observations ?? [], economy?.usdPerHour ?? null) },

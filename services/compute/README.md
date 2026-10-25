@@ -75,8 +75,8 @@ versioned.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `MOCK` | `1` | Use canned answers and fake workers. Set `0` only on a prepared GPU host. |
-| `API_URL` | empty | Base URL for `POST /internal/usage`; empty disables delivery locally. |
-| `PRICING_URL` | empty | Base URL for pricing's `/rates/inference`; unavailable pricing uses a deterministic fallback. |
+| `API_URL` | empty | Required for live public work: reads `/catalog/gpus` and reports `/internal/usage`. |
+| `PRICING_URL` | empty | Legacy configuration retained for compatibility. Live rates come from the API rental catalog. |
 | `INTERNAL_API_KEY` | `dev-internal-key` in mock mode | Key for the usage callback and internal `/bookings` endpoint. Required outside mock mode. |
 | `GPU_A_VLLM_URL` | `VLLM_URL`, then `http://127.0.0.1:8000` | Existing GPU-A OpenAI-compatible endpoint. |
 | `GPU_A_VLLM_MODEL` | `MODEL`, then the legacy endpoint alias | Model identifier accepted by the running server. This is separate from the real model name. |
@@ -110,6 +110,13 @@ host or through an SSH tunnel. In real mode, vLLM's final `usage` object is the
 only source of billed token counts for chat requests. A failed upstream never falls
 back to a generated local answer. Live workers without endpoints stay offline.
 
+Live public work uses the fresh GPU Economy hourly rate from `/catalog/gpus`.
+Its charge is that rate multiplied by measured request runtime in hours. Planning
+runtime remains an estimate for admission and candidate selection. Missing or stale
+prices reject the request before execution. Numeric fallback rates exist only in
+explicit mock mode. Active prepaid bookings carry zero additional inference charge.
+This service reports usage; the API task router owns ledger settlement.
+
 Fresh streaming tasks use `/v1/chat/completions` with standard OpenAI fields only.
 Resumed tasks apply Qwen2.5's [published chat template](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct/blob/main/tokenizer_config.json)
 and append the partial assistant answer to its open assistant turn, then call
@@ -117,6 +124,12 @@ and append the partial assistant answer to its open assistant turn, then call
 rejects even when false. The stream must finish explicitly; an upstream error or
 truncated reply fails the task. Failed router tasks refund their full price cap,
 including when part of an answer was already streamed.
+
+The Monte Carlo helper is a local CPU toy used only by `MOCK=1` tests. Its
+synthetic counters, VRAM figures and switching timings do not describe the remote
+GPU. Live workers do not construct or run it, `/gpus` omits its telemetry,
+`/monte-carlo/status` returns `{}`, and `/monte-carlo/switch-demo` returns HTTP 503
+with `FEATURE_UNAVAILABLE`. A remote GPU tensor backend has not been implemented.
 
 No real T4 has been benchmarked from this local workspace. Before a judge demo,
 record the measured throughput, time to first token, p50/p95 256-token latency,

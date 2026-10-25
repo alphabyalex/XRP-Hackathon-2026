@@ -32,7 +32,7 @@ def test_own_fleet_is_only_moonshift_gpus(monkeypatch):
     assert [(e.id, e.label, e.offer.provider) for e in entries] == [("gpu-a", "GPU-A", "moonshift")]
 
 
-def test_price_is_the_cheapest_on_demand_offer_for_the_same_gpu(monkeypatch):
+def test_price_is_gpu_economy_median_and_aws_is_comparison_only(monkeypatch):
     monkeypatch.setattr(C, "FLEET_SOURCE", "own")
     entries = load_entries(
         catalog(
@@ -41,12 +41,15 @@ def test_price_is_the_cheapest_on_demand_offer_for_the_same_gpu(monkeypatch):
             offer("azure", "NC4as_T4_v3", "spot", 0.149),  # interruptible: not a benchmark for dedicated GPUs
             offer("vast", "1x RTX 4090", "on-demand", 0.30, model="RTX 4090"),  # another GPU
             offer("lambda", "t4", "on-demand", 0.40, status="none"),  # no capacity
-        )
+        ),
+        {"T4": {"pricePerGpuHourUsd": 0.55, "asOf": iso(now_utc()), "checkedAt": iso(now_utc()),
+                "source": "GPU Economy", "offerKey": "gpu-economy#t4"}},
     )
     for e in entries:
-        assert e.offer.pricePerHourUsd == 0.526
-        assert e.offer.price_per_hour_usdc() == 0.526  # no margin on our own GPUs
-        assert e.benchmark and e.benchmark["offerKey"] == "aws#us-east-1#g4dn.xlarge#on-demand"
+        assert e.offer.pricePerHourUsd == 0.55
+        assert e.offer.price_per_hour_usdc() == 0.55
+        assert e.benchmark and e.benchmark["offerKey"] == "gpu-economy#t4"
+        assert e.benchmark["awsComparison"]["offerKey"] == "aws#us-east-1#g4dn.xlarge#on-demand"
 
 
 def test_gpu_is_unpriced_when_the_market_has_no_live_offer(monkeypatch):
@@ -59,7 +62,9 @@ def test_gpus_apps_api_does_not_list_are_not_offered(monkeypatch):
     from router.fleet import FleetState
 
     monkeypatch.setattr(C, "FLEET_SOURCE", "own")
-    entries = load_entries(catalog(offer("aws", "g4dn.xlarge", "on-demand", 0.526)))
+    entries = load_entries(catalog(offer("aws", "g4dn.xlarge", "on-demand", 0.526)),
+        {"T4": {"pricePerGpuHourUsd": 0.55, "asOf": iso(now_utc()), "checkedAt": iso(now_utc()),
+                "source": "GPU Economy", "offerKey": "gpu-economy#t4"}})
     state = FleetState(unlisted={"gpu-a"})
     views = {e.id: state.view(e, now_utc()) for e in entries}
     assert views["gpu-a"].available is False and views["gpu-a"].reason == "NOT_LISTED"

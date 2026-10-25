@@ -1,8 +1,7 @@
-"""Monte Carlo Financial Risk Simulation and Preemptive Switch Engine.
+"""Local CPU toy for MOCK=1 tests. This is not remote GPU execution or telemetry.
 
-Runs high-throughput Monte Carlo portfolio stress-testing and Value-at-Risk
-(VaR) simulations as a productive background workload when GPU compute is
-unbooked, preempting execution within milliseconds when user inference arrives.
+Counters, VRAM allocation and switching figures in this fixture are synthetic.
+Live workers never construct, run or expose it. No GPU tensor backend exists here.
 """
 
 from __future__ import annotations
@@ -25,13 +24,7 @@ class PreemptionEvent:
 
 
 class MonteCarloRiskEngine:
-    """Productive background compute engine running tensor-style Monte Carlo simulations.
-
-    When the GPU is in READY state (no user requests or active XRPL bookings),
-    this engine utilizes the remaining GPU capacity to run quantitative risk
-    simulations (Geometric Brownian Motion, 99% Value-at-Risk, Expected Shortfall).
-    When an inference request arrives, it yields execution within milliseconds.
-    """
+    """Synthetic CPU-only fixture. Its values must never be presented as live GPU measurements."""
 
     def __init__(
         self,
@@ -178,6 +171,8 @@ class MonteCarloRiskEngine:
     def metrics(self) -> dict[str, Any]:
         """Return a structured telemetry snapshot of the Monte Carlo risk engine."""
         return {
+            "simulated": True,
+            "source": "cpu_test_fixture",
             "status": self.status,
             "workload_type": "MONTE_CARLO_RISK_SIMULATION" if self.status == "RUNNING" else "LLM_INFERENCE",
             "resident_model": self.resident_model,
