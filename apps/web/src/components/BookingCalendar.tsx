@@ -34,8 +34,11 @@ export function BookingCalendar({ gpuId, gpuLabel, pricePerHour }: { gpuId: stri
   const days = useMemo(() => {
     const out = new Map<string, CalendarBlock[]>();
     for (const b of data?.blocks ?? []) {
-      const k = new Date(b.start).toDateString();
-      out.set(k, [...(out.get(k) ?? []), b]);
+      const d = new Date(b.start);
+      const k = d.toDateString();
+      const day = out.get(k) ?? [];
+      // One cell per clock hour: on the night clocks fall back, the repeated hour shows once.
+      if (!day.some((x) => new Date(x.start).getHours() === d.getHours())) out.set(k, [...day, b]);
     }
     return [...out.entries()];
   }, [data]);
@@ -63,6 +66,16 @@ export function BookingCalendar({ gpuId, gpuLabel, pricePerHour }: { gpuId: stri
   return (
     <div className="cal7">
       <div className="cal7-grid" role="grid" aria-label={`${gpuLabel}, next 7 days`}>
+        <div className="cal7-row cal7-hours" aria-hidden="true">
+          <span />
+          <div className="cal7-cells">
+            {["12 AM", "6 AM", "12 PM", "6 PM"].map((h, i) => (
+              <span key={h} style={{ gridColumn: `${i * 6 + 1} / span 6` }}>
+                {h}
+              </span>
+            ))}
+          </div>
+        </div>
         {days.map(([k, blocks]) => (
           <div className="cal7-row" role="row" key={k}>
             <span className="cal7-day">{dayLabel(new Date(blocks[0].start))}</span>
@@ -79,6 +92,7 @@ export function BookingCalendar({ gpuId, gpuLabel, pricePerHour }: { gpuId: stri
                     aria-selected={pick === b.start}
                     title={`${dayLabel(d)} ${hourLabel(d)}: ${st === "free" ? "free" : st === "past" ? "past" : st === "busy" ? "running a task" : "booked"}`}
                     className={clsx("cal7-cell", st, pick === b.start && "on")}
+                    style={{ gridColumnStart: d.getHours() + 1 }}
                     onClick={() => setPick(b.start)}
                   />
                 );

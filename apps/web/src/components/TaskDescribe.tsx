@@ -195,7 +195,7 @@ export function TaskDescribe({
       </div>
 
       <div className="line" style={{ marginTop: 16 }}>
-        <span>Hardware for this task</span>
+        <span>Rent this hardware for {fmt(Math.round(size.durationSeconds / 60), 0)} min</span>
         <b>{opt ? `$${fmt(Number(opt.totalPrice), 4)}` : quoteErr ? "Not available" : "Pricing"}</b>
       </div>
       {opt && (

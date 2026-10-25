@@ -2244,3 +2244,7 @@ button.cal7-cell.free {
 .dev .code pre {
   font-size: 12.5px;
 }
+.cal7-hours .cal7-cells span {
+  font-size: 11px;
+  color: var(--ink3);
+}
