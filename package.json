@@ -7,6 +7,8 @@
     "packages/*"
   ],
   "scripts": {
+    "build": "npm run build -w apps/web",
+    "vercel-build": "npm run build -w apps/web",
     "dev": "concurrently -n web,api -c blue,green \"npm run dev -w apps/web\" \"npm run dev -w apps/api\"",
     "lint": "npm run lint -w apps/web",
     "typecheck": "npm run typecheck -w apps/web && npm run typecheck -w apps/api && npm run typecheck -w packages/shared && npm run typecheck -w packages/xrpl",
