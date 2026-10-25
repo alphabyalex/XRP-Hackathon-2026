@@ -16,6 +16,7 @@ import { contractsRouter } from "./routes/contracts.js";
 import { inferenceRouter } from "./routes/inference.js";
 import { loansRouter } from "./routes/loans.js";
 import { lendingRouter } from "./routes/lending.js";
+import { lendingViewsRouter } from "./routes/lendingViews.js";
 import { adminRouter } from "./routes/admin.js";
 import { internalRouter } from "./routes/internal.js";
 import { eventsRouter } from "./routes/events.js";
@@ -48,6 +49,8 @@ app.use(txRouter);
 app.use(sharesRouter);
 app.use(contractsRouter);
 app.use(inferenceRouter);
+// Before lendingRouter, whose /loans/:id would otherwise take /loans/collateral-options.
+app.use(lendingViewsRouter);
 app.use(lendingRouter);
 app.use(loansRouter);
 app.use(routerPublic); // order router (services/router)
