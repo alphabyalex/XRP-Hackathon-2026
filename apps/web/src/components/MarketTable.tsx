@@ -52,7 +52,7 @@ export function MarketTable({ views }: { views: GpuView[] }) {
               <td className="r num">{fmt(Number(v.gpu.impliedYieldPct) || 0, 1)}%</td>
               <td className="r num">{v.gpu.holdersCount}</td>
               <td className="r">
-                <Link className="btn ghost sm" href={`/gpu/${v.gpu.id}`}>
+                <Link className="btn ghost sm" href={`/gpu/${v.gpu.id}?view=shares`}>
                   Trade
                 </Link>
               </td>

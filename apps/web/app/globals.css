@@ -1950,3 +1950,244 @@ section.s.close-bottom {
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 64px), transparent);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 64px), transparent);
 }
+
+/* Market renter table */
+.renter td {
+  padding: 12px 14px;
+  font-size: 13.5px;
+  vertical-align: middle;
+}
+.renter .sub,
+.sub-inline {
+  font-size: 11.5px;
+  color: var(--ink3);
+}
+.renter .sub {
+  display: block;
+  margin-top: 2px;
+}
+.renter .other-px {
+  display: block;
+  font-family: var(--mono);
+}
+.rent-note {
+  padding: 24px 28px;
+}
+
+/* GPU page */
+.gpu-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+.gpu-views {
+  max-width: 360px;
+  margin-bottom: 28px;
+}
+.gpu-specs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  column-gap: 24px;
+  margin-bottom: 28px;
+}
+.gpu-specs > div {
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid var(--rule);
+}
+.task-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .task-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.task-describe textarea {
+  width: 100%;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px var(--rule2);
+  border: 0;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+  resize: vertical;
+  background: none;
+  outline: none;
+}
+.task-describe textarea:focus {
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+.task-describe .row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.inp select {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  padding: 12px 0;
+  font: inherit;
+  font-size: 15px;
+  outline: none;
+}
+.sliders {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.slider label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  color: var(--ink2);
+}
+.slider label b {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--ink);
+}
+.slider input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+/* 7-day booking calendar */
+.cal7-grid {
+  display: grid;
+  gap: 4px;
+}
+.cal7-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+.cal7-day {
+  font-size: 12.5px;
+  color: var(--ink2);
+}
+.cal7-cells {
+  display: grid;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+  gap: 2px;
+}
+.cal7-cell {
+  display: block;
+  height: 18px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: var(--rule);
+}
+button.cal7-cell.free {
+  cursor: pointer;
+}
+.cal7-cell.free {
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+}
+.cal7-cell.free:hover,
+.cal7-cell.on {
+  background: var(--accent);
+}
+.cal7-cell.booked {
+  background: var(--ink3);
+}
+.cal7-cell.busy {
+  background: var(--ink);
+}
+.cal7-cell.past {
+  opacity: 0.35;
+}
+.key i.cal7-cell {
+  height: 8px;
+}
+
+/* GPU page, shares view */
+.shares-view {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 960px) {
+  .shares-view {
+    grid-template-columns: 1fr;
+  }
+}
+.shares-main {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.panel {
+  background: var(--surface);
+  border-radius: 18px;
+  box-shadow: var(--card-shadow);
+  padding: 18px 20px;
+  min-width: 0;
+}
+.panel-h {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.shares-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  column-gap: 24px;
+}
+.shares-stats > div:nth-child(-n + 4) {
+  border-top: 1px solid var(--rule);
+}
+.shares-book {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+}
+@media (max-width: 640px) {
+  .shares-book {
+    grid-template-columns: 1fr;
+  }
+}
+.ob {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.ob-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+}
+.ob-h {
+  font-family: var(--sans, inherit);
+  font-size: 12px;
+  color: var(--ink3);
+}
+.ob .up {
+  color: var(--up);
+}
+.ob .dn {
+  color: var(--down);
+}
+.ob-mid {
+  border-top: 1px dashed var(--rule2);
+  margin: 4px 0;
+}
+.trades td.up {
+  color: var(--up);
+}
+.trades td.dn {
+  color: var(--down);
+}
