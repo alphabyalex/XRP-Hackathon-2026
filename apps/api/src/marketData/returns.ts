@@ -1,4 +1,4 @@
-import { fix6, type AccountReturnsResponse } from "@moonshift/shared";
+import { GPUS, fix6, type AccountReturnsResponse } from "@moonshift/shared";
 import { listedGpus } from "../gpuHealth.js";
 
 export interface DividendReceipt { gpuId: string; amount: string; time: string }
@@ -10,7 +10,9 @@ export function buildReturns(account: string, days: number, receipts: DividendRe
   const start = new Date(end.getTime() - (days - 1) * 86400000);
   const from = start.toISOString();
   const to = now.toISOString();
-  const series = listedGpus().map(gpu => {
+  const receiptGpuIds = new Set(receipts.map((r) => r.gpuId));
+  const activeGpus = GPUS.filter((g) => listedGpus().some((l) => l.id === g.id) || receiptGpuIds.has(g.id));
+  const series = activeGpus.map(gpu => {
     const byDay = new Map<string, number>();
     for (const receipt of receipts) {
       if (receipt.gpuId !== gpu.id || receipt.time < from || receipt.time > to) continue;
