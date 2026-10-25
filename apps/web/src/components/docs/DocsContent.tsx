@@ -16,7 +16,6 @@ const NAV: { id: string; label: string; children?: { id: string; label: string }
   { id: "credit", label: "Credit data via Quicknode" },
   { id: "api", label: "API reference", children: API_GROUPS.map((g) => ({ id: g.id, label: g.title })) },
   { id: "models", label: "Models" },
-  { id: "coming-soon", label: "Coming soon" },
 ];
 
 const ALL_IDS = NAV.flatMap((n) => [n.id, ...(n.children?.map((c) => c.id) ?? [])]);
@@ -312,17 +311,6 @@ export function DocsContent() {
           <Code lang="Python" text={PY} />
         </section>
 
-        <section id="coming-soon">
-          <h2>Coming soon</h2>
-          <ul>
-            <li>
-              <b>x402 pay per request.</b> Pay for each API call with an HTTP 402 payment, no account or key needed.
-            </li>
-            <li>
-              <b>More GPUs and providers.</b> More cards and more regions, each listed once its endpoint passes its health check.
-            </li>
-          </ul>
-        </section>
       </article>
     </main>
   );
