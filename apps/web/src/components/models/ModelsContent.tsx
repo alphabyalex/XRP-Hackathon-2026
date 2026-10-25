@@ -137,7 +137,7 @@ export function ModelsContent() {
   useEffect(() => () => es.current?.close(), []);
 
   const serving = (models ?? []).filter((m) => m.acceptsRequests);
-  const current = models?.find((m) => `${m.gpuId}:${m.modelId}` === selected) ?? serving[0] ?? models?.[0] ?? null;
+  const current = serving.find((m) => `${m.gpuId}:${m.modelId}` === selected) ?? serving[0] ?? null;
 
   async function tryIt() {
     if (!funded || !current?.acceptsRequests || run.status === "running" || !prompt.trim()) { void refresh(); return; }
@@ -275,8 +275,8 @@ export function ModelsContent() {
                 <tr
                   key={m.gpuId + m.modelId}
                   className={current?.gpuId === m.gpuId && current.modelId === m.modelId ? "on" : undefined}
-                  onClick={() => setSelected(`${m.gpuId}:${m.modelId}`)}
-                  style={{ cursor: "pointer" }}
+                  onClick={m.acceptsRequests ? () => setSelected(`${m.gpuId}:${m.modelId}`) : undefined}
+                  style={{ cursor: m.acceptsRequests ? "pointer" : "default" }}
                 >
                   <td>
                     <b>{m.name}</b>
@@ -323,11 +323,12 @@ export function ModelsContent() {
           <textarea id="mdl-prompt" rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
           <div className="mdl-row">
             <span className="note" style={{ margin: 0 }}>
-              {!wallet ? "Connect your wallet to run a model." : !balanceFresh ? "Checking your USDC balance." : !funded ? "Add USDC to your account to run a model." : "Paid from your account, streamed as the GPU writes."}
+              {!wallet ? "Connect your wallet to run a model." : !balanceFresh ? "Checking your USDC balance." : !funded ? "Add USDC to your account to run a model." : !current ? "No model is serving right now. The list refreshes automatically." : "Paid from your account, streamed as the GPU writes."}
             </span>
             <button
               type="button"
               className="btn ink sm"
+              style={!funded || run.status === "running" || !current?.acceptsRequests || !prompt.trim() ? { background: "transparent", color: "var(--ink2)", border: "1px solid var(--rule)", opacity: 1 } : undefined}
               disabled={!funded || run.status === "running" || !current?.acceptsRequests || !prompt.trim()}
               onClick={tryIt}
             >
