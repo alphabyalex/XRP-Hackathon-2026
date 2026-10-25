@@ -1,0 +1,433 @@
+{
+  "createdAt": "2026-10-25T14:31:44.540725Z",
+  "status": "eight_leases_active_seven_verified_one_modern_upgrade",
+  "maxBidUactPerBlockEach": "500",
+  "estimatedMaxUsdPerHourEachAt600Blocks": 0.3,
+  "model": "Qwen/Qwen2.5-3B-Instruct",
+  "contextTokens": 4096,
+  "maxConcurrentSequences": 2,
+  "resourcesEach": {
+    "vCpu": 4,
+    "ramGiB": 16,
+    "ephemeralStorageGiB": 50,
+    "gpuCount": 1
+  },
+  "orders": [
+    {
+      "gpuId": "gpu-c",
+      "modelRequested": "v100",
+      "manifest": "infra/akash/nodes/node-c-v100-live.yaml",
+      "dseq": "1792939554118",
+      "status": "serving",
+      "cliCreateTimedOut": true,
+      "verifiedAt": "2026-10-25T14:34:25.039330Z",
+      "recommendedBid": {
+        "provider": "akash16yr3wxt97ae045a06kr3ycde9srcgpg8syjxxm",
+        "providerName": "ZenCloud",
+        "cityCode": "NYL",
+        "country": "BE",
+        "region": "eu-west",
+        "providerAudited": true,
+        "uactPerBlock": "383.910083000000000000",
+        "estimatedUsdPerHourAt600Blocks": "0.2303460498000000000000"
+      },
+      "eligibleBidCount": 1,
+      "replacesUnleasedDseq": "1792938705310",
+      "acceptedLeaseVerifiedFrom": "akt console deployment list",
+      "acceptedAt": "2026-10-25T14:52:16.086143Z"
+    },
+    {
+      "gpuId": "gpu-d",
+      "modelRequested": "t4",
+      "manifest": "infra/akash/nodes/node-d-t4-live.yaml",
+      "dseq": "1792938865934",
+      "status": "serving",
+      "cliCreateTimedOut": true,
+      "verifiedAt": "2026-10-25T14:34:56.542320Z",
+      "recommendedBid": {
+        "provider": "akash15tl6v6gd0nte0syyxnv57zmmspgju4c3xfmdhk",
+        "providerName": "overclock",
+        "cityCode": "FAT",
+        "country": "US",
+        "region": "na-us-west",
+        "providerAudited": true,
+        "uactPerBlock": "233.188884000000000000",
+        "estimatedUsdPerHourAt600Blocks": "0.1399133304000000000000"
+      },
+      "eligibleBidCount": 1,
+      "acceptedAt": "2026-10-25T14:42:01.890724Z",
+      "acceptedLeaseVerifiedFrom": "akt console deployment list"
+    },
+    {
+      "gpuId": "gpu-e",
+      "dseq": "1792940820777",
+      "status": "modern_runtime_upgrade_pending",
+      "modelRequested": "rtx3090",
+      "manifest": "infra/akash/nodes/node-e-rtx3090-qwen35-live.yaml",
+      "recommendedBid": {
+        "provider": "akash1p5qkxeu3hcxzx9nvfvva93pyvxcyqduly9udz9",
+        "providerName": "Overclock",
+        "cityCode": "SFO",
+        "country": "US",
+        "region": "na-us-west",
+        "providerAudited": true,
+        "uactPerBlock": "265.753915000000000000",
+        "estimatedUsdPerHourAt600Blocks": "0.1594523490000000000000"
+      },
+      "replacesFailedDseq": "1792939937173",
+      "acceptedAt": "2026-10-25T15:07:49.557668Z",
+      "acceptedLeaseVerifiedFrom": "akt console deployment list",
+      "baselineManifest": "infra/akash/nodes/node-e-rtx3090-live.yaml",
+      "canonicalModel": "Qwen/Qwen3.5-4B",
+      "baselineFreshInferenceVerified": false
+    },
+    {
+      "gpuId": "gpu-f",
+      "dseq": "1792940870902",
+      "status": "serving",
+      "modelRequested": "v100",
+      "manifest": "infra/akash/nodes/node-f-v100-live.yaml",
+      "recommendedBid": {
+        "provider": "akash1hgulk6aekakqzc0v6wukrd3dy9n90f5gkl4ezk",
+        "providerName": "digital frontier",
+        "cityCode": "LIS",
+        "country": "PT",
+        "region": "eu-southwest",
+        "providerAudited": true,
+        "uactPerBlock": "444.000000000000000000",
+        "estimatedUsdPerHourAt600Blocks": "0.2664000000000000000000"
+      },
+      "replacesFailedDseq": "1792940113866",
+      "acceptedAt": "2026-10-25T15:08:57.128834Z",
+      "acceptedLeaseVerifiedFrom": "akt console deployment list"
+    },
+    {
+      "gpuId": "gpu-g",
+      "dseq": "1792941075797",
+      "status": "serving",
+      "modelRequested": "v100",
+      "manifest": "infra/akash/nodes/node-g-v100-live.yaml",
+      "recommendedBid": {
+        "provider": "akash1hgulk6aekakqzc0v6wukrd3dy9n90f5gkl4ezk",
+        "providerName": "digital frontier",
+        "cityCode": "LIS",
+        "country": "PT",
+        "region": "eu-southwest",
+        "providerAudited": true,
+        "uactPerBlock": "442.000000000000000000",
+        "estimatedUsdPerHourAt600Blocks": "0.2652000000000000000000"
+      },
+      "replacesFailedDseq": "1792940176827",
+      "acceptedAt": "2026-10-25T15:12:22.329680Z",
+      "acceptedLeaseVerifiedFrom": "akt console deployment list"
+    },
+    {
+      "canonicalModel": "Qwen/Qwen2.5-1.5B-Instruct",
+      "resources": {
+        "vCpu": 2,
+        "ramGiB": 8,
+        "ephemeralStorageGiB": 30,
+        "gpuCount": 1
+      },
+      "gpuId": "gpu-h",
+      "dseq": "1792941267497",
+      "status": "serving",
+      "modelRequested": "rtx3060ti",
+      "manifest": "infra/akash/nodes/node-h-rtx3060ti-live.yaml",
+      "recommendedBid": {
+        "provider": "akash1v0f04wr3tkh9uf43q9eqfd0whpfeu8qevlq99h",
+        "providerName": "ithub",
+        "cityCode": "KYI",
+        "country": "UA",
+        "region": "eu-east",
+        "providerAudited": true,
+        "uactPerBlock": "249.936614000000000000",
+        "estimatedUsdPerHourAt600Blocks": "0.1499619684000000000000"
+      },
+      "replacesFailedDseq": "1792940208275",
+      "acceptedAt": "2026-10-25T15:15:43.760665Z",
+      "acceptedLeaseVerifiedFrom": "akt console deployment list",
+      "runtimeMitigation": {
+        "swapSpaceGiB": 0,
+        "enforceEager": true,
+        "gpuMemoryUtilization": 0.9
+      }
+    }
+  ],
+  "reviewedAt": "2026-10-25T14:36:45.542406Z",
+  "acceptanceStartedAt": "2026-10-25T14:38:22.272585Z",
+  "supersededUnleasedOrders": [
+    {
+      "gpuId": "gpu-c",
+      "modelRequested": "rtx3090",
+      "manifest": "infra/akash/nodes/node-c-rtx3090-live.yaml",
+      "dseq": "1792938705310",
+      "status": "bid_closed_no_lease_replacement_pending",
+      "cliCreateTimedOut": true,
+      "verifiedAt": "2026-10-25T14:34:25.039330Z",
+      "recommendedBid": {
+        "provider": "akash1p5qkxeu3hcxzx9nvfvva93pyvxcyqduly9udz9",
+        "providerName": "Overclock",
+        "cityCode": "SFO",
+        "country": "US",
+        "region": "na-us-west",
+        "providerAudited": true,
+        "uactPerBlock": "265.753915000000000000",
+        "estimatedUsdPerHourAt600Blocks": "0.1594523490000000000000"
+      },
+      "eligibleBidCount": 1,
+      "retirementReason": "closed expired bid, no active lease",
+      "unusedOrderRetired": true,
+      "retirementVerifiedAt": "2026-10-25T14:59:56.224131Z"
+    },
+    {
+      "gpuId": "gpu-e",
+      "modelRequested": "v100",
+      "manifest": "infra/akash/nodes/node-e-v100-live.yaml",
+      "dseq": "1792938897813",
+      "status": "bid_review_ready_no_lease",
+      "cliCreateTimedOut": false,
+      "verifiedAt": "2026-10-25T14:35:02.909749Z",
+      "recommendedBid": {
+        "provider": "akash16yr3wxt97ae045a06kr3ycde9srcgpg8syjxxm",
+        "providerName": "ZenCloud",
+        "cityCode": "NYL",
+        "country": "BE",
+        "region": "eu-west",
+        "providerAudited": true,
+        "uactPerBlock": "383.910083000000000000",
+        "estimatedUsdPerHourAt600Blocks": "0.2303460498000000000000"
+      },
+      "eligibleBidCount": 2,
+      "acceptanceReviewErrorCategory": "StopIteration",
+      "retirementReason": "expired bid, no active lease",
+      "unusedOrderRetired": true,
+      "retirementVerifiedAt": "2026-10-25T14:59:56.330271Z"
+    },
+    {
+      "gpuId": "gpu-f",
+      "modelRequested": "v100",
+      "manifest": "infra/akash/nodes/node-f-v100-live.yaml",
+      "dseq": "1792938903915",
+      "status": "bid_review_ready_no_lease",
+      "cliCreateTimedOut": true,
+      "verifiedAt": "2026-10-25T14:35:34.947075Z",
+      "recommendedBid": {
+        "provider": "akash16yr3wxt97ae045a06kr3ycde9srcgpg8syjxxm",
+        "providerName": "ZenCloud",
+        "cityCode": "NYL",
+        "country": "BE",
+        "region": "eu-west",
+        "providerAudited": true,
+        "uactPerBlock": "383.910083000000000000",
+        "estimatedUsdPerHourAt600Blocks": "0.2303460498000000000000"
+      },
+      "eligibleBidCount": 1,
+      "acceptanceReviewErrorCategory": "StopIteration",
+      "retirementReason": "expired unleased bid",
+      "unusedOrderRetired": true,
+      "retirementVerifiedAt": "2026-10-25T14:59:56.440661Z"
+    },
+    {
+      "gpuId": "gpu-g",
+      "modelRequested": "v100",
+      "manifest": "infra/akash/nodes/node-g-v100-live.yaml",
+      "dseq": "1792938936190",
+      "status": "bid_review_ready_no_lease",
+      "cliCreateTimedOut": false,
+      "verifiedAt": "2026-10-25T14:35:41.039549Z",
+      "recommendedBid": {
+        "provider": "akash16yr3wxt97ae045a06kr3ycde9srcgpg8syjxxm",
+        "providerName": "ZenCloud",
+        "cityCode": "NYL",
+        "country": "BE",
+        "region": "eu-west",
+        "providerAudited": true,
+        "uactPerBlock": "383.910083000000000000",
+        "estimatedUsdPerHourAt600Blocks": "0.2303460498000000000000"
+      },
+      "eligibleBidCount": 1,
+      "acceptanceReviewErrorCategory": "StopIteration",
+      "retirementReason": "expired unleased bid",
+      "unusedOrderRetired": true,
+      "retirementVerifiedAt": "2026-10-25T14:59:56.530576Z"
+    },
+    {
+      "gpuId": "gpu-h",
+      "modelRequested": "v100",
+      "manifest": "infra/akash/nodes/node-h-v100-live.yaml",
+      "dseq": "1792938941956",
+      "status": "bid_review_ready_no_lease",
+      "cliCreateTimedOut": false,
+      "verifiedAt": "2026-10-25T14:35:46.530798Z",
+      "recommendedBid": {
+        "provider": "akash16yr3wxt97ae045a06kr3ycde9srcgpg8syjxxm",
+        "providerName": "ZenCloud",
+        "cityCode": "NYL",
+        "country": "BE",
+        "region": "eu-west",
+        "providerAudited": true,
+        "uactPerBlock": "383.910083000000000000",
+        "estimatedUsdPerHourAt600Blocks": "0.2303460498000000000000"
+      },
+      "eligibleBidCount": 1,
+      "acceptanceReviewErrorCategory": "StopIteration",
+      "retirementReason": "expired unleased bid",
+      "unusedOrderRetired": true,
+      "retirementVerifiedAt": "2026-10-25T14:59:56.614104Z"
+    }
+  ],
+  "cleanupRule": "Only superseded deployments with zero leases were retired, after the replacement lease was confirmed active. Existing A, B and backend were preserved.",
+  "failedClosedCapacityLeases": [
+    {
+      "gpuId": "gpu-e",
+      "modelRequested": "v100",
+      "manifest": "infra/akash/nodes/node-e-v100-live.yaml",
+      "dseq": "1792939937173",
+      "status": "closed_failed_capacity",
+      "cliCreateTimedOut": false,
+      "verifiedAt": "2026-10-25T14:35:02.909749Z",
+      "recommendedBid": {
+        "provider": "akash16yr3wxt97ae045a06kr3ycde9srcgpg8syjxxm",
+        "providerName": "ZenCloud",
+        "cityCode": "NYL",
+        "country": "BE",
+        "region": "eu-west",
+        "providerAudited": true,
+        "uactPerBlock": "383.910083000000000000",
+        "estimatedUsdPerHourAt600Blocks": "0.2303460498000000000000"
+      },
+      "eligibleBidCount": 2,
+      "acceptanceReviewErrorCategory": "StopIteration",
+      "replacesUnleasedDseq": "1792938897813",
+      "acceptedAt": "2026-10-25T14:55:12.723643Z",
+      "acceptedLeaseVerifiedFrom": "akt console deployment list",
+      "failureEvidence": "infra/akash/leases/failed-expansion-capacity.json"
+    },
+    {
+      "gpuId": "gpu-f",
+      "modelRequested": "v100",
+      "manifest": "infra/akash/nodes/node-f-v100-live.yaml",
+      "dseq": "1792940113866",
+      "status": "closed_failed_capacity",
+      "cliCreateTimedOut": true,
+      "verifiedAt": "2026-10-25T14:35:34.947075Z",
+      "recommendedBid": {
+        "provider": "akash16yr3wxt97ae045a06kr3ycde9srcgpg8syjxxm",
+        "providerName": "ZenCloud",
+        "cityCode": "NYL",
+        "country": "BE",
+        "region": "eu-west",
+        "providerAudited": true,
+        "uactPerBlock": "383.910083000000000000",
+        "estimatedUsdPerHourAt600Blocks": "0.2303460498000000000000"
+      },
+      "eligibleBidCount": 1,
+      "acceptanceReviewErrorCategory": "StopIteration",
+      "replacesUnleasedDseq": "1792938903915",
+      "acceptedAt": "2026-10-25T14:56:16.107602Z",
+      "acceptedLeaseVerifiedFrom": "akt console deployment list",
+      "failureEvidence": "infra/akash/leases/failed-expansion-capacity.json"
+    },
+    {
+      "gpuId": "gpu-g",
+      "modelRequested": "v100",
+      "manifest": "infra/akash/nodes/node-g-v100-live.yaml",
+      "dseq": "1792940176827",
+      "status": "closed_failed_capacity",
+      "cliCreateTimedOut": false,
+      "verifiedAt": "2026-10-25T14:35:41.039549Z",
+      "recommendedBid": {
+        "provider": "akash16yr3wxt97ae045a06kr3ycde9srcgpg8syjxxm",
+        "providerName": "ZenCloud",
+        "cityCode": "NYL",
+        "country": "BE",
+        "region": "eu-west",
+        "providerAudited": true,
+        "uactPerBlock": "383.910083000000000000",
+        "estimatedUsdPerHourAt600Blocks": "0.2303460498000000000000"
+      },
+      "eligibleBidCount": 1,
+      "acceptanceReviewErrorCategory": "StopIteration",
+      "replacesUnleasedDseq": "1792938936190",
+      "acceptedAt": "2026-10-25T14:56:47.171224Z",
+      "acceptedLeaseVerifiedFrom": "akt console deployment list",
+      "failureEvidence": "infra/akash/leases/failed-expansion-capacity.json"
+    },
+    {
+      "gpuId": "gpu-h",
+      "modelRequested": "v100",
+      "manifest": "infra/akash/nodes/node-h-v100-live.yaml",
+      "dseq": "1792940208275",
+      "status": "closed_failed_capacity",
+      "cliCreateTimedOut": false,
+      "verifiedAt": "2026-10-25T14:35:46.530798Z",
+      "recommendedBid": {
+        "provider": "akash16yr3wxt97ae045a06kr3ycde9srcgpg8syjxxm",
+        "providerName": "ZenCloud",
+        "cityCode": "NYL",
+        "country": "BE",
+        "region": "eu-west",
+        "providerAudited": true,
+        "uactPerBlock": "383.910083000000000000",
+        "estimatedUsdPerHourAt600Blocks": "0.2303460498000000000000"
+      },
+      "eligibleBidCount": 1,
+      "acceptanceReviewErrorCategory": "StopIteration",
+      "replacesUnleasedDseq": "1792938941956",
+      "acceptedAt": "2026-10-25T14:57:50.454015Z",
+      "acceptedLeaseVerifiedFrom": "akt console deployment list",
+      "failureEvidence": "infra/akash/leases/failed-expansion-capacity.json"
+    }
+  ],
+  "verifiedServingCount": 7,
+  "lastInventoryCheckedAt": "2026-10-25T15:39:17.009332Z",
+  "modelNote": "Default model only; each order canonicalModel overrides it when explicitly specified.",
+  "aggregatePricing": {
+    "newSixEstimatedUsdPerHour": "1.2112736976000000000000",
+    "newSixEstimatedUsdPerDay": "29.0705687424000000000000",
+    "existingTwoGpusAndBackendEstimatedUsdPerHour": "0.4033992978",
+    "allEightGpusAndBackendEstimatedUsdPerHour": "1.6146729954000000000000",
+    "allEightGpusAndBackendEstimatedUsdPerDay": "38.7521518896000000000000",
+    "conversionAssumption": "600 six-second blocks per hour; 1000000 uact per USD",
+    "servingAvailabilityRequiresVerification": true
+  },
+  "retiredReplacementCandidateOrders": [
+    {
+      "dseq": "1792940891412",
+      "reason": "Unleased screening order superseded by audited dedicated V100 replacement",
+      "zeroActiveLeasesBeforeClose": true,
+      "closedAt": "2026-10-25T15:12:25.099918Z",
+      "absentFromActiveInventory": true
+    },
+    {
+      "dseq": "1792941000212",
+      "reason": "Unleased screening order superseded by audited dedicated V100 replacement",
+      "zeroActiveLeasesBeforeClose": true,
+      "closedAt": "2026-10-25T15:12:37.262387Z",
+      "absentFromActiveInventory": true
+    },
+    {
+      "dseq": "1792940990871",
+      "reason": "Unleased screening order superseded by audited dedicated V100 replacement",
+      "zeroActiveLeasesBeforeClose": true,
+      "closedAt": "2026-10-25T15:12:49.361034Z",
+      "absentFromActiveInventory": true
+    },
+    {
+      "dseq": "1792941126310",
+      "reason": "Unleased candidate superseded by accepted audited RTX3060Ti",
+      "zeroActiveLeasesBeforeClose": true,
+      "closeRequestedAt": "2026-10-25T15:16:29.513351Z",
+      "absentFromActiveInventory": true
+    },
+    {
+      "dseq": "1792941193164",
+      "reason": "Unleased candidate superseded by accepted audited RTX3060Ti",
+      "zeroActiveLeasesBeforeClose": true,
+      "closeRequestedAt": "2026-10-25T15:16:41.721845Z",
+      "absentFromActiveInventory": true
+    }
+  ],
+  "verificationScope": "Direct GPU endpoint proof; application availability additionally requires validated backend enablement."
+}

@@ -1,0 +1,54 @@
+version: '2.0'
+
+# Authorized economical expansion. Maximum bid is 500 uact per block,
+# approximately USD 0.30/hour at six-second blocks. Inspect bids before leasing.
+services:
+  moonshift-gpu-h:
+    image: vllm/vllm-openai:v0.6.2
+    expose:
+      - port: 8000
+        as: 8000
+        to:
+          - global: true
+    args:
+      - --model
+      - Qwen/Qwen2.5-1.5B-Instruct
+      - --served-model-name
+      - Qwen/Qwen2.5-1.5B-Instruct
+      - --dtype
+      - float16
+      - --max-model-len
+      - '4096'
+      - --max-num-seqs
+      - '2'
+      - --swap-space
+      - '0'
+      - --enforce-eager
+profiles:
+  compute:
+    moonshift-gpu-h:
+      resources:
+        cpu:
+          units: 2
+        memory:
+          size: 8Gi
+        storage:
+          - size: 30Gi
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              nvidia:
+                - model: rtx3060ti
+  placement:
+    dcloud:
+      pricing:
+        moonshift-gpu-h:
+          denom: uact
+          amount: 500
+deployment:
+  moonshift-gpu-h:
+    dcloud:
+      profile: moonshift-gpu-h
+      count: 1
+

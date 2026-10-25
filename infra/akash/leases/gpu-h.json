@@ -1,0 +1,71 @@
+{
+  "gpuId": "gpu-h",
+  "network": "akash-mainnet",
+  "dseq": "1792941267497",
+  "provider": "akash1v0f04wr3tkh9uf43q9eqfd0whpfeu8qevlq99h",
+  "providerName": "ithub",
+  "providerLocation": {
+    "cityCode": "KYI",
+    "country": "UA",
+    "region": "eu-east"
+  },
+  "resources": {
+    "vCpu": 2,
+    "ramGiB": 8,
+    "ephemeralStorageGiB": 30,
+    "gpuCount": 1
+  },
+  "hardware": {
+    "name": "NVIDIA GeForce RTX 3060 Ti",
+    "usableVramMiB": 8192,
+    "physicalGpuUuidSha256": "bf038c17711a9ab7129ef9e5559ba3b265dbc6dd0d1c9cca547f8d9ab0fb8026",
+    "visibleGpuCount": 1,
+    "runtimeFlags": [
+      {
+        "--model": "Qwen/Qwen2.5-1.5B-Instruct",
+        "--served-model-name": "Qwen/Qwen2.5-1.5B-Instruct",
+        "--max-model-len": "4096",
+        "--max-num-seqs": "2",
+        "--swap-space": "0",
+        "--enforce-eager": true
+      }
+    ]
+  },
+  "nominalVramGB": 8,
+  "modelRequested": "Qwen/Qwen2.5-1.5B-Instruct",
+  "servedModelName": "Qwen/Qwen2.5-1.5B-Instruct",
+  "contextTokens": 4096,
+  "maxConcurrentSequences": 2,
+  "pricing": {
+    "denom": "uact",
+    "amountPerBlock": "249.936614000000000000",
+    "bidCeilingPerBlock": "500",
+    "estimatedUsdPerHour": "0.1499619684000000000000",
+    "conversionAssumption": "600 six-second blocks per hour; 1000000 uact per USD",
+    "source": "akt accepted lease"
+  },
+  "status": "serving",
+  "verification": {
+    "verifiedAt": "2026-10-25T15:37:11.350018Z",
+    "leaseAccepted": true,
+    "hardwareVerified": true,
+    "modelProcessVerified": true,
+    "healthStatus": 200,
+    "healthLatencySeconds": 0.250493,
+    "freshInferenceVerified": true,
+    "freshInferenceLatencySeconds": 0.844022,
+    "freshInferenceExpectedResultMatched": true,
+    "usage": {
+      "prompt_tokens": 44,
+      "total_tokens": 47,
+      "completion_tokens": 3
+    }
+  },
+  "planningObservation": {
+    "receipt": "contracts/compute/observed_gpu_h_throughput.json",
+    "source": "minimum_observed_end_to_end",
+    "sampleCount": 2,
+    "planningTokensPerSec": 89.581972,
+    "observedAt": "2026-10-25T15:37:14.554963Z"
+  }
+}

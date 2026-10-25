@@ -11,19 +11,21 @@ specifications and verification results. GPU endpoint addresses stay private.
 | B | Tesla V100 PCIe, 32 GB | Qwen2.5-3B-Instruct | 1792936107663 | Hardware, inference and physical identity verified |
 | C | Tesla V100 PCIe, 32 GB | Qwen2.5-3B-Instruct | 1792939554118 | Hardware, inference, two throughput samples and physical identity verified |
 | D | NVIDIA T4, 16 GB nominal, 15360 MiB usable | Qwen2.5-3B-Instruct | 1792938865934 | Hardware, inference, two throughput samples and physical identity verified |
-| E | RTX 3090 requested, not yet verified | Qwen2.5-3B-Instruct requested | 1792940820777 | Image download pending; unavailable |
+| E | RTX 3090, 24 GB baseline verified | Qwen3.5-4B upgrade requested | 1792940820777 | New runtime downloading; unavailable |
 | F | Tesla V100 SXM2, 16 GB | Qwen2.5-3B-Instruct | 1792940870902 | Hardware, inference, two throughput samples and physical identity verified |
 | G | Tesla PG500-216, 32 GB | Qwen2.5-3B-Instruct | 1792941075797 | Hardware, inference, two throughput samples and physical identity verified |
-| H | RTX 3060 Ti requested, not yet verified | Qwen2.5-1.5B-Instruct requested | 1792941267497 | Image download pending; unavailable |
+| H | NVIDIA GeForce RTX 3060 Ti, 8 GB | Qwen2.5-1.5B-Instruct | 1792941267497 | Hardware, inference, two throughput samples and physical identity verified |
 
-The six verified physical GPU UUID hashes are distinct. Do not describe this
+Seven nodes have completed inference verification. Their physical GPU UUID hashes are distinct. Do not describe this
 as eight physical GPUs until all eight UUID hashes, health checks and inference
 results have been verified. Offline or unmeasured nodes remain hidden from the
 serving catalog. `GPU_NODES` enables only verified, measured workers.
 
 GPU-A loads canonical `Qwen/Qwen2.5-1.5B-Instruct` weights. Its historical vLLM
 0.6.2 wire alias is `Qwen/Qwen3-1.7B`; the alias does not identify the weights.
-GPU-B through GPU-D, GPU-F and GPU-G use canonical `Qwen/Qwen2.5-3B-Instruct` for both weights
+GPU-H uses canonical Qwen2.5-1.5B-Instruct with eager execution and zero CPU swap
+cache after startup failed with the default cache allocation. GPU-B through
+GPU-D, GPU-F and GPU-G use canonical `Qwen/Qwen2.5-3B-Instruct` for both weights
 and served model name. Their context limit is 4096 tokens with two concurrent
 model sequences.
 
@@ -35,6 +37,15 @@ bid is 272 uact/block, approximately USD 0.1632/hour. GPU-B and GPU-C each have
 383.910083 uact/block, approximately USD 0.230346/hour. GPU-D has the same CPU,
 RAM and storage sizes and one T4; its bid is 233.188884 uact/block, approximately
 USD 0.139913/hour.
+
+GPU-F has 4 vCPU, 16 GiB RAM, 50 GiB ephemeral storage and a 16 GB V100 SXM2.
+Its accepted bid is 444 uact/block, approximately USD 0.2664/hour. GPU-G has
+the same host resources and an observed Tesla PG500-216 with 32 GB VRAM. Its
+bid is 442 uact/block, approximately USD 0.2652/hour. GPU-H has 2 vCPU,
+8 GiB RAM, 30 GiB ephemeral storage and an 8 GB RTX 3060 Ti. Its bid is
+249.936614 uact/block, approximately USD 0.149962/hour. GPU-E retains its
+4 vCPU, 16 GiB RAM, 50 GiB storage and accepted 265.753915 uact/block bid
+while its model upgrade is being verified, approximately USD 0.159452/hour.
 
 The authorized new-node bid ceiling is 500 uact/block per GPU, approximately
 USD 0.30/hour. Dollar estimates assume 600 six-second blocks/hour and one
