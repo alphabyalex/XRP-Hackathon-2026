@@ -1,0 +1,41 @@
+{
+  "description": "Execution guarantees for existing POST /orders and GET /orders/{id} routes. JSON values below are contract examples, not live metrics.",
+  "request": {
+    "kind": "inference",
+    "mode": "balanced",
+    "maxTokens": 32,
+    "requests": [[{"role": "user", "content": "Explain how a GPU works in one sentence."}]]
+  },
+  "workerProtocol": {
+    "fresh": "POST /v1/chat/completions with standard fields only",
+    "resumed": "POST /v1/completions with the Qwen2.5 chat template, an open assistant turn and the saved partial answer",
+    "actualModel": "Qwen/Qwen2.5-1.5B-Instruct",
+    "legacyUpstreamAlias": "Qwen/Qwen3-1.7B",
+    "terminalEvents": ["done", "interrupted"],
+    "errorEvent": {"kind": "error", "reason": "UPSTREAM_ERROR"},
+    "truncatedStream": "Fails execution. It never becomes a completed or locally generated reply."
+  },
+  "failedEvent": {
+    "type": "failed",
+    "data": {
+      "orderId": "ord_example",
+      "reason": "UPSTREAM_ERROR",
+      "detail": "The order could not be completed. Its full price cap will be refunded."
+    }
+  },
+  "failedThenRefunded": {
+    "orderId": "ord_example",
+    "status": "settled",
+    "executionFailed": true,
+    "capUsdc": "0.001000",
+    "charged": "0.000000",
+    "settlements": [],
+    "refund": {
+      "to": "DEV",
+      "amountUsdc": "0.001000",
+      "hash": "<validated refund transaction hash>",
+      "explorerUrl": "<refund explorer URL>"
+    }
+  },
+  "refundPolicy": "A task that fails before or after partial output refunds its complete cap. No GPU or provider payout is charged to that task."
+}

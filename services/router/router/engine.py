@@ -21,6 +21,7 @@ from typing import Any
 import httpx
 
 from router import config as C
+from router.errors import RouterError
 from router.fleet import FleetEntry
 
 
@@ -190,9 +191,14 @@ class ComputeEngine:
                         if not line.startswith("data: "):
                             continue
                         ev: dict[str, Any] = json.loads(line[6:])
+                        if ev.get("kind") == "error":
+                            raise RouterError(503, "UPSTREAM_ERROR", "The GPU could not complete this request")
+                        if ev.get("kind") not in ("token", "checkpoint", "interrupted", "done"):
+                            raise RouterError(503, "UPSTREAM_ERROR", "The GPU returned an invalid stream event")
                         yield GenEvent(ev["kind"], ev.get("text", ""), int(ev.get("tokens", 0)), ev.get("reason", ""))
                         if ev["kind"] in ("interrupted", "done"):
                             return
+                    raise RouterError(503, "UPSTREAM_ERROR", "The GPU stream ended before the request completed")
             finally:
                 watcher.cancel()
 
@@ -205,4 +211,8 @@ class ComputeEngine:
 
 
 def engine_for(entry: FleetEntry) -> LocalEngine | ComputeEngine:
-    return ComputeEngine() if entry.endpoint else LocalEngine(C.ENGINE_TIME_SCALE)
+    if entry.endpoint:
+        return ComputeEngine()
+    if C.FLEET_SOURCE == "mock":
+        return LocalEngine(C.ENGINE_TIME_SCALE)
+    raise RouterError(503, "GPU_OFFLINE", "No endpoint is configured for this GPU")

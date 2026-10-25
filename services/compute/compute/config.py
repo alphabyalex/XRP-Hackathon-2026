@@ -61,6 +61,7 @@ class Settings:
     state_dir: Path
     pricing_cache_seconds: int
     gpu_nodes: tuple[str, ...] = ("gpu-a", "gpu-b")
+    upstream_model: str = "Qwen/Qwen3-1.7B"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -81,9 +82,13 @@ class Settings:
             api_url=os.getenv("API_URL", "").rstrip("/"),
             pricing_url=os.getenv("PRICING_URL", "").rstrip("/"),
             internal_api_key=key,
-            vllm_url=os.getenv("VLLM_URL", "http://127.0.0.1:8000").rstrip("/"),
+            vllm_url=os.getenv("GPU_A_VLLM_URL", os.getenv("VLLM_URL", "http://127.0.0.1:8000")).rstrip("/"),
             gpu_b_vllm_url=gpu_b_vllm_url,
-            model=os.getenv("MODEL", "Qwen/Qwen3-1.7B"),
+            model=(
+                "Qwen/Qwen2.5-1.5B-Instruct"
+                if os.getenv("MODEL", "Qwen/Qwen3-1.7B") == "Qwen/Qwen3-1.7B"
+                else os.environ["MODEL"]
+            ),
             gpu_b_mode=gpu_b_mode,
             slot_minutes=_int("SLOT_MINUTES", 5),
             guard_seconds=_float("BOOKING_GUARD_SECONDS", 10.0),
@@ -99,4 +104,5 @@ class Settings:
             state_dir=Path(os.getenv("COMPUTE_STATE_DIR", ".state")),
             pricing_cache_seconds=_int("PRICING_CACHE_SECONDS", 60),
             gpu_nodes=tuple(x.strip() for x in os.getenv("GPU_NODES", "gpu-a,gpu-b").split(",") if x.strip()),
+            upstream_model=os.getenv("GPU_A_VLLM_MODEL", os.getenv("MODEL", "Qwen/Qwen3-1.7B")),
         )

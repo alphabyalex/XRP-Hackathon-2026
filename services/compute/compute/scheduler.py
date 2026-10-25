@@ -138,7 +138,7 @@ class GpuSupervisor:
         self._history: list[dict[str, object]] = []
         self._offline = False
 
-        # Both GPUs are the same card running the same model (NVIDIA T4 16GB, Qwen3 1.7B).
+        # GPU-A runs Qwen2.5-1.5B-Instruct on an NVIDIA T4 with 16 GB VRAM.
         total_vram = 16.0
         model_vram = 3.5
         resident = self.model

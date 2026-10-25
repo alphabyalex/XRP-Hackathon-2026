@@ -19,7 +19,7 @@ from .models import (
     WorkerRegisterRequest,
 )
 from .pricing import RateClient
-from .providers import MockProvider, VllmProvider
+from .providers import ModelProvider, MockProvider, UnavailableProvider, VllmProvider
 from .resume import install as install_resume
 from .router import ComputeRouter, sse_events
 from .scheduler import Scheduler, parse_bucket
@@ -46,24 +46,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
     scheduler = Scheduler(settings)
     providers: dict[str, ModelProvider] = {}
-    for gid in scheduler.workers:
+
+    def provider_for(gid: str) -> ModelProvider:
         if settings.mock:
-            providers[gid] = MockProvider(settings.mock_latency_seconds)
-        elif gid == "gpu-a":
-            providers[gid] = VllmProvider(settings.vllm_url, settings.request_timeout_seconds)
+            return MockProvider(settings.mock_latency_seconds)
+        if gid == "gpu-a":
+            endpoint = settings.vllm_url
         elif gid == "gpu-b":
-            providers[gid] = (
-                VllmProvider(settings.gpu_b_vllm_url, settings.request_timeout_seconds)
-                if settings.gpu_b_vllm_url
-                else MockProvider(settings.mock_latency_seconds)
-            )
+            endpoint = settings.gpu_b_vllm_url
         else:
-            custom_url = os.getenv(f"{gid.upper().replace('-', '_')}_VLLM_URL", "")
-            providers[gid] = (
-                VllmProvider(custom_url, settings.request_timeout_seconds)
-                if custom_url
-                else MockProvider(settings.mock_latency_seconds)
-            )
+            endpoint = os.getenv(f"{gid.upper().replace('-', '_')}_VLLM_URL", "")
+        if not endpoint:
+            scheduler.worker(gid).set_offline(True)
+            return UnavailableProvider()
+        scheduler.worker(gid).simulated = False
+        return VllmProvider(
+            endpoint, settings.request_timeout_seconds, settings.upstream_model if gid == "gpu-a" else None
+        )
+
+    for gid in scheduler.workers:
+        providers[gid] = provider_for(gid)
     router = ComputeRouter(
         settings=settings,
         scheduler=scheduler,
@@ -184,12 +186,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             simulated=req.simulated,
         )
         if req.gpu_id not in providers:
-            custom_url = os.getenv(f"{req.gpu_id.upper().replace('-', '_')}_VLLM_URL", "")
-            providers[req.gpu_id] = (
-                MockProvider(settings.mock_latency_seconds)
-                if settings.mock or not custom_url
-                else VllmProvider(custom_url, settings.request_timeout_seconds)
-            )
+            providers[req.gpu_id] = provider_for(req.gpu_id)
         await supervisor.load_snapshot()
         supervisor.monte_carlo.start()
         return {"registered": True, "gpu_id": req.gpu_id, "status": await supervisor.status()}
@@ -210,7 +207,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         switch_latency_ms = await worker.monte_carlo.preempt(f"DEMO_INSTANT_SWITCH_{gpu_id}")
 
         # Serve resident LLM inference
-        provider = providers.get(gpu_id) or MockProvider(settings.mock_latency_seconds)
+        provider = providers[gpu_id]
         inf_start = time.perf_counter()
         completion = await provider.complete(
             messages=[ChatMessage(role="user", content=prompt)],

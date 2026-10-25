@@ -379,7 +379,9 @@ class Orders:
         errors = [r for r in results if isinstance(r, Exception)]
         if errors:
             order["status"] = "failed"
-            self.emit(order, "failed", {"reason": "NO_CAPACITY_FOR_REMAINING_WORK", "detail": str(errors[0])[:200]})
+            order["executionFailed"] = True
+            reason = errors[0].code if isinstance(errors[0], RouterError) else "UPSTREAM_ERROR"
+            self.emit(order, "failed", {"reason": reason, "detail": "The order could not be completed. Its full price cap will be refunded."})
             return order
         order["status"] = "completed"
         served: dict[str, float] = {}
@@ -546,9 +548,9 @@ class Orders:
                         order["output"][r] = text
             finally:
                 self._unregister(entry.id, oid, part)
-            seg["served"] = float(tokens - start_tokens)
-            seg["endedAt"] = iso(now_utc())
-            self.save(order)
+                seg["served"] = float(tokens - start_tokens)
+                seg["endedAt"] = iso(now_utc())
+                self.save(order)
             if interrupted is None:
                 self.emit(order, "progress", dict(order["progress"]))
                 return entry
