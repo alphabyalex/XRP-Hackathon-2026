@@ -138,9 +138,10 @@ class GpuSupervisor:
         self._history: list[dict[str, object]] = []
         self._offline = False
 
-        total_vram = 80.0 if "b" in gpu_id.lower() else 16.0
-        model_vram = 28.5 if "b" in gpu_id.lower() else 3.5
-        resident = "Qwen/Qwen2.5-32B-Instruct" if "b" in gpu_id.lower() else self.model
+        # Both GPUs are the same card running the same model (NVIDIA T4 16GB, Qwen3 1.7B).
+        total_vram = 16.0
+        model_vram = 3.5
+        resident = self.model
         self.monte_carlo = MonteCarloRiskEngine(
             gpu_id=gpu_id,
             resident_model=resident,

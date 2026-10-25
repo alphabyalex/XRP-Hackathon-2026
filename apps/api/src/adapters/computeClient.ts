@@ -104,7 +104,7 @@ export async function getGpus(): Promise<ComputeGpuStatus[]> {
       monte_carlo: {
         status: booked ? "PREEMPTED" : "RUNNING",
         workload_type: booked ? "LLM_INFERENCE" : "MONTE_CARLO_RISK_SIMULATION",
-        resident_model: g.id === "gpu-b" ? "Qwen/Qwen2.5-32B-Instruct" : g.model,
+        resident_model: g.model,
         risk_simulation: {
           paths_simulated: g.id === "gpu-b" ? 4850000 : 2650000,
           throughput_paths_per_sec: g.id === "gpu-b" ? 599998.9 : 299999.4,
@@ -380,7 +380,7 @@ export async function getMonteCarloStatus(): Promise<any> {
     "gpu-b": {
       status: "RUNNING",
       workload_type: "MONTE_CARLO_RISK_SIMULATION",
-      resident_model: "Qwen/Qwen2.5-32B-Instruct",
+      resident_model: "Qwen/Qwen3-1.7B",
       risk_simulation: { paths_simulated: 5100000, throughput_paths_per_sec: 599998.9, value_at_risk_99: 0.0342 },
       instant_preemption: { last_switch_latency_ms: 2.7, total_switches: 2, zero_cold_start: true },
     },
@@ -401,7 +401,7 @@ export async function runSwitchDemo(gpuId: string = "gpu-a", prompt?: string): P
   return {
     demo: "INSTANT_GPU_WORKLOAD_SWITCH",
     gpu_id: gpuId,
-    resident_model: gpuId === "gpu-b" ? "Qwen/Qwen2.5-32B-Instruct" : "Qwen/Qwen3-1.7B",
+    resident_model: "Qwen/Qwen3-1.7B",
     switch_transition: {
       initial_workload: "MONTE_CARLO_RISK_SIMULATION",
       preemption_latency_ms: gpuId === "gpu-b" ? 2.7 : 3.38,
