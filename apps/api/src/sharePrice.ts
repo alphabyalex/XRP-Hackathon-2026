@@ -1,6 +1,11 @@
-// GPU share prices from the XRPL DEX: the best bid/ask midpoint, else the
-// last trade the api executed, else the on-ledger oracle NAV. The oracle stays
-// the collateral price for loans (lending/service.ts); this is the market price.
+// The one GPU share price. Every route reads it from here: /gpus, /gpus/:id, /gpus/:id/stats,
+// portfolio valuation, and (through the on-ledger oracle, which marketMaker.syncOracle keeps equal
+// to it) borrow collateral and the max borrow.
+//
+// It is a stored reference per GPU that moves only when a payout is made (by the amount paid per
+// share). The market maker quotes its ask and bid around it, so treasury cash growing from share
+// sales, vault deposits or restarts can never push it up. The DEX book and last trade are
+// reported beside it.
 //
 // Every price shown is recorded (at most one point per 5 minutes per GPU unless
 // it moved), so the 24 h change and the chart are real, not drawn.
@@ -13,7 +18,7 @@ import { swr } from "./lending/swr.js";
 
 export interface SharePrice {
   price: string;
-  source: "midpoint" | "last trade" | "oracle";
+  source: "reference";
   bestBid: string | null;
   bestAsk: string | null;
   lastTrade: string | null;
@@ -35,17 +40,36 @@ function recordPoint(gpuId: GpuId, p: SharePrice): void {
   }
 }
 
+// Opening reference prices (set by the 2026-10-25 morning reset). A GPU not listed starts at the
+// on-ledger oracle price the first time it is read.
+const OPENING: Partial<Record<GpuId, string>> = { "gpu-a": "20.000000", "gpu-b": "5.000000" };
+
+export async function referencePrice(gpuId: GpuId): Promise<string> {
+  const row = db.prepare(`SELECT price FROM share_reference WHERE gpu_id = ?`).get(gpuId) as { price: string } | undefined;
+  if (row) return row.price;
+  const start = OPENING[gpuId] ?? (await oraclePrice(gpuId)).price;
+  db.prepare(`INSERT OR IGNORE INTO share_reference (gpu_id, price, updated_at, reason) VALUES (?, ?, ?, ?)`).run(gpuId, start, new Date().toISOString(), "opening");
+  return start;
+}
+
+// Set the reference (operator reset). Records a price point so charts and the 24 h change follow.
+export function setReference(gpuId: GpuId, price: string, reason: string): void {
+  db.prepare(`INSERT OR REPLACE INTO share_reference (gpu_id, price, updated_at, reason) VALUES (?, ?, ?, ?)`).run(gpuId, Number(price).toFixed(6), new Date().toISOString(), reason);
+  priceMoved(gpuId);
+}
+
+// A payout was made: the share's reference rises by exactly what each share was paid.
+export async function payoutMade(gpuId: GpuId, perShare: string): Promise<void> {
+  const add = Number(perShare);
+  if (!(add > 0)) return;
+  const now = Number(await referencePrice(gpuId));
+  setReference(gpuId, (now + add).toFixed(6), `payout ${Number(perShare).toFixed(6)} per share`);
+}
+
 async function readPrice(gpuId: GpuId): Promise<SharePrice> {
   const book = await xrpl.getShareBook(gpuId).catch(() => ({ bestBid: null, bestAsk: null }));
   const trade = lastTrade(gpuId);
-  let out: SharePrice;
-  if (book.bestBid && book.bestAsk) {
-    out = { price: ((Number(book.bestBid) + Number(book.bestAsk)) / 2).toFixed(6), source: "midpoint", ...book, lastTrade: trade?.price ?? null };
-  } else if (trade) {
-    out = { price: Number(trade.price).toFixed(6), source: "last trade", ...book, lastTrade: trade.price };
-  } else {
-    out = { price: (await oraclePrice(gpuId)).price, source: "oracle", ...book, lastTrade: null };
-  }
+  const out: SharePrice = { price: Number(await referencePrice(gpuId)).toFixed(6), source: "reference", ...book, lastTrade: trade?.price ?? null };
   recordPoint(gpuId, out);
   return out;
 }
@@ -91,11 +115,21 @@ export function priceHistory(gpuId: GpuId, days = 7): { t: number; price: number
   return [...byHour.entries()].map(([h, price]) => ({ t: h * 3600e3, price }));
 }
 
-// Percent change against the price 24 hours ago (or the oldest point since, if newer).
+// Today's opening price: the first price point since 00:00 UTC, or since a reset made today (or
+// the price now, if none yet).
+export function openPrice(gpuId: GpuId, price: string): string {
+  const day = new Date();
+  day.setUTCHours(0, 0, 0, 0);
+  // A reset of the reference today starts the day over from the reset price.
+  const reset = db.prepare(`SELECT updated_at FROM share_reference WHERE gpu_id = ? AND reason IN ('opening', 'reset')`).get(gpuId) as { updated_at: string } | undefined;
+  const from = reset && reset.updated_at > day.toISOString() ? reset.updated_at : day.toISOString();
+  const first = db.prepare(`SELECT price FROM share_prices WHERE gpu_id = ? AND ts >= ? ORDER BY ts LIMIT 1`).get(gpuId, from) as { price: string } | undefined;
+  return first && Number(first.price) > 0 ? Number(first.price).toFixed(6) : Number(price).toFixed(6);
+}
+
+// Percent change since today's opening price.
 export function change24hPct(gpuId: GpuId, price: string): string {
-  const since = new Date(Date.now() - 86400e3).toISOString();
-  const before = (db.prepare(`SELECT price FROM share_prices WHERE gpu_id = ? AND ts <= ? ORDER BY ts DESC LIMIT 1`).get(gpuId, since) ??
-    db.prepare(`SELECT price FROM share_prices WHERE gpu_id = ? AND ts > ? ORDER BY ts LIMIT 1`).get(gpuId, since)) as { price: string } | undefined;
-  if (!before || !(Number(before.price) > 0)) return "0.00";
-  return ((Number(price) / Number(before.price) - 1) * 100).toFixed(2);
+  const open = Number(openPrice(gpuId, price));
+  if (!(open > 0)) return "0.00";
+  return ((Number(price) / open - 1) * 100).toFixed(2);
 }

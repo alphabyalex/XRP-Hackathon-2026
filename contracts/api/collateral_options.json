@@ -1,0 +1,23 @@
+{
+  "method": "GET",
+  "path": "/loans/collateral-options",
+  "auth": "Signed-in session (the account comes from the cookie, never the body).",
+  "notes": ["Every GPU the account holds shares in. price is the same share price as /gpus. maxBorrow is what risk approves for all the held shares (decimal string, USDC)."],
+  "response": {
+    "options": [
+      { "gpuId": "gpu-a", "label": "GPU-A", "shares": "120", "price": "5.000000", "collateralValue": "600.000000", "maxBorrow": "300.000000" },
+      { "gpuId": "gpu-b", "label": "GPU-B", "shares": "40", "price": "2.000000", "collateralValue": "80.000000", "maxBorrow": "40.000000" }
+    ]
+  },
+  "over_limit_error": {
+    "applies_to": ["POST /loans/quote", "POST /loans/open"],
+    "status": 409,
+    "body": { "error": { "code": "OVER_LIMIT", "message": "This is more than these shares can borrow. The most is 300.00 USDC.", "maxBorrow": "300.000000" } },
+    "notes": ["Never a smaller loan than asked."]
+  },
+  "unfunded_wallet_error": {
+    "applies_to": ["GET /loans/profile/me", "GET /loans/max", "POST /loans/quote", "POST /loans/open"],
+    "status": 409,
+    "body": { "error": { "code": "WALLET_NOT_FUNDED", "message": "Fund this wallet first." } }
+  }
+}

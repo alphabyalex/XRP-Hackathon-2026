@@ -1,0 +1,33 @@
+{
+  "method": "GET",
+  "path": "/gpus/:id/stats",
+  "notes": [
+    "Decimals are strings. price is the one share price every route uses (sharePriceOf in apps/api). Null means no real data yet, never zero.",
+    "high24h, low24h and volume24h come only from real fills on the DEX (trades) and price ticks; no fill means null.",
+    "revenue24h, paidPerShare24h and paidToHoldersLastNight come from the dividend ledger, the same source as Home, Market yield and Portfolio.",
+    "change24hPct is measured from openPrice, today's first price (00:00 UTC).",
+    "bids and asks are the live share/USDC offers on the XRPL DEX (book_offers). trades are fills with ledger links. Refreshes on the market SSE event."
+  ],
+  "response": {
+    "gpuId": "gpu-a",
+    "price": "5.000000",
+    "openPrice": "5.000000",
+    "change24hPct": "0.00",
+    "volume24h": "12",
+    "high24h": "5.050000",
+    "low24h": "4.950000",
+    "marketCap": "5000.000000",
+    "holders": 41,
+    "navPerShare": "5.000000",
+    "yieldPct": "6.1",
+    "paidPerShare24h": "0.000840",
+    "revenue24h": "1.050000",
+    "workingPct20h": "12.5",
+    "paidToHoldersLastNight": "0.840000",
+    "bids": [{ "price": "4.850000", "qty": "20" }],
+    "asks": [{ "price": "5.150000", "qty": "20" }],
+    "trades": [{ "t": "2026-10-25T12:40:01Z", "price": "5.150000", "qty": "1", "side": "buy", "hash": "ABC...", "explorerUrl": "https://devnet.xrpl.org/transactions/ABC..." }],
+    "ticks": [{ "t": "2026-10-25T12:40:01Z", "price": "5.150000", "qty": "1" }],
+    "updatedAt": "2026-10-25T12:40:05Z"
+  }
+}

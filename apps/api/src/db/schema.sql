@@ -211,3 +211,12 @@ CREATE TABLE IF NOT EXISTS share_prices (
   source TEXT NOT NULL,
   PRIMARY KEY (gpu_id, ts)
 );
+
+-- The one share price per GPU (sharePrice.ts). It moves only when a payout is made (by the
+-- amount paid per share), never with treasury cash, deposits or restarts.
+CREATE TABLE IF NOT EXISTS share_reference (
+  gpu_id TEXT PRIMARY KEY,
+  price TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  reason TEXT NOT NULL
+);

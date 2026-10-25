@@ -1,0 +1,11 @@
+{
+  "method": "GET",
+  "path": "/lending/base-apr",
+  "notes": ["baseAprPct is the risk desk's grade A rate for a new loan now. series is the APR of every real loan at origination, oldest first (from the loan table), plus the current base point."],
+  "response": {
+    "baseAprPct": "9.50",
+    "source": "risk",
+    "series": [{ "at": "2026-10-25T09:31:10Z", "apr": "14.76" }, { "at": "2026-10-25T12:40:00Z", "apr": "9.50" }],
+    "updatedAt": "2026-10-25T12:40:00Z"
+  }
+}

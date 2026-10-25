@@ -1,0 +1,8 @@
+{
+  "endpoints": ["POST /applications", "GET /applications"],
+  "request": { "kind": "capital | market", "name": "Ada Lovelace", "email": "ada@example.com", "company": "optional", "details": "at least 10 characters" },
+  "response": { "id": "app_4f2a91", "status": "Under review", "createdAt": "2026-10-25T12:40:00Z" },
+  "list_response": { "applications": [{ "id": "app_4f2a91", "kind": "capital", "name": "Ada Lovelace", "company": null, "status": "Under review", "createdAt": "2026-10-25T12:40:00Z" }] },
+  "errors": [{ "status": 400, "body": { "error": { "code": "BAD_REQUEST", "message": "name, a valid email and details are required" } } }],
+  "notes": ["Stored in the api database. GET returns no email addresses."]
+}
