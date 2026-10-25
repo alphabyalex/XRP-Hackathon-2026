@@ -449,3 +449,14 @@
     display: none;
   }
 }
+.bw-charts.one {
+  grid-template-columns: minmax(0, 1fr);
+}
+.bw-right {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.bw-right .bw-charts {
+  margin-top: 0;
+}

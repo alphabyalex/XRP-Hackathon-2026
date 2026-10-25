@@ -22,7 +22,9 @@ export function BorrowCharts({
   quote,
   priceHistory,
   coverage,
+  gpuLabel,
 }: {
+  gpuLabel: string;
   quote: LoanQuoteApiResponse | null;
   priceHistory: { t: number; price: number }[];
   coverage: LinePoint[];
@@ -36,6 +38,20 @@ export function BorrowCharts({
       : [];
   const bars = quote ? schedule(quote) : [];
   const total = bars.reduce((s, b) => s + b.v, 0);
+
+  // Before an amount is entered: the collateral's own price, the one input the lines move with.
+  if (!quote) {
+    const prices: LinePoint[] = priceHistory.map((p) => ({ t: p.t, v: p.price }));
+    return (
+      <div className="bw-charts one">
+        <div className="trade card">
+          <span className="lbl">{gpuLabel} share price, last hours</span>
+          <LiveLine key={`px${prices.length}`} points={prices} unit="USDC" height={130} label="Share price" format={(v) => fmt(v, 2)} empty="Waiting for price history" />
+          <p className="note">Enter an amount to see LTV at these prices, the payment schedule and dividend coverage.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bw-charts">
