@@ -120,6 +120,27 @@ function shutdown() {
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
+// One stack at a time. A stack stopped from outside (its ports killed, the terminal closed) used to leave
+// its api watcher and this script running; each restart then added another market maker quoting the same
+// books. So a new start first ends the previous stack's whole process tree, then records itself.
+const PID_FILE = path.join(ROOT, ".demo-stack.pid");
+try {
+  const prev = Number(fs.readFileSync(PID_FILE, "utf8"));
+  if (prev && prev !== process.pid) {
+    if (isWin) spawnSync("taskkill", ["/pid", String(prev), "/T", "/F"], { stdio: "ignore" });
+    else
+      try {
+        process.kill(-prev, "SIGTERM");
+      } catch {
+        process.kill(prev, "SIGTERM");
+      }
+    log("demo", `ended the previous stack (pid ${prev})`);
+  }
+} catch {
+  // no previous stack
+}
+fs.writeFileSync(PID_FILE, String(process.pid));
+
 // ---------------------------------------------------------------------------
 
 const fileEnv = loadEnv();
@@ -128,6 +149,20 @@ if (!baseEnv.INTERNAL_API_KEY) baseEnv.INTERNAL_API_KEY = "moonshift-local-demo-
 
 const mockXrpl = args.has("--mock-xrpl");
 const py = args.has("--no-python") ? null : findPython();
+// GPUs with a real endpoint (GPU_X_VLLM_URL in .env), plus GPU-B as the one mock GPU (apps/api gpuHealth.ts).
+// Compute serves each from its endpoint (MOCK=0) and GPU-B from its mock worker; GPUs with neither are not
+// started, so no request, calendar or revenue is ever recorded for them. Values are never printed.
+const endpointGpus = Object.keys(baseEnv)
+  .map((k) => /^GPU_([A-Z])_VLLM_URL$/.exec(k))
+  .filter((m) => m && baseEnv[m[0]])
+  .map((m) => `gpu-${m[1].toLowerCase()}`);
+const computeNodes = [...new Set([...endpointGpus, "gpu-b"])].sort();
+const computeEnv = {
+  MOCK: endpointGpus.length ? "0" : "1",
+  GPU_NODES: computeNodes.join(","),
+  PRICING_URL: baseEnv.PRICING_URL || "http://localhost:6100",
+  ...(baseEnv.GPU_A_VLLM_URL ? { VLLM_URL: baseEnv.GPU_A_VLLM_URL } : {}),
+};
 const services = [
   // env: each service's own live settings for the demo.
   // pricing: Bedrock when AWS credentials exist, otherwise its labeled fallback.
@@ -138,9 +173,9 @@ const services = [
   // credit: live reads through Quicknode (mainnet read-only, testnet) and the public devnet
   // node; WebSocket monitoring (Streams needs a public webhook URL we do not have).
   { name: "credit", dir: "services/credit", module: "credit.main:app", port: 7100, flag: "MOCK_CREDIT", env: { MOCK: "0", MONITOR_MODE: "websocket" } },
-  // Local compute in its own MOCK mode (simulated GPU) unless COMPUTE_URL
-  // points at the EC2 box, in which case the api talks to that instead.
-  { name: "compute", dir: "services/compute", module: "compute.main:app", port: 5000, flag: "MOCK_COMPUTE", skipIfRemote: "COMPUTE_URL", env: { MOCK: "1", GPU_NODES: "gpu-a,gpu-b,gpu-c,gpu-d,gpu-e,gpu-f,gpu-g,gpu-h" } },
+  // compute: real GPUs from their endpoints and the mock GPU (computeEnv above), unless COMPUTE_URL
+  // points at a remote compute service, in which case the api talks to that instead.
+  { name: "compute", dir: "services/compute", module: "compute.main:app", port: 5000, flag: "MOCK_COMPUTE", skipIfRemote: "COMPUTE_URL", env: computeEnv },
   // router: order routing (Lucy). Tasks run only on Moonshift's GPU-A and GPU-B (fleet.own.json), priced
   // from the external market catalog; local state and in-process queues; settles on devnet through the api.
   { name: "router", dir: "services/router", module: "router.main:app", port: 7200, flag: "MOCK_ROUTER", env: { FLEET_SOURCE: "own", STATE_BACKEND: "local", QUEUE_BACKEND: "local", ORCHESTRATOR: "local", SETTLEMENT: "api", COMPUTE_URL: "http://localhost:5000" } },
@@ -150,7 +185,8 @@ const apiEnv = {
   ...baseEnv,
   NETWORK: mockXrpl ? baseEnv.NETWORK ?? "testnet" : "devnet",
   MOCK_XRPL: mockXrpl ? "1" : "0",
-  MOCK_COMPUTE: baseEnv.MOCK_COMPUTE ?? "1",
+  // With the Python services the api always goes through compute (what the GPUs actually served).
+  MOCK_COMPUTE: baseEnv.MOCK_COMPUTE ?? (py ? "0" : "1"),
   PRICING_URL: baseEnv.PRICING_URL || "http://localhost:6100",
   RISK_URL: baseEnv.RISK_URL || "http://localhost:7000",
   CREDIT_URL: baseEnv.CREDIT_URL || "http://localhost:7100",
@@ -266,17 +302,14 @@ if (!args.has("--no-web")) {
   } catch {
     log("demo", "prewarm skipped (api not reachable yet)");
   }
-  // The last 24 hours of GPU activity and a dividend, so yield, schedules and
-  // avatars are live before anyone opens the market (idempotent).
+  // Share books around NAV and the load simulator (the demand source). No history is generated:
+  // calendars, revenue and dividends come only from work the GPUs serve.
   try {
     const t2 = Date.now();
-    const seeded = await (await fetch(`${api}/internal/seed-history`, { method: "POST", headers: json })).json();
-    const line = Object.entries(seeded)
-      .map(([g, v]) => `${g}: +${v.inference ?? 0} inference, +${v.booked ?? 0} bookings, dividend ${typeof v.dividend === "string" ? v.dividend : v.dividend?.status ?? "?"}`)
-      .join("; ");
-    log("demo", `market history ready in ${Math.round((Date.now() - t2) / 1000)} s (${line})`);
+    await (await fetch(`${api}/internal/seed-history`, { method: "POST", headers: json })).json();
+    log("demo", `market quoted and load simulator running in ${Math.round((Date.now() - t2) / 1000)} s`);
   } catch {
-    log("demo", "market history seed skipped (api not reachable)");
+    log("demo", "market quote skipped (api not reachable)");
   }
   setInterval(() => void warm().catch(() => {}), 4 * 60_000);
   if (args.has("--no-web")) return;

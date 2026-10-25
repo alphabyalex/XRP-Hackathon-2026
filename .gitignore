@@ -27,3 +27,4 @@ __pycache__/
 infra/akash/.active_deployment.json
 
 *.log
+.demo-stack.pid

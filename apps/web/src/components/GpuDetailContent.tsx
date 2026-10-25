@@ -117,14 +117,19 @@ export function GpuDetailContent({ id }: { id: string }) {
                 <span>State</span>
                 <b style={{ fontSize: 15 }}>{gpu.state}</b>
               </div>
-              <div>
-                <span>Provider</span>
-                <b style={{ fontSize: 15 }}>{gpu.resources?.provider ?? (gpu as any).provider ?? "Cloud"}</b>
-              </div>
-              <div>
-                <span>Instance</span>
-                <b style={{ fontSize: 15 }}>{gpu.resources?.instanceType ?? "Dedicated"}</b>
-              </div>
+              {/* real hardware only: the api sends no hosting for the mock GPU */}
+              {gpu.resources && (
+                <>
+                  <div>
+                    <span>Provider</span>
+                    <b style={{ fontSize: 15 }}>{gpu.resources.provider}</b>
+                  </div>
+                  <div>
+                    <span>Instance</span>
+                    <b style={{ fontSize: 15 }}>{gpu.resources.instanceType}</b>
+                  </div>
+                </>
+              )}
             </div>
           </div>
           <TradePanel

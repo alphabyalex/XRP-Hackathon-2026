@@ -310,14 +310,14 @@ def resources_breakdown() -> dict[str, dict]:
             "instance_type": "dCloud SDL (Audited Provider)",
             "region": "Decentralized Cloud",
             "components": {
-                "gpu": {"label": "GPU Compute", "spec": "1x NVIDIA Tesla V100 16GB", "hourly_usd": "0.200000"},
+                "gpu": {"label": "GPU Compute", "spec": "1x NVIDIA T4 16GB VRAM", "hourly_usd": "0.110000"},
                 "cpu": {"label": "vCPU Compute", "spec": "4 vCPUs (AMD EPYC / Intel)", "hourly_usd": "0.024000"},
                 "ram": {"label": "System Memory", "spec": "16 GiB System RAM", "hourly_usd": "0.014000"},
                 "storage": {"label": "NVMe Storage", "spec": "100 GB NVMe SSD", "hourly_usd": "0.012000"},
             },
-            "total_hourly_usd": "0.250000",
-            "monthly_usd": "180.00",
-            "indexed_savings_vs_aws_pct": "91.8%",
+            "total_hourly_usd": "0.160000",
+            "monthly_usd": "115.20",
+            "indexed_savings_vs_aws_pct": "69.6%",
         },
         "gpu-c": {
             "provider": "OpenOcean",

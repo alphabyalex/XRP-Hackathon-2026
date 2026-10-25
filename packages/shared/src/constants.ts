@@ -94,6 +94,11 @@ export const GPUS = [
 
 export type GpuId = (typeof GPUS)[number]["id"];
 
+// Each GPU's own treasury account: its shares, its revenue, its dividends ("gpu-c" -> TREASURY_GPU_C).
+export function treasuryOf(gpuId: string): `TREASURY_GPU_${string}` {
+  return `TREASURY_GPU_${gpuId.replace(/^gpu-/, "").toUpperCase()}`;
+}
+
 export interface ResourceComponent {
   label: string;
   spec: string;

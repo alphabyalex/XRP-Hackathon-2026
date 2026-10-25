@@ -64,7 +64,7 @@ export function PlaygroundTry() {
           Try it
         </label>
         <span className="num" style={{ fontSize: 12, color: "var(--ink3)" }}>
-          Qwen3 1.7B
+          Qwen2.5 1.5B Instruct
         </span>
       </div>
       <textarea id="prompt" rows={2} value={prompt} onChange={(e) => setPrompt(e.target.value)} />

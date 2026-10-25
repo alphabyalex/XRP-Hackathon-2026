@@ -1,8 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { GPUS } from "@moonshift/shared";
 import type { ApiGpuDetail } from "@moonshift/shared";
-import { getGpu, eventsUrl, ApiUnreachableError } from "./api";
+import { getGpu, getGpus, eventsUrl, ApiUnreachableError } from "./api";
 
 export type GpuMap = Record<string, ApiGpuDetail>;
 
@@ -46,7 +45,8 @@ export function LiveDataProvider({
   useEffect(() => {
     async function refresh() {
       try {
-        const entries = await Promise.all(GPUS.map((g) => getGpu(g.id)));
+        const listed = await getGpus();
+        const entries = await Promise.all(listed.map((g) => getGpu(g.id)));
         setGpus(Object.fromEntries(entries.map((e) => [e.id, e])));
         setUnreachable(false);
       } catch (err) {

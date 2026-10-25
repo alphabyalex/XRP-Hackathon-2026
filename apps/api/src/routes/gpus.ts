@@ -6,6 +6,7 @@ import * as pricing from "../adapters/pricingClient.js";
 import { db } from "../db/db.js";
 import { historyCalendar } from "../marketHistory.js";
 import { change24hPct, priceHistory, sharePrice } from "../sharePrice.js";
+import { gpuHealth, isListed, listedGpus } from "../gpuHealth.js";
 
 export const gpusRouter = Router();
 
@@ -66,6 +67,9 @@ gpusRouter.post("/monte-carlo/switch-demo", async (req, res) => {
     res.status(500).json({ error: { code: "INTERNAL", message: (err as Error).message } });
   }
 });
+
+// Per GPU: real hardware (endpoint up, model it serves), the mock worker, or hidden. No endpoint URLs.
+gpusRouter.get("/gpus-health", (_req, res) => res.json(gpuHealth()));
 
 gpusRouter.get("/gpus", async (_req, res) => {
   try {

@@ -10,6 +10,8 @@ export type AccountName =
   | "CONTRACT_ISSUER"
   | "TREASURY_GPU_A"
   | "TREASURY_GPU_B"
+  // Every registry GPU's own treasury (treasuryOf in constants.ts).
+  | `TREASURY_GPU_${string}`
   | "PROTOCOL_FEES"
   | "LENDING_POOL"
   | "ORACLE"

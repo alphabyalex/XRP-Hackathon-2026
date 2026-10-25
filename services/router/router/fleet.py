@@ -186,6 +186,9 @@ class FleetState:
     compute_windows: dict[str, list[tuple[datetime, datetime]]] = field(default_factory=dict)
     compute_offline: set[str] = field(default_factory=set)
     _compute_fetched: datetime | None = None
+    # Moonshift GPUs apps/api does not list (endpoint missing or failing its health check).
+    unlisted: set[str] = field(default_factory=set)
+    _listing_fetched: datetime | None = None
 
     # ---- jobs and reclaims ----
 
@@ -212,9 +215,24 @@ class FleetState:
 
     # ---- services/compute calendar ----
 
+    async def refresh_listing(self, transport: httpx.AsyncBaseTransport | None = None) -> None:
+        """Which Moonshift GPUs apps/api lists (GET /gpus-health, apps/api gpuHealth.ts), once a minute.
+        Unreachable api: keep the last answer (at start, everything is listed)."""
+        now = now_utc()
+        if self._listing_fetched and (now - self._listing_fetched).total_seconds() < C.CALENDAR_CACHE_SECONDS:
+            return
+        self._listing_fetched = now
+        try:
+            async with httpx.AsyncClient(transport=transport, timeout=2.0) as http:
+                rows = (await http.get(f"{C.API_URL}/gpus-health")).json()
+            self.unlisted = {r["gpuId"] for r in rows if not r.get("ok")}
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
+            log.info("gpu listing unavailable (%s); using the last known", type(e).__name__)
+
     async def refresh_compute(
         self, entries: list[FleetEntry], transport: httpx.AsyncBaseTransport | None = None
     ) -> None:
+        await self.refresh_listing(transport)
         now = now_utc()
         if self._compute_fetched and (now - self._compute_fetched).total_seconds() < C.CALENDAR_CACHE_SECONDS:
             return
@@ -261,6 +279,8 @@ class FleetState:
         reason = None
         if not e.offerFound:
             reason = "OFFER_MISSING"
+        elif e.offer.provider == "moonshift" and e.moonshiftGpuId in self.unlisted:
+            reason = "NOT_LISTED"
         elif self.reclaimed(e.id, now):
             reason = "RECLAIMED"
         elif e.computeGpuId and e.computeGpuId in self.compute_offline:

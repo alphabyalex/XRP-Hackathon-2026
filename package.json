@@ -23,7 +23,8 @@
     "demo:prod": "node scripts/demo.mjs --prod",
     "demo:reset": "tsx scripts/demo-reset.ts",
     "demo:check": "node scripts/demo-path.mjs",
-    "account:reset": "node scripts/account-reset.mjs"
+    "account:reset": "node scripts/account-reset.mjs",
+    "history:clear": "node scripts/clear-generated-history.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

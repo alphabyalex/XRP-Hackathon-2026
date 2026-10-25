@@ -106,14 +106,14 @@ async function main() {
     console.log("  no api database yet (it is created on first start)");
   }
 
-  // Market history (last 24 hours of activity and a dividend) through the api
-  // if it is running; npm run demo seeds it on start otherwise.
+  // Share books and the load simulator through the api if it is running
+  // (npm run demo starts them otherwise). No history is generated.
   try {
     const key = process.env.INTERNAL_API_KEY || "moonshift-local-demo-key";
     const r = await fetch("http://localhost:4000/internal/seed-history", { method: "POST", headers: { "Content-Type": "application/json", "X-MS-Internal-Key": key } });
-    console.log(r.ok ? "  market history seeded through the api" : `  market history: api answered ${r.status}`);
+    console.log(r.ok ? "  market quoted through the api" : `  market quote: api answered ${r.status}`);
   } catch {
-    console.log("  market history: api not running; npm run demo seeds it on start");
+    console.log("  market quote: api not running; npm run demo quotes it on start");
   }
 
   const inv = x.currentRound("investment");

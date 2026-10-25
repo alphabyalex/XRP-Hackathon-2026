@@ -26,7 +26,11 @@ from router import config as C
 log = logging.getLogger("router.settle")
 
 ORDER_TREASURY = C.ORDER_TREASURY
-POOL_TREASURY = {"gpu-a": "TREASURY_GPU_A", "gpu-b": "TREASURY_GPU_B"}
+
+
+def pool_treasury(pool: str) -> str:
+    """Each GPU's own treasury ("gpu-c" -> TREASURY_GPU_C), as in packages/shared treasuryOf."""
+    return f"TREASURY_GPU_{pool.removeprefix('gpu-').upper()}" if pool.startswith("gpu-") else ORDER_TREASURY
 
 
 class PaymentFailed(Exception):
@@ -127,7 +131,7 @@ def settlement_lines(order: dict[str, Any]) -> list[dict[str, Any]]:
                 "amountUsdc": money(amount),
                 "toPoolUsdc": money(to_pool),
                 "providerCostUsdc": money(provider_cost),
-                "to": POOL_TREASURY.get(seg["pool"], ORDER_TREASURY),
+                "to": pool_treasury(seg["pool"]),
             }
         )
     check(order, lines)

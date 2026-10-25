@@ -31,6 +31,14 @@ export class NotConnectedError extends Error {
   }
 }
 
+// The api answered 404 (for a GPU: not in the registry, or not online yet).
+export class NotFoundError extends Error {
+  constructor(message = "Not found") {
+    super(message);
+    this.name = "NotFoundError";
+  }
+}
+
 export class ApiUnreachableError extends Error {
   constructor() {
     super("Can't reach the Moonshift API on port 4000. Start it with npm run dev.");
@@ -70,6 +78,7 @@ async function apiFetchRaw<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     if (res.status === 401 && body?.error?.code === "NOT_CONNECTED") throw new NotConnectedError(body.error.message);
+    if (res.status === 404) throw new NotFoundError(body?.error?.message);
     throw new Error(body?.error?.message ?? `apps/api returned ${res.status}`);
   }
   return res.json() as Promise<T>;

@@ -9,6 +9,7 @@ import { portfolioRouter } from "./routes/portfolio.js";
 import { accountRouter } from "./routes/account.js";
 import { gpuPricesRouter } from "./routes/gpuPrices.js";
 import { startGpuPricePolling } from "./marketData/gpuPrices.js";
+import { startHealthChecks } from "./gpuHealth.js";
 import { txRouter } from "./routes/tx.js";
 import { sharesRouter } from "./routes/shares.js";
 import { contractsRouter } from "./routes/contracts.js";
@@ -59,6 +60,9 @@ app.use("/internal", requireInternalKey, routerInternal);
 app.use(eventsRouter);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
+
+// Which GPUs are listed depends on their endpoints answering: check before serving.
+void startHealthChecks();
 
 const PORT = Number(process.env.PORT ?? PORTS.api);
 app.listen(PORT, () => {

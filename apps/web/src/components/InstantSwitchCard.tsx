@@ -92,14 +92,14 @@ export function InstantSwitchCard() {
             className={`btn sm ${selectedGpu === "gpu-a" ? "ink" : "subtle"}`}
             onClick={() => setSelectedGpu("gpu-a")}
           >
-            GPU-A (T4 &middot; Qwen 1.7B)
+            GPU-A (T4 &middot; Qwen2.5 1.5B)
           </button>
           <button
             type="button"
             className={`btn sm ${selectedGpu === "gpu-b" ? "ink" : "subtle"}`}
             onClick={() => setSelectedGpu("gpu-b")}
           >
-            GPU-B (T4 &middot; Qwen 1.7B)
+            GPU-B (T4 &middot; mock)
           </button>
         </div>
       </div>
