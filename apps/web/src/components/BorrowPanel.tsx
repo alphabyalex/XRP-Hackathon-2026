@@ -1,107 +1,91 @@
 "use client";
-import { useState } from "react";
+// The Home borrow card: what borrowing against this GPU's shares costs right
+// now. The chart is the base APR from GET /lending/base-apr, live (5 s and on
+// loan events); until that route answers, the APR of each real loan at
+// origination. Collateral value is the typed shares at the live share price;
+// capital is what the lending round has available. The quote itself is on /borrow.
+import { useEffect, useState } from "react";
+import type { VaultOverview, XlsLoanRecord } from "@moonshift/shared";
+import { usePolled } from "@/lib/liveData";
+import { lendingBaseApr, useApiEvents } from "@/lib/lendingApi";
+import { fmt, typedAmount } from "@/lib/format";
 import { Button } from "./Button";
-import { fmt, typedAmount, usdc } from "@/lib/format";
-import { openLoan } from "@/lib/api";
-import { useToast } from "./Toast";
+import { LiveLine, type LinePoint } from "./charts";
 
-// Ported from .borrow .trade / borrow() in moonshift_v2_source.html.
-// apps/api always lends at max LTV (50%), see docs/CONTRACTS.md request;
-// the slider below is a preview, the Borrow button requests the real max.
-export function BorrowPanel({
-  gpuId,
-  gpuLabel,
-  sharePrice,
-  maxShares = 50,
-  onBorrowed,
-}: {
-  gpuId: string;
-  gpuLabel: string;
-  sharePrice: number;
-  maxShares?: number;
-  onBorrowed?: () => void;
-}) {
-  const [collateral, setCollateral] = useState(20);
-  const [range, setRange] = useState(62);
-  const [busy, setBusy] = useState(false);
-  const toast = useToast();
+type BaseApr = { apr?: number | string; baseApr?: number | string; baseAprPct?: number | string; series?: any[]; history?: any[] };
 
-  const c = Math.max(0, Math.min(maxShares, Math.floor(collateral) || 0));
-  const cv = c * sharePrice;
-  const amount = cv * 0.5 * (range / 100);
-  const ltv = cv ? (amount / cv) * 100 : 0;
-  const fillPct = (ltv / 80) * 100;
+const asPct = (v: unknown) => {
+  const n = Number(v);
+  if (v === null || v === undefined || v === "" || !Number.isFinite(n)) return null;
+  return n > 0 && n < 1 ? n * 100 : n;
+};
 
-  async function doBorrow() {
-    if (!amount || busy) return;
-    setBusy(true);
-    try {
-      const loan = await openLoan(gpuId, String(c));
-      toast(`Borrowed ${usdc(loan.principal)} USDC`, `${fmt(c, 0)} ${gpuLabel} shares locked`, loan.disburseTx ?? loan.escrowTx);
-      onBorrowed?.();
-    } catch (err) {
-      toast("Borrow failed", (err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
+// GET /lending/base-apr every 5 s and on loan and risk events. A 404 (not
+// deployed yet) is asked again a minute later, not every poll.
+function useBaseApr(): { data: BaseApr | null } {
+  const [data, setData] = useState<BaseApr | null>(null);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    lendingBaseApr().then((d) => alive && d && setData(d));
+    const t = setTimeout(() => setTick((n) => n + 1), 5000);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [tick]);
+  useApiEvents(["loan", "risk"], () => setTick((n) => n + 1));
+  return { data };
+}
+
+export function BorrowPanel({ gpuId, gpuLabel, sharePrice }: { gpuId: string; gpuLabel: string; sharePrice: number; maxShares?: number; onBorrowed?: () => void }) {
+  const [shares, setShares] = useState("");
+  const base = useBaseApr();
+  const vault = usePolled<VaultOverview>("/vault", { ms: 5000, on: ["vault", "loan"] });
+  const loans = usePolled<{ loans: XlsLoanRecord[] }>(base.data ? null : "/loans", { ms: 15000, on: ["loan"] });
+
+  const baseNow = asPct(base.data?.baseAprPct ?? base.data?.baseApr ?? base.data?.apr);
+  const series: LinePoint[] = base.data
+    ? (base.data.series ?? base.data.history ?? [])
+        .map((p: any) => ({ t: new Date(p.at ?? p.t).getTime(), v: asPct(p.apr ?? p.baseApr ?? p.v) ?? NaN }))
+        .filter((p: LinePoint) => Number.isFinite(p.t) && Number.isFinite(p.v))
+    : (loans.data?.loans ?? []).map((l) => ({ t: new Date(l.openedAt).getTime(), v: Number(l.apr) * 100 }));
+  const recent = !base.data && series.length ? series.reduce((a, b) => (b.t > a.t ? b : a)).v : null;
+  const apr = baseNow ?? recent;
+  const available = vault.data?.investing ? Number(vault.data.investing.assetsAvailable) : null;
+  const s = Number(shares) || 0;
 
   return (
-    <div className="trade" style={{ padding: 30 }}>
-      <label className="lbl" htmlFor="coll">
+    <div className="trade" style={{ padding: 26 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+        <span className="lbl" style={{ margin: 0 }}>
+          Borrow against {gpuLabel} shares
+        </span>
+        <span className="lbl" style={{ margin: 0 }}>
+          {base.data ? "Base APR, live" : "APR of recent loans"}
+        </span>
+      </div>
+      <div className="bignum" style={{ marginTop: 6 }}>
+        {apr !== null ? `${fmt(apr, 2)}%` : "..."}
+      </div>
+      <LiveLine key={series.length} points={series} unit="%" height={120} area={false} label="Borrow APR" format={(v) => fmt(v, 2)} empty="Waiting for the first loan" />
+      <label className="lbl" htmlFor="home-coll" style={{ marginTop: 14 }}>
         Shares to lock
       </label>
       <div className="inp">
-        <input
-          id="coll"
-          type="text"
-          autoComplete="off"
-          value={collateral}
-          inputMode="numeric"
-          onChange={(e) => setCollateral(Number(typedAmount(e.target.value, false)) || 0)}
-        />
+        <input id="home-coll" type="text" autoComplete="off" placeholder="0" value={shares} inputMode="numeric" onChange={(e) => setShares(typedAmount(e.target.value, false))} />
         <span>shares</span>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 28, gap: 12, flexWrap: "wrap" }}>
-        <div>
-          <span className="lbl">You borrow</span>
-          <div className="bignum">{fmt(amount, 2)}</div>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <span className="lbl">Loan to value</span>
-          <div className="num" style={{ fontSize: 22 }}>
-            {fmt(ltv, 0)}%
-          </div>
-        </div>
-      </div>
-      <input
-        type="range"
-        min={0}
-        max={100}
-        value={range}
-        aria-label="Amount to borrow"
-        onChange={(e) => setRange(Number(e.target.value))}
-      />
-      <div className="meter">
-        <div className="fill" style={{ width: `${fillPct}%` }} />
-        <span className="tick" style={{ left: "62.5%" }} />
-        <span className="tick" style={{ left: "81.25%", background: "var(--down)" }} />
-      </div>
-      <div className="meter-l">
-        <span style={{ left: 0 }}>0%</span>
-        <span style={{ left: "62.5%", transform: "translateX(-50%)" }}>50% limit</span>
-        <span style={{ right: 0, color: "var(--down)" }}>65% liquidation</span>
-      </div>
-      <div className="line" style={{ marginTop: 18 }}>
+      <div className="line" style={{ marginTop: 14 }}>
         <span>Collateral value</span>
-        <b>{fmt(cv, 2)} USDC</b>
+        <b>{sharePrice > 0 ? `${fmt(s * sharePrice, 2)} USDC` : "..."}</b>
       </div>
       <div className="line">
-        <span>APR</span>
-        <b>10.00%</b>
+        <span>Available to borrow from the lending round</span>
+        <b>{available !== null ? `${fmt(available, 2)} USDC` : "..."}</b>
       </div>
-      <Button disabled={!amount || busy} onClick={doBorrow}>
-        {amount ? `Lock ${c} ${gpuLabel} shares, borrow ${fmt(amount, 2)} USDC` : "Choose an amount"}
+      <Button href={s > 0 ? `/borrow?gpu=${gpuId}&shares=${s}` : "/borrow"} arrow>
+        Get your quote
       </Button>
     </div>
   );

@@ -1,4 +1,5 @@
-"""Fallback live feed (MONITOR_MODE=websocket): XRPL WebSocket `subscribe` on watched accounts.
+"""Fallback live feed (MONITOR_MODE=websocket): XRPL WebSocket `subscribe` on watched accounts
+and the `ledger` stream (ledger closes feed credit/network.py's live status).
 
 Uses the Quicknode WSS endpoint when configured (the HTTPS URL with wss://), else the public one.
 Reconnects with backoff, and resubscribes whenever the watchlist for its network changes.
@@ -15,6 +16,7 @@ import websockets
 from credit import config as C
 from credit.history import normalize
 from credit.monitor import Monitor
+from credit.network import status
 
 log = logging.getLogger("credit.ws")
 
@@ -36,7 +38,9 @@ class AccountsFeed:
             self.changed.clear()
             try:
                 async with websockets.connect(url, open_timeout=15, ping_interval=20) as conn:
-                    await conn.send(json.dumps({"id": 1, "command": "subscribe", "accounts": accounts}))
+                    await conn.send(
+                        json.dumps({"id": 1, "command": "subscribe", "accounts": accounts, "streams": ["ledger"]})
+                    )
                     log.info("%s: subscribed to %d accounts via %s", self.network, len(accounts), source)
                     backoff = 1.0
                     await self._read(conn, source)
@@ -61,7 +65,11 @@ class AccountsFeed:
                     recv.cancel()
                     return  # reconnect with the new account list
                 msg = json.loads(recv.result())
-                if msg.get("type") == "transaction" and msg.get("validated"):
+                if msg.get("type") == "ledgerClosed":
+                    status.on_ledger(self.network, msg, source)
+                elif msg.get("id") == 1 and isinstance(msg.get("result"), dict):
+                    status.on_ledger(self.network, msg["result"], source)  # the subscribe reply carries the current ledger
+                elif msg.get("type") == "transaction" and msg.get("validated"):
                     # via says which feed saw it: "websocket (public devnet)", "websocket (quicknode)".
                     label = f"public {self.network}" if source == "public" else source
                     self.monitor.handle_tx(

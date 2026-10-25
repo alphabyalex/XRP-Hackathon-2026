@@ -9,7 +9,35 @@ from credit import config as C
 from credit import features as F
 from credit import scoring
 from credit.history import Tx, normalize
-from credit.xrpl_client import XrplClient
+from credit.xrpl_client import UpstreamError, XrplClient
+
+# account_objects LedgerEntryType -> the obligation it represents.
+OBLIGATION_TYPES = {
+    "Escrow": "escrows",
+    "Loan": "loans",
+    "Offer": "offers",
+    "Check": "checks",
+    "PayChannel": "paymentChannels",
+}
+
+
+async def obligations(client: XrplClient, address: str, refresh: bool) -> dict[str, Any] | None:
+    """What still binds the account: open loans and escrows (account_objects) and open DEX offers
+    (account_offers). Counts only; None when the node does not answer, never a guess."""
+    try:
+        objs = await client.account_objects(address, refresh=refresh)
+        offers = await client.account_offers(address, refresh=refresh)
+    except UpstreamError:
+        return None
+    out: dict[str, Any] = {v: 0 for v in OBLIGATION_TYPES.values()}
+    for o in objs:
+        k = OBLIGATION_TYPES.get(o.get("LedgerEntryType", ""))
+        if k and k != "offers":
+            out[k] += 1
+    out["offers"] = len(offers)
+    out["ownerCount"] = len(objs)
+    out["via"] = ["account_objects", "account_offers"]
+    return out
 
 
 def iso(d: datetime | None) -> str | None:
@@ -23,6 +51,7 @@ async def fetch_history(
     lines = await client.account_lines(address, refresh=refresh)
     page = await client.account_tx(address, refresh=refresh)
     first_raw = await client.first_tx(address)
+    owed = await obligations(client, address, refresh)
     txs: list[Tx] = [normalize(e) for e in page.transactions]
     first = normalize(first_raw) if first_raw else None
     dates = [t.date for t in txs if t.date]
@@ -33,6 +62,7 @@ async def fetch_history(
         "firstTxAt": iso(first.date if first else None),
         "lastTxAt": iso(max(dates) if dates else None),
         "ledgerIndex": info.get("ledger_index") or info.get("ledger_current_index"),
+        "obligations": owed,
     }
     hist = F.History(address, txs, len(lines), first, now, C.lender_addresses())
     return hist, meta

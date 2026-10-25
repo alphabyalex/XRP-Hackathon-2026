@@ -21,7 +21,9 @@ from credit.db import Store, store
 
 log = logging.getLogger("credit.xrpl")
 
-READ_METHODS = frozenset({"account_info", "account_lines", "account_tx", "ledger", "server_info"})
+READ_METHODS = frozenset(
+    {"account_info", "account_lines", "account_objects", "account_offers", "account_tx", "ledger", "server_info"}
+)
 RATE_LIMIT_ERRORS = frozenset({"slowDown", "tooBusy"})
 RETRY_STATUS = frozenset({429, 502, 503, 504})
 
@@ -179,6 +181,31 @@ class XrplClient:
             if marker is None:
                 return TxPage(txs, pages, False)
         return TxPage(txs, pages, True)
+
+    async def account_objects(self, address: str, refresh: bool = False, max_pages: int = 3) -> list[dict[str, Any]]:
+        """Ledger objects the account owns: escrows (locked collateral), loans, offers, checks, channels."""
+        objs: list[dict[str, Any]] = []
+        marker: Any = None
+        for _ in range(max_pages):
+            params: dict[str, Any] = {"account": address, "ledger_index": "validated", "limit": 200}
+            if marker is not None:
+                params["marker"] = marker
+            res = await self.rpc("account_objects", params, refresh=refresh)
+            objs.extend(res.get("account_objects", []))
+            marker = res.get("marker")
+            if marker is None:
+                break
+        return objs
+
+    async def account_offers(self, address: str, refresh: bool = False) -> list[dict[str, Any]]:
+        """Open orders on the DEX: balance the account has committed but not spent."""
+        res = await self.rpc("account_offers", {"account": address, "ledger_index": "validated", "limit": 200}, refresh=refresh)
+        return list(res.get("offers", []))
+
+    async def server_info(self) -> dict[str, Any]:
+        """Network status (validated ledger, fees, load). Never cached: it is the live view."""
+        res = await self.rpc("server_info", {}, refresh=True)
+        return dict(res.get("info", {}))
 
     async def first_tx(self, address: str) -> dict[str, Any] | None:
         """Oldest transaction of the account (the payment that funded it). Immutable, cached forever."""

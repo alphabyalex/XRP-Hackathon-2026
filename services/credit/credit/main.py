@@ -5,17 +5,19 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from credit import config as C
-from credit import combine, explain, live, mock, portfolio, profile, stats, streams, ws
+from credit import combine, explain, live, mock, network, portfolio, profile, stats, streams, ws
 from credit import features as F
 from credit.errors import CreditError
 from credit.events import bus
@@ -38,6 +40,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         tasks.append(asyncio.create_task(monitor().overdue_loop()))
     if C.MONITOR_MODE == "websocket" and not C.MOCK:
         tasks += ws.start(monitor())
+    if not C.MOCK and os.getenv("NETWORK_STATUS", "1") != "0":
+        tasks += network.start()
     log.info("credit up: mock=%s monitor=%s quicknode=%s", C.MOCK, C.MONITOR_MODE, C.quicknode_configured())
     yield
     for t in tasks:
@@ -177,6 +181,12 @@ def health() -> dict:
             "kvSyncEnabled": bool(C.QUICKNODE_API_KEY),
         },
     }
+
+
+@app.get("/network")
+async def network_status() -> dict[str, Any]:
+    """Ledger index, fees and server state per network, from the ledger stream and server_info."""
+    return network.status.snapshot()
 
 
 @app.get("/stats")

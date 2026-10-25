@@ -6,8 +6,8 @@ import type { ConnectedWallet } from "@/lib/lendingApi";
 import { BorrowContent } from "@/components/BorrowContent";
 import { ApiErrorNotice } from "@/components/ApiErrorNotice";
 
-const DEFAULT_SHARES = "100";
-const GPU_ID = "gpu-a";
+const DEFAULT_LOCK = "100";
+const DEFAULT_GPU = "gpu-a";
 
 // The signed-in account's profile and largest approved amount are rendered on
 // the server (the browser's session cookie is passed on to the api), so the
@@ -18,8 +18,11 @@ async function sessionInit(): Promise<RequestInit> {
   return { headers: cookie ? { cookie } : {}, signal: AbortSignal.timeout(1500) };
 }
 
-export default async function BorrowPage() {
+export default async function BorrowPage({ searchParams }: { searchParams: Promise<{ gpu?: string; shares?: string }> }) {
   try {
+    const sp = await searchParams;
+    const GPU_ID = /^gpu-[a-z0-9]+$/.test(sp.gpu ?? "") ? sp.gpu! : DEFAULT_GPU;
+    const DEFAULT_SHARES = /^\d{1,9}$/.test(sp.shares ?? "") && Number(sp.shares) > 0 ? sp.shares! : DEFAULT_LOCK;
     const init = await sessionInit();
     const [portfolio, { gpus, unreachable }, profile, max, me] = await Promise.all([
       getPortfolio(init).catch(() => null),

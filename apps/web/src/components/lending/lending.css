@@ -273,3 +273,219 @@
     grid-column: 1 / -1;
   }
 }
+
+/* /borrow */
+.bw-head {
+  margin-bottom: 28px;
+}
+.bw-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.bw-net {
+  font-size: 12.5px;
+  color: var(--ink3);
+  transition: color 1.2s var(--ease);
+}
+.bw-net.flash {
+  color: var(--ink);
+  transition: none;
+}
+.bw-fund {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13.5px;
+  color: var(--ink2);
+}
+.bw-fund a {
+  color: var(--ink);
+  text-underline-offset: 3px;
+}
+.bw-fund b {
+  font-weight: 500;
+  color: var(--ink);
+}
+.bw-charts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+.bw-charts > * {
+  min-width: 0;
+}
+.bw-charts .trade.card {
+  padding: 18px 20px 14px;
+}
+.bw-charts .note {
+  margin-top: 6px;
+  font-size: 12.5px;
+}
+.bw-hist {
+  margin-top: 40px;
+}
+.bw-hist td.dn {
+  color: var(--down);
+}
+.bw-hist td.warn {
+  color: var(--accent-ink);
+}
+.bw-apply {
+  margin-top: 40px;
+  scroll-margin-top: 88px;
+}
+.bw-apply-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.bw-apply-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.bw-apply-form label {
+  display: block;
+  min-width: 0;
+}
+.bw-apply-form .wide {
+  grid-column: 1 / -1;
+}
+.bw-apply-form .field {
+  width: 100%;
+  padding: 11px 14px;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px var(--rule2);
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--bg);
+  resize: vertical;
+}
+.bw-apply-form .field:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+.bw-apply-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.bw-apply-foot .note {
+  margin: 0;
+}
+.bw-apply-foot .btn {
+  width: auto;
+  margin: 0;
+}
+.bw-apply-done {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.bw-apply-done p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink2);
+}
+.bw-apply-status span {
+  display: block;
+  font-size: 13px;
+  color: var(--ink3);
+}
+.bw-apply-status b {
+  display: block;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 2px 0 4px;
+}
+@media (max-width: 1000px) {
+  .bw-charts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 700px) {
+  .bw-apply-form,
+  .bw-apply-done {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 560px) {
+  .dash table th:nth-child(2),
+  .dash table td:nth-child(2),
+  .dash table th:nth-child(4),
+  .dash table td:nth-child(4),
+  .dash table th:nth-child(6),
+  .dash table td:nth-child(6),
+  .dash table th:nth-child(7),
+  .dash table td:nth-child(7),
+  .dash table th:nth-child(8),
+  .dash table td:nth-child(8),
+  .dash table th:nth-child(9),
+  .dash table td:nth-child(9),
+  .bw-hist table th:nth-child(2),
+  .bw-hist table td:nth-child(2),
+  .bw-hist table th:nth-child(4),
+  .bw-hist table td:nth-child(4) {
+    display: none;
+  }
+}
+.bw-charts.one {
+  grid-template-columns: minmax(0, 1fr);
+}
+.bw-right {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.bw-right .bw-charts {
+  margin-top: 0;
+}
+.bw-grid {
+  grid-template-areas: "credit right" "memo right";
+  grid-template-rows: auto 1fr;
+}
+.bw-grid > .bw-credit {
+  grid-area: credit;
+}
+.bw-grid > .bw-right {
+  grid-area: right;
+}
+.bw-grid > .bw-memo {
+  grid-area: memo;
+  align-self: start;
+}
+@media (max-width: 900px) {
+  .bw-grid {
+    grid-template-areas: "credit" "right" "memo";
+    grid-template-rows: auto;
+  }
+}
+/* compact rows: history and the loan book are read as lists */
+.bw-hist .tbl th,
+.bw-hist .tbl td,
+.dash .tbl th,
+.dash .tbl td {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  font-size: 14px;
+}

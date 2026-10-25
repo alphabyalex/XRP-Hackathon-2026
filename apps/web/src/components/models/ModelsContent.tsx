@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ApiGpuSummary } from "@moonshift/shared";
 import { apiFetch, getGpus } from "@/lib/api";
 import { fmt, taskUsdc } from "@/lib/format";
-import { chatRouted, createOrder, MODES, orderEventsUrl, providerName, type Mode } from "@/lib/routerApi";
+import { chatRouted, createOrder, getOrder, MODES, orderEventsUrl, providerName, type Mode } from "@/lib/routerApi";
 import { useWallet } from "@/lib/wallet";
 import { txUrl } from "@/lib/lendingApi";
 import { Segmented } from "../Segmented";
@@ -26,6 +26,7 @@ type Model = {
   vramGb: number | null;
   contextLength: number | null;
   pricePer1MTokens: string | number | null;
+  currency: string;
 };
 
 function normalize(rows: any[]): Model[] {
@@ -38,6 +39,7 @@ function normalize(rows: any[]): Model[] {
     vramGb: m.vramGb ?? null,
     contextLength: m.contextLength ?? null,
     pricePer1MTokens: m.pricePer1MTokens ?? null,
+    currency: String(m.currency ?? "USD"),
   }));
 }
 
@@ -205,8 +207,34 @@ export function ModelsContent() {
       });
       src.addEventListener("completed", () => setRun((r) => ({ ...r, status: r.status === "running" && r.text ? "done" : r.status })));
       src.addEventListener("failed", () => setRun((r) => ({ ...r, status: "error", error: "The GPU could not finish this task." })));
+      // No events stream (some tunnels drop SSE): read the order itself until it finishes.
+      let polling = false;
+      const poll = async () => {
+        for (let i = 0; i < 120 && my === runId.current; i++) {
+          const o = await getOrder(order.orderId).catch(() => null);
+          if (o && my === runId.current) {
+            const done = ["completed", "settled", "failed"].includes(o.status);
+            const text = o.output?.[0] ?? "";
+            setRun((r) => ({
+              ...r,
+              text: text.length > r.text.length ? text : r.text,
+              gpus: o.segments?.length ? [...new Set(o.segments.map((x) => x.label))] : r.gpus,
+              providers: o.segments?.length ? [...new Set(o.segments.map((x) => x.provider))] : r.providers,
+              tokens: o.progress?.unit === "tokens" ? Math.round(o.progress.done) : r.tokens,
+              refund: o.refund && Number(o.refund.amountUsdc) > 0 ? o.refund.amountUsdc : r.refund,
+              status: done ? (o.status !== "failed" && text ? "done" : "error") : r.status,
+              error: done && (o.status === "failed" || !text) ? "The GPU could not finish this task." : r.error,
+            }));
+            if (done) return;
+          }
+          await new Promise((res) => setTimeout(res, 1000));
+        }
+      };
       src.onerror = () => {
-        if (src.readyState === EventSource.CLOSED) setRun((r) => (r.status === "running" ? { ...r, status: r.text ? "done" : "error", error: r.text ? null : "The stream closed." } : r));
+        if (polling) return;
+        polling = true;
+        src.close();
+        void poll();
       };
     } catch (e) {
       if (my === runId.current) setRun({ ...IDLE, status: "error", error: (e as Error).message });
@@ -274,7 +302,7 @@ export function ModelsContent() {
                   </td>
                   {full && <td className="num">{m.vramGb !== null ? `${fmt(m.vramGb, 0)} GB` : ""}</td>}
                   {full && <td className="num">{m.contextLength !== null ? `${fmt(m.contextLength, 0)} tokens` : ""}</td>}
-                  <td className="num">{m.pricePer1MTokens !== null ? `${taskUsdc(m.pricePer1MTokens)} USDC` : "Priced per task"}</td>
+                  <td className="num">{m.pricePer1MTokens !== null ? `${fmt(Number(m.pricePer1MTokens), 2)} ${m.currency}` : m.acceptsRequests ? "Priced per task" : "Quoted on request"}</td>
                   <td className={m.acceptsRequests ? "mdl-serving" : "mdl-req"}>{m.acceptsRequests ? "Serving" : "On request"}</td>
                 </tr>
               ))
