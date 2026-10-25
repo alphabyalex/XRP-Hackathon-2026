@@ -1,0 +1,56 @@
+{
+  "role": "backend",
+  "network": "akash-mainnet",
+  "dseq": "1792936961914",
+  "provider": "akash15ksejj7g4su7ljufsg0a8eglvkje94z8qsh68a",
+  "providerName": "Akash Palmito",
+  "providerLocation": {
+    "cityCode": "FLL",
+    "country": "US",
+    "region": "na-us-southeast",
+    "source": "akt console provider get"
+  },
+  "providerAudited": true,
+  "resources": {
+    "vCpu": 2,
+    "ramGiB": 4,
+    "ephemeralStorageGiB": 10,
+    "persistentStorageGiB": 20,
+    "persistentStorageClass": "beta3",
+    "replicaCount": 1
+  },
+  "releaseRevision": "a9e5e6b940166a67c435babaade4bf4e3622ed2a",
+  "containerImage": "node:24-bookworm-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205",
+  "pricing": {
+    "denom": "uact",
+    "amountPerBlock": "16.422080000000000000",
+    "bidCeilingPerBlock": "50",
+    "estimatedUsdPerHour": 0.009853248,
+    "estimatedUsdPerDay": 0.236477952,
+    "conversionAssumption": "600 six-second blocks per hour; 1000000 uact per USD",
+    "source": "akt console bid list and accepted lease price"
+  },
+  "funding": {
+    "autoTopUpEnabled": true,
+    "estimatedTopUpAmount": "$0.24",
+    "topUpFrequencyMs": 86400000,
+    "runtimeLimitHours": null,
+    "runtimeEndsAt": null
+  },
+  "status": "installed_inert",
+  "verification": {
+    "verifiedAt": "2026-10-25T14:05:56.505981Z",
+    "leaseAccepted": true,
+    "providerTlsVerified": true,
+    "persistentClassAudited": true,
+    "publicIngressTlsVerified": true,
+    "inactiveHealthStatus": 502,
+    "releaseDownloaded": true,
+    "dependenciesReady": true,
+    "activationFileExists": false,
+    "apiProcessCount": 0,
+    "uvicornProcessCount": 0
+  },
+  "activationControl": "API services remain stopped until the operator transfers a consistent snapshot and creates /data/state/ACTIVATE. No activation was performed during infrastructure setup.",
+  "apiOrigin": "https://hqlndvicrddu7bkcop8kaptoh8.ingress.akash-palmito.org"
+}
