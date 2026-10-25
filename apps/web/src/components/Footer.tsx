@@ -15,50 +15,92 @@ export function Footer() {
             <p className="footer-tagline">
               Decentralized GPU compute and credit protocol built natively on the XRP Ledger.
             </p>
-            <div className="footer-status-badge">
-              <span className="footer-status-dot" />
-              <span>XRPL Devnet Operational &middot; 8 GPUs Online</span>
-            </div>
           </div>
 
           <div className="footer-col">
             <h4>Protocol</h4>
             <ul>
-              <li><Link href="/market">GPU Market</Link></li>
-              <li><Link href="/lend">Lending Vaults (XLS-65)</Link></li>
-              <li><Link href="/borrow">Borrowing &amp; Credit</Link></li>
-              <li><Link href="/portfolio">Portfolio &amp; Yields</Link></li>
-              <li><Link href="/admin/router">Inference Router</Link></li>
+              <li>
+                <Link href="/market">GPU Market</Link>
+              </li>
+              <li>
+                <Link href="/lend">Lending Vaults (XLS-65)</Link>
+              </li>
+              <li>
+                <Link href="/borrow">Borrowing &amp; Credit</Link>
+              </li>
+              <li>
+                <Link href="/portfolio">Portfolio &amp; Yields</Link>
+              </li>
+              <li>
+                <Link href="/admin/router">Inference Router</Link>
+              </li>
             </ul>
           </div>
 
           <div className="footer-col">
             <h4>Ecosystem</h4>
             <ul>
-              <li><a href="https://devnet.xrpl.org" target="_blank" rel="noreferrer">XRP Ledger Devnet</a></li>
-              <li><a href="https://akash.network" target="_blank" rel="noreferrer">Akash Network</a></li>
-              <li><a href="https://aws.amazon.com" target="_blank" rel="noreferrer">Amazon Web Services</a></li>
-              <li><a href="https://openocean.finance" target="_blank" rel="noreferrer">OpenOcean Cloud</a></li>
-              <li><a href="https://vast.ai" target="_blank" rel="noreferrer">Vast.ai Fleet</a></li>
+              <li>
+                <a href="https://devnet.xrpl.org" target="_blank" rel="noreferrer">
+                  XRP Ledger Devnet
+                </a>
+              </li>
+              <li>
+                <a href="https://akash.network" target="_blank" rel="noreferrer">
+                  Akash Network
+                </a>
+              </li>
+              <li>
+                <a href="https://aws.amazon.com" target="_blank" rel="noreferrer">
+                  Amazon Web Services
+                </a>
+              </li>
+              <li>
+                <a href="https://openocean.finance" target="_blank" rel="noreferrer">
+                  OpenOcean Cloud
+                </a>
+              </li>
+              <li>
+                <a href="https://vast.ai" target="_blank" rel="noreferrer">
+                  Vast.ai Fleet
+                </a>
+              </li>
             </ul>
           </div>
 
           <div className="footer-col">
             <h4>Developers</h4>
             <ul>
-              <li><Link href="/playground">API Playground</Link></li>
-              <li><a href="https://github.com/alphabyalex/XRP-Hackathon-2026" target="_blank" rel="noreferrer">GitHub Repository</a></li>
-              <li><a href="/admin/router">Preemption Telemetry</a></li>
-              <li><a href="https://xrpl.org" target="_blank" rel="noreferrer">XRPL Standards</a></li>
-              <li><Link href="/#schedule">Nightly Batch Payouts</Link></li>
+              <li>
+                <Link href="/playground">API Playground</Link>
+              </li>
+              <li>
+                <a href="https://github.com/alphabyalex/XRP-Hackathon-2026" target="_blank" rel="noreferrer">
+                  GitHub
+                </a>
+              </li>
+              <li>
+                <a href="/admin/router">Preemption Telemetry</a>
+              </li>
+              <li>
+                <a href="https://xrpl.org" target="_blank" rel="noreferrer">
+                  XRPL Standards
+                </a>
+              </li>
+              <li>
+                <Link href="/#schedule">Nightly Batch Payouts</Link>
+              </li>
             </ul>
           </div>
         </div>
 
         <div className="footer-bottom-bar">
-          <span className="footer-copy">&copy; 2026 Moonshift Protocol. Built for the XRP Hackathon 2026.</span>
+          <span className="footer-copy">&copy; 2026 Moonshift Protocol. All rights reserved.</span>
           <div className="footer-links">
-            <a href="https://github.com/alphabyalex/XRP-Hackathon-2026" target="_blank" rel="noreferrer">GitHub</a>
+            <a href="https://github.com/alphabyalex/XRP-Hackathon-2026" target="_blank" rel="noreferrer">
+              GitHub
+            </a>
             <span>&middot;</span>
             <Link href="/market">Marketplace</Link>
             <span>&middot;</span>

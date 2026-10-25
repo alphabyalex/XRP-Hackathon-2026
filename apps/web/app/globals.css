@@ -1267,12 +1267,11 @@ input[type="range"]::-moz-range-thumb {
 .enter {
   position: relative;
   z-index: 1;
-  padding: 104px 0 76px;
+  padding: 96px 0 48px;
   text-align: center;
   color: var(--night-ink);
   background: #0d0f12;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 .enter-in {
   max-width: 720px;
@@ -1345,10 +1344,10 @@ footer {
 }
 main:has(.enter) + footer.site-footer {
   background: #0d0f12;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: none;
   color: rgba(255, 255, 255, 0.6);
   --mk-b: var(--night-ink);
-  padding: 64px 0 36px;
+  padding: 40px 0 36px;
 }
 main:has(.enter) + footer .logo {
   color: var(--night-ink);
@@ -1385,26 +1384,6 @@ main:has(.enter) + footer .logo {
   color: inherit;
   opacity: 0.75;
   margin-top: 14px;
-}
-.footer-status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 16px;
-  padding: 4px 10px;
-  border-radius: 9999px;
-  font-size: 11.5px;
-  font-family: var(--mono);
-  background: rgba(34, 197, 94, 0.08);
-  color: #22c55e;
-  border: 1px solid rgba(34, 197, 94, 0.2);
-}
-.footer-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 8px #22c55e;
 }
 .footer-col h4 {
   font-size: 13px;

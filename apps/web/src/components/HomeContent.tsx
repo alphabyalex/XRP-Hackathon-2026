@@ -13,7 +13,6 @@ import { MarketTable } from "./MarketTable";
 import { RentTabContent } from "./RentTabContent";
 import { AccountPortfolio } from "./AccountPortfolio";
 import { ScheduleRows } from "./ScheduleRows";
-import { TradePanel } from "./TradePanel";
 import { MoneyStack } from "./MoneyStack";
 import { BorrowPanel } from "./BorrowPanel";
 import { CodeSample } from "./CodeSample";
@@ -144,50 +143,39 @@ export function HomeContent() {
                 <p>This is {featured.dashLabel}&apos;s last 20 hours and next 4, in five minute slots. Lit time is the GPU working on customers&apos; tasks; gray is idle. As one task ends the router places the next, so the machine is rarely idle.</p>
               </div>
             </Reveal>
-            <div className="sched-grid">
+            <div className="sched-grid" style={{ gridTemplateColumns: "1fr", maxWidth: 860, marginInline: "auto" }}>
               <Reveal>
                 <div>
-                <ScheduleRows slots={featured.slots} nowIndex={featured.nowIndex} windowStart={featured.windowStart} />
-                <div className="key">
-                  <span>
-                    <i className="k-l" />
-                    Working
-                  </span>
-                  <span>
-                    <i className="k-i" />
-                    Idle
-                  </span>
-                  <span>
-                    <i className="k-o" />
-                    Ahead
-                  </span>
-                </div>
-                <div className="facts" style={{ marginTop: 40 }}>
-                  <div>
-                    <span>Working, last 20 hours</span>
-                    <b>{fmt(utilizationOf(featured.slots, featured.nowIndex), 1)}%</b>
+                  <ScheduleRows slots={featured.slots} nowIndex={featured.nowIndex} windowStart={featured.windowStart} />
+                  <div className="key">
+                    <span>
+                      <i className="k-l" />
+                      Working
+                    </span>
+                    <span>
+                      <i className="k-i" />
+                      Idle
+                    </span>
+                    <span>
+                      <i className="k-o" />
+                      Ahead
+                    </span>
                   </div>
-                  <div>
-                    <span>Revenue, last 24h</span>
-                    <b>{fmt(featured.revenue24h, 2)} USDC</b>
-                  </div>
-                  <div>
-                    <span>Paid per share, last 24h</span>
-                    <b>{fmt(featured.split.holders / 1000, 6)} USDC</b>
+                  <div className="facts" style={{ marginTop: 40 }}>
+                    <div>
+                      <span>Working, last 20 hours</span>
+                      <b>{fmt(utilizationOf(featured.slots, featured.nowIndex), 1)}%</b>
+                    </div>
+                    <div>
+                      <span>Revenue, last 24h</span>
+                      <b>{fmt(featured.revenue24h, 2)} USDC</b>
+                    </div>
+                    <div>
+                      <span>Paid per share, last 24h</span>
+                      <b>{fmt(featured.split.holders / 1000, 6)} USDC</b>
+                    </div>
                   </div>
                 </div>
-                </div>
-              </Reveal>
-              <Reveal>
-                <TradePanel
-                  gpuId={featured.gpu.id}
-                  gpuLabel={featured.dashLabel}
-                  sharePrice={Number(featured.gpu.sharePrice) || 0}
-                  revenue24h={featured.revenue24h}
-                  nowIndex={featured.nowIndex}
-                  slots={featured.slots}
-                  windowStart={featured.windowStart}
-                />
               </Reveal>
             </div>
           </div>
