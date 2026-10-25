@@ -54,11 +54,15 @@ export function actorFor(req: Request, named?: unknown): AccountName {
 }
 
 export function sessionCookie(token: string, maxAgeSeconds: number): string {
-  return `${SESSION_COOKIE}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${maxAgeSeconds}`;
+  return `${SESSION_COOKIE}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${maxAgeSeconds}${secureCookieAttribute()}`;
 }
 
 export function clearedSessionCookie(): string {
-  return `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`;
+  return `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${secureCookieAttribute()}`;
+}
+
+function secureCookieAttribute(): string {
+  return process.env.WEB_ORIGIN?.startsWith("https://") ? "; Secure" : "";
 }
 
 // Route middleware: replace the account field (body, URL or query) with the
