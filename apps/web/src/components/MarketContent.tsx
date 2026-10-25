@@ -5,7 +5,6 @@ import { useLiveGpus, useApiUnreachable, useNow } from "@/lib/liveData";
 import { gpuView } from "@/lib/gpuView";
 import { AppWindow } from "./AppWindow";
 import { MarketTable } from "./MarketTable";
-import { ResourcePricingBreakdown } from "./ResourcePricingBreakdown";
 import { ApiErrorNotice } from "./ApiErrorNotice";
 import { GpuMarketPrices } from "./GpuMarketPrices";
 import { ComputeCheckout } from "./ComputeCheckout";
@@ -34,7 +33,6 @@ export function MarketContent() {
         <div className="trade rent-card" style={{ marginTop: 20 }}>
           <ComputeCheckout />
         </div>
-        <ResourcePricingBreakdown />
       </div>
     </main>
   );

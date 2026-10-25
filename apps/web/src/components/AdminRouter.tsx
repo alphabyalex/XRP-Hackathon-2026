@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
 import { StressControls } from "./LendingBits";
+import { ResourcePricingBreakdown } from "./ResourcePricingBreakdown";
+import { InstantSwitchCard } from "./InstantSwitchCard";
 import { GPUS } from "@moonshift/shared";
 import { fmt } from "@/lib/format";
 import {
@@ -211,6 +213,10 @@ export function AdminRouter() {
             <StressControls gpuId={g.id} label={g.id.toUpperCase()} />
           </div>
         ))}
+
+        <h3>Infrastructure</h3>
+        <ResourcePricingBreakdown />
+        <InstantSwitchCard />
 
         <h3>Market benchmark</h3>
         <p className="why">
