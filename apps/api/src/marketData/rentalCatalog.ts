@@ -12,7 +12,7 @@ export interface RentalGpu {
   model: string; status: "serving"; updatedAt: string;
   prices: { rentalUsdPerHour: string | null; currency: "USD"; economy: LiveRate | null; awsSpot: LiveRate | null; awsOnDemand: LiveRate | null; change24hPct: string | null };
   nodes: ReturnType<typeof nodeAvailability>;
-  utilization24h: { time: string; utilizationPct: number }[];
+  utilization24h: { time: string; utilizationPct: number; t: string; pct: number }[];
   utilizationMetric: "observed_worker_busy_pct";
 }
 export interface RentalCatalog { updatedAt: string; gpus: RentalGpu[] }
@@ -75,8 +75,9 @@ export function refreshRentalCatalog(): Promise<RentalCatalog> {
         db.prepare("INSERT OR IGNORE INTO rental_utilization_samples (gpu_id,observed_at,utilization_pct) VALUES (?,?,?)")
           .run("gpu-a", now, nodes.busy * 100);
       }
-      const samples = db.prepare("SELECT observed_at AS time, utilization_pct AS utilizationPct FROM rental_utilization_samples WHERE gpu_id=? AND observed_at>=? ORDER BY observed_at")
-        .all("gpu-a", new Date(Date.now() - 24 * 3600_000).toISOString()) as RentalGpu["utilization24h"];
+      const samples = (db.prepare("SELECT observed_at AS time, utilization_pct AS utilizationPct FROM rental_utilization_samples WHERE gpu_id=? AND observed_at>=? ORDER BY observed_at")
+        .all("gpu-a", new Date(Date.now() - 24 * 3600_000).toISOString()) as { time: string; utilizationPct: number }[])
+        .map(sample => ({ ...sample, t: sample.time, pct: sample.utilizationPct }));
       gpus.push({ id: "gpu-a", label: "GPU-A", provider: "Akash Network", card: "NVIDIA T4", vramGb: 16,
         vcpu: 4, ramGb: 16, storageGb: 50,
         location: { city: process.env.GPU_A_CITY?.trim() || null, region: process.env.GPU_A_REGION?.trim() || null },

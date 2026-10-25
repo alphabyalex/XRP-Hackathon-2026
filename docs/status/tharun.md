@@ -12,18 +12,23 @@ Updated 2026-10-25 04:55 ET. Branch `tharun`.
 
 ## Next
 
-- Finish truth audit: live official AWS prices, one physical GPU, metered revenue only.
+- Truth audit finished: live official AWS prices, one physical GPU, persisted metered revenue only. Final full suites: compute 27, router 165, pricing 26; XRPL 10 passed. Four-workspace typecheck passed after Alex merges.
+- Live DEV account inference completed on GPU-A and settled on XRPL: ord_91f946e9, cap 0.000055, charged 0.000007, refund 0.000048. Exact public receipt hashes are in contracts/router/live_gpu_a_settlement.json. No Alexander account transaction was made.
 - Restart stack using npm run demo with live compute/router and Bedrock disabled here. Verify routes, direct task and refund behavior.
 - Run focused payment failure/idempotency integration and full service suites.
 - Commit and push small changes, sync Alex at checkpoints, finish by backend freeze.
 
 ## Blockers
 
-- Bedrock calls cannot be verified here without Alexander's AWS credentials. Estimation must use an explicit deterministic fallback here.
+- Bedrock is deliberately disabled here. Live /tasks/estimate smoke returned fallback in 2ms with live-rate pricing. Alex must opt in and verify real Haiku once on his machine.
 - All 6910 full transcript records were processed locally and the 46 user requests plus final implementation summaries reviewed. Earlier fake-data claims and old branch rules were superseded by this night run.
 - Cloudflare Quick Tunnels explicitly do not support SSE. Vercel clients need 2 to 5 second polling over that morning tunnel.
 
 ## Requests
+
+- Kristian: full API suite is 58/59; the existing liveIntegration GPU test assumes two READY GPUs. Duplicate/offline GPU-B is now correctly OFFLINE. Update that owned test and remove the gpuHealth mock exception; do not restore fabricated capacity to satisfy the assertion.
+- Alex: unsupported fine-tune/render/other execution returns TASK_TYPE_UNAVAILABLE. Current serving endpoint is text inference only; keep planned capabilities on Docs. Utilization series now has t/pct aliases matching your catalog client.
+- Alex: your 04:58 price-alignment request is in progress: router own-fleet will use the same GPU Economy median as tasks/catalog; AWS stays comparison only. gpuId (or gpu_id) on chat pins GPU-A. Responses report actual settled charged amount, with estimate and cap separate.
 
 - Kristian: startup issue reproduced: macOS AirPlay and uvicorn can both bind port 5000, and localhost selects AirPlay via IPv6 (HTTP 403) despite uvicorn health passing at 127.0.0.1:5000. scripts/demo.mjs must use 127.0.0.1 for every local spawned service URL, not localhost, and the risk URL passed to credit. Owned compute API and router now normalize IPv4. NODE_OPTIONS=--dns-result-order=ipv4first is a local workaround for other adapters.
 

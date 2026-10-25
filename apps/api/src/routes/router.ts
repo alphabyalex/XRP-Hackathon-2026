@@ -44,7 +44,13 @@ routerPublic.get("/router/fleet", (req, res) => proxy(req, res, "/fleet"));
 routerPublic.get("/router/health", (req, res) => proxy(req, res, "/health"));
 routerPublic.post("/router/quote", (req, res) => proxy(req, res, "/quote"));
 // The buyer is the signed-in account (never a name from the browser).
-routerPublic.post("/router/orders", asActor("body", "buyer"), (req, res) => proxy(req, res, "/orders"));
+routerPublic.post("/router/orders", asActor("body", "buyer"), (req, res) => {
+  if (req.body?.taskType && req.body.taskType !== "inference") {
+    res.status(409).json({ error: { code: "TASK_TYPE_UNAVAILABLE", message: "The current GPU endpoint supports text inference only." } });
+    return;
+  }
+  return proxy(req, res, "/orders");
+});
 routerPublic.get("/router/orders", (req, res) => proxy(req, res, `/orders${req.url.slice(req.path.length)}`));
 
 // Raise the cap of, or cancel, one of the signed-in account's own orders.
@@ -116,7 +122,12 @@ routerPublic.get("/router/orders/:id/events", async (req, res) => {
 type Msg = { role: "system" | "user" | "assistant"; content: string };
 
 routerPublic.post("/v1/chat/completions", async (req, res) => {
-  const body = req.body as { model?: string; messages?: Msg[]; max_tokens?: number; priority?: string };
+  const body = req.body as { model?: string; messages?: Msg[]; max_tokens?: number; priority?: string; gpuId?: string; gpu_id?: string };
+  const pinnedGpu = body.gpuId ?? body.gpu_id;
+  if (pinnedGpu !== undefined && pinnedGpu !== "gpu-a") {
+    res.status(400).json({ error: { code: "GPU_NOT_SERVING", message: "This GPU is not currently serving this model." } });
+    return;
+  }
   const servingModel = "Qwen/Qwen2.5-1.5B-Instruct";
   // Accept the historical transport alias for older SDK clients, but always
   // identify the actual deployed weights in public responses.
@@ -144,7 +155,7 @@ routerPublic.post("/v1/chat/completions", async (req, res) => {
     const created = await fetch(`${ROUTER_URL()}/orders`, {
       method: "POST",
       headers: internalHeaders(true),
-      body: JSON.stringify({ kind: "inference", mode: priority, buyer, maxTokens: body.max_tokens ?? 128, requests: [body.messages] }),
+      body: JSON.stringify({ kind: "inference", mode: priority, buyer, maxTokens: body.max_tokens ?? 128, requests: [body.messages], ...(pinnedGpu ? { gpuId: pinnedGpu } : {}) }),
       signal: AbortSignal.timeout(15_000),
     });
     if (!created.ok) {
@@ -153,7 +164,7 @@ routerPublic.post("/v1/chat/completions", async (req, res) => {
     }
     let order = (await created.json()) as any;
     const deadline = Date.now() + 120_000;
-    while (!["completed", "settled", "failed", "cancelled"].includes(order.status) && Date.now() < deadline) {
+    while (!["settled", "failed", "cancelled"].includes(order.status) && Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 400));
       order = await (await fetch(`${ROUTER_URL()}/orders/${order.orderId}`, { headers: internalHeaders(), signal: AbortSignal.timeout(5000) })).json();
     }
@@ -161,7 +172,7 @@ routerPublic.post("/v1/chat/completions", async (req, res) => {
       res.status(503).json({ error: { code: "ORDER_FAILED", message: "The order could not be completed." } });
       return;
     }
-    if (!["completed", "settled"].includes(order.status)) {
+    if (order.status !== "settled") {
       res.status(504).json({ error: { code: "ORDER_PENDING", message: "The order is still pending. Check its status before submitting again.", orderId: order.orderId } });
       return;
     }
@@ -173,11 +184,14 @@ routerPublic.post("/v1/chat/completions", async (req, res) => {
       created: Math.floor(Date.now() / 1000),
       model: servingModel,
       choices: [{ index: 0, message: { role: "assistant", content }, finish_reason: "stop" }],
-      usage: { prompt_tokens: 0, completion_tokens: tokens, total_tokens: tokens },
+      usage: { prompt_tokens: null, completion_tokens: tokens, total_tokens: null },
       x_ms: {
         order_id: order.orderId,
         priority,
-        price_usdc: order.priceUsdc,
+        price_usdc: order.charged,
+        estimate_usdc: order.estimateUsdc ?? order.priceUsdc,
+        cap_usdc: order.capUsdc,
+        settlement_status: order.status,
         gpus: [...new Set((order.segments ?? []).map((s: any) => s.label))],
         providers: [...new Set((order.segments ?? []).map((s: any) => s.provider))],
         moves: order.moves ?? [],

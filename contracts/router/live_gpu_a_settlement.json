@@ -1,0 +1,38 @@
+{
+  "orderId": "ord_91f946e9",
+  "status": "settled",
+  "estimateUsdc": "0.000044",
+  "capUsdc": "0.000055",
+  "charged": "0.000007",
+  "settlements": [
+    {
+      "gpuId": "gpu-a",
+      "label": "GPU-A",
+      "provider": "moonshift",
+      "pool": "gpu-a",
+      "served": 2.0,
+      "unit": "tokens",
+      "amountUsdc": "0.000007",
+      "toPoolUsdc": "0.000007",
+      "providerCostUsdc": "0.000000",
+      "to": "TREASURY_GPU_A",
+      "hash": "33382824F5282EAF3CD4DF610B34C609283BECB8A1B0CB6B6B3D7B5164A65B59",
+      "explorerUrl": "https://devnet.xrpl.org/transactions/33382824F5282EAF3CD4DF610B34C609283BECB8A1B0CB6B6B3D7B5164A65B59",
+      "batch": "EE519784E17D39D6B6BE2011D560AE7FECD2858C8DA93CC9BD803993B77A60D2"
+    }
+  ],
+  "refund": {
+    "to": "DEV",
+    "amountUsdc": "0.000048",
+    "hash": "82FB52146C7FF601628884ADC365C3D836FF6CC017E33CA4C9386E44511F14C1",
+    "explorerUrl": "https://devnet.xrpl.org/transactions/82FB52146C7FF601628884ADC365C3D836FF6CC017E33CA4C9386E44511F14C1",
+    "batch": "EE519784E17D39D6B6BE2011D560AE7FECD2858C8DA93CC9BD803993B77A60D2"
+  },
+  "validation": {
+    "network": "devnet",
+    "buyer": "DEV",
+    "actualWeights": "Qwen/Qwen2.5-1.5B-Instruct",
+    "output": "Moonshift",
+    "noNewCloudResources": true
+  }
+}

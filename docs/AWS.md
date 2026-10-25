@@ -76,6 +76,17 @@ stay fast. Cheapest, Balanced and Fastest retain the requested duration when
 there is no measured performance evidence for different speeds. One online
 physical node cannot promise multiple simultaneously available GPUs.
 
+## Reservations
+
+`POST /bookings` reserves the physical node before requesting a ledger payment.
+The signed-in account prepays the live quote to that GPU's treasury. Inference
+inside its active reservation has no additional token charge. The browser must
+supply a stable `Idempotency-Key`; retries replay confirmation or report pending
+without charging again. Unknown payment outcomes and failed cancellations remain
+in a durable pending journal for operator reconciliation. They are never shown
+as confirmed or automatically submitted again. Operators verify the ledger
+outcome before confirming, cancelling or refunding an interrupted reservation.
+
 ## Morning verification
 
 On Alexander's machine, after the local stack is running with opt-in enabled:
