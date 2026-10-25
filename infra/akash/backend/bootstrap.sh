@@ -26,4 +26,8 @@ if [ ! -f .dependencies-ready ]; then
   done
   touch .dependencies-ready
 fi
+if [ "${MOONSHIFT_PREPARE_ONLY:-0}" = "1" ]; then
+  echo 'Release dependencies prepared without starting backend services'
+  exit 0
+fi
 exec "/data/venvs/$MOONSHIFT_REVISION/compute/bin/python" infra/akash/backend/run.py
