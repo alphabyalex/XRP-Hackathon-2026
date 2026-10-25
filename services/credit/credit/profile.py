@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
@@ -47,11 +48,13 @@ def iso(d: datetime | None) -> str | None:
 async def fetch_history(
     client: XrplClient, address: str, refresh: bool, now: datetime
 ) -> tuple[F.History, dict[str, Any]]:
-    info = await client.account_info(address, refresh=refresh)
-    lines = await client.account_lines(address, refresh=refresh)
-    page = await client.account_tx(address, refresh=refresh)
-    first_raw = await client.first_tx(address)
-    owed = await obligations(client, address, refresh)
+    info, lines, page, first_raw, owed = await asyncio.gather(
+        client.account_info(address, refresh=refresh),
+        client.account_lines(address, refresh=refresh),
+        client.account_tx(address, refresh=refresh),
+        client.first_tx(address),
+        obligations(client, address, refresh),
+    )
     txs: list[Tx] = [normalize(e) for e in page.transactions]
     first = normalize(first_raw) if first_raw else None
     dates = [t.date for t in txs if t.date]

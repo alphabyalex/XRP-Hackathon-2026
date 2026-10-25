@@ -97,14 +97,33 @@ export function mockProfile(network: string, address: string, accountName?: stri
 // a borrower's page never waits on a full history read. Fallbacks are not kept.
 const profileCache = swr<{ profile: CreditProfile; source: DataSource }>("credit-profile", 60_000, 30 * 60_000, (r) => r.source === "live");
 
+db.exec(`CREATE TABLE IF NOT EXISTS credit_profile_snapshots (network TEXT NOT NULL, address TEXT NOT NULL, profile TEXT NOT NULL, stored_at INTEGER NOT NULL, PRIMARY KEY(network,address))`);
+const profileEpoch = new Map<string, number>();
 export function getProfile(network: string, address: string, accountName?: string): Promise<{ profile: CreditProfile; source: DataSource }> {
   if (mockFlag("MOCK_CREDIT")) return readProfile(network, address, accountName);
-  return profileCache.get(`${network}:${address}`, () => readProfile(network, address, accountName));
+  const key = `${network}:${address}`;
+  const saved = db.prepare("SELECT profile,stored_at FROM credit_profile_snapshots WHERE network=? AND address=?").get(network,address) as {profile:string;stored_at:number}|undefined;
+  if (saved && Date.now()-saved.stored_at < 30*60000 && Date.now()>=saved.stored_at) {
+    try {
+      const profile=JSON.parse(saved.profile) as CreditProfile;
+      if (profile.address===address && profile.network===network && profile.simulated===false) profileCache.seed(key,{profile,source:"live"},saved.stored_at);
+    } catch { /* A bad cache cannot become a score. Fetch the real profile. */ }
+  }
+  return profileCache.get(key,async()=>{
+    const generation=profileEpoch.get(key)??0;
+    const result=await readProfile(network,address,accountName);
+    if (result.source==="live" && result.profile.simulated===false && (profileEpoch.get(key)??0)===generation) {
+      db.prepare("INSERT OR REPLACE INTO credit_profile_snapshots VALUES (?,?,?,?)").run(network,address,JSON.stringify(result.profile),Date.now());
+    }
+    return result;
+  });
 }
 
-// A loan event changes the borrower's Moonshift history: read it fresh next time.
 export function invalidateProfile(network: string, address: string): void {
-  profileCache.invalidate(`${network}:${address}`);
+  const key=`${network}:${address}`;
+  profileEpoch.set(key,(profileEpoch.get(key)??0)+1);
+  profileCache.invalidate(key);
+  db.prepare("DELETE FROM credit_profile_snapshots WHERE network=? AND address=?").run(network,address);
 }
 
 async function readProfile(network: string, address: string, accountName?: string): Promise<{ profile: CreditProfile; source: DataSource }> {
@@ -119,10 +138,8 @@ async function readProfile(network: string, address: string, accountName?: strin
     return { profile, source: "live" };
   } catch (e) {
     if (!(e instanceof ServiceUnavailable)) throw e;
-    // A user's score is never made up: their quote waits for the credit service.
-    if (accountName?.startsWith("U_")) throw e;
-    noteSource("credit", "mock-fallback");
-    return { profile: { ...mockProfile(network, address, accountName), source: "mock-fallback" }, source: "mock-fallback" };
+    // Live-mode profiles always fail closed, including operator accounts.
+    throw e;
   }
 }
 

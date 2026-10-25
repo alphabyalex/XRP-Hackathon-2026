@@ -12,6 +12,7 @@ A link is either verified (signed-message flow in link.py) or a labeled demo lin
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from credit import features as F
@@ -49,8 +50,10 @@ async def build(
     own line (own score) but not part of this score, used when a connected wallet replaces it."""
     link_net = link.get("network", "mainnet")
     link_addr = link.get("address") or link["mainnetAddress"]
-    own_body, own_hist = await profile.build(network, address, refresh)
-    linked_body, linked_hist = await profile.build(link_net, link_addr, refresh or refresh_link)
+    (own_body, own_hist), (linked_body, linked_hist) = await asyncio.gather(
+        profile.build(network, address, refresh),
+        profile.build(link_net, link_addr, refresh or refresh_link),
+    )
     feats = merge(F.extract(own_hist), F.extract(linked_hist))
     s = scoring.score(feats)
     reasons = list(s.reasons)

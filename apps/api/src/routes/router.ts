@@ -46,10 +46,20 @@ routerPublic.get("/router/fleet", (req, res) => proxy(req, res, "/fleet"));
 routerPublic.get("/router/health", (req, res) => proxy(req, res, "/health"));
 routerPublic.post("/router/quote", (req, res) => proxy(req, res, "/quote"));
 // The buyer is the signed-in account (never a name from the browser).
-routerPublic.post("/router/orders", asActor("body", "buyer"), requirePromptFunding, (req, res) => {
+routerPublic.post("/router/orders", asActor("body", "buyer"), requirePromptFunding, async (req, res) => {
   if (req.body?.taskType && req.body.taskType !== "inference") {
     res.status(409).json({ error: { code: "TASK_TYPE_UNAVAILABLE", message: "The current GPU endpoint supports text inference only." } });
     return;
+  }
+  if (req.body?.modelId !== undefined) {
+    try {
+      const catalog = await getRentalCatalog();
+      if (typeof req.body.modelId !== "string" || !selectServingGpu(catalog.gpus, req.body.gpuId, req.body.modelId)) {
+        res.status(409).json({ error: { code: "MODEL_NOT_SERVING", message: "Choose the model currently serving on this GPU." } });
+        return;
+      }
+      delete req.body.modelId;
+    } catch { res.status(503).json({ error: { code: "MODEL_UNAVAILABLE", message: "The serving model could not be checked." } }); return; }
   }
   return proxy(req, res, "/orders");
 });

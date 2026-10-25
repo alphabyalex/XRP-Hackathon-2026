@@ -61,6 +61,9 @@ export function swr<T>(name: string, freshMs: number, maxStaleMs: number, keep: 
       }
       return timed(`${name} ${key.slice(0, 12)} miss`, load(key, fn));
     },
+    seed(key: string, value: T, at: number) {
+      if (!entries.has(key) && keep(value) && Number.isFinite(at)) entries.set(key, { value, at });
+    },
     invalidate(key?: string) {
       gen++;
       if (key === undefined) entries.clear();

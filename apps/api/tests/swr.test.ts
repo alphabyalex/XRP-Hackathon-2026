@@ -161,3 +161,15 @@ test("swr preserves stale value if background refresh throws", async () => {
   const v2 = await cache.get("k1", loader);
   assert.equal(v2, "stable-value");
 });
+
+test('a persisted real snapshot seeds immediate reads and invalidation requires a new load', async () => {
+  const cache = swr<number>('snapshot',1000,30000);
+  let calls=0;
+  cache.seed('account-a',7,Date.now());
+  assert.equal(await cache.get('account-a',async()=>++calls),7);
+  assert.equal(calls,0);
+  cache.seed('account-a',99,Date.now());
+  assert.equal(await cache.get('account-a',async()=>++calls),7);
+  cache.invalidate('account-a');
+  assert.equal(await cache.get('account-a',async()=>++calls),1);
+});
