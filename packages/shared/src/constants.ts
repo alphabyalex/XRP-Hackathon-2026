@@ -13,7 +13,7 @@ export const GPUS = [
   {
     id: "gpu-a",
     label: "GPU A",
-    hw: "NVIDIA T4 16GB (AWS g4dn.xlarge)",
+    hw: "NVIDIA T4 16GB",
     model: "Qwen/Qwen3-1.7B",
     shareCode: "GPA",
     contractCode: "HRA",
@@ -22,7 +22,7 @@ export const GPUS = [
   {
     id: "gpu-b",
     label: "GPU B",
-    hw: "NVIDIA T4 16GB (Akash dCloud via akt)",
+    hw: "NVIDIA T4 16GB",
     model: "Qwen/Qwen3-1.7B",
     shareCode: "GPB",
     contractCode: "HRB",
