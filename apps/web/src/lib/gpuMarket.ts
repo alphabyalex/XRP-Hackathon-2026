@@ -22,6 +22,7 @@ export interface GpuStats {
   price?: string | number;
   openPrice?: string | number | null;
   revenue24h?: string | number | null;
+  workingPct20h?: string | number | null;
   paidToHoldersLastNight?: string | number | null;
   change24hPct?: string | number | null;
   volume24h?: string | number | null;

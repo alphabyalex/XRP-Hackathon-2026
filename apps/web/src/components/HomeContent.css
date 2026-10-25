@@ -1,0 +1,10 @@
+.hero .hero-stat {
+  color: var(--ink);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-radius: 4px;
+  padding-inline: 0.12em;
+  white-space: nowrap;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}

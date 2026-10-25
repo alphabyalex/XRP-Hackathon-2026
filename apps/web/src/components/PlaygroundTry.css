@@ -1,0 +1,25 @@
+.try .playground-heading {
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.playground-model {
+  max-width: 74%;
+  color: var(--ink3);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.playground-model b {
+  color: var(--ink2);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.try .playground-controls {
+  margin-top: 16px;
+}
+.playground-progress {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink3);
+}

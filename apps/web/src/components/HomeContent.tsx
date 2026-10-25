@@ -1,5 +1,4 @@
 "use client";
-import { utilizationOf } from "@/lib/schedule";
 import { num } from "@/lib/catalog";
 import { priceOf, useStatsMap } from "@/lib/gpuMarket";
 import dynamic from "next/dynamic";
@@ -17,15 +16,13 @@ import { PlaygroundTry } from "./PlaygroundTry";
 import { ApiErrorNotice } from "./ApiErrorNotice";
 import { Reveal } from "./Reveal";
 import { LiveNumber } from "./LiveNumber";
+import "./HomeContent.css";
 
 const Hero3DMark = dynamic(() => import("./Hero3DMark").then((m) => m.Hero3DMark), {
   ssr: false,
   loading: () => <div className="stage3d" />,
 });
 
-// "two GPUs" in the hero sentence (spelled out up to ten).
-const WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
-const gpuWords = (n: number) => `${WORDS[n] ?? n} GPU${n === 1 ? "" : "s"}`;
 export function HomeContent() {
   const gpus = useLiveGpus();
   const now = useNow();
@@ -37,10 +34,11 @@ export function HomeContent() {
   const live = views.filter((v) => v.gpu.state !== "OFFLINE");
   // Payouts and prices from GET /gpus/:id/stats (the dividend ledger), the numbers Market and the GPU page show.
   const stats = useStatsMap(views.map((v) => v.gpu.id));
-  const paidOf = (v: (typeof views)[number]) => num(stats[v.gpu.id]?.paidToHoldersLastNight) ?? v.split.holders;
-  const paidLastNight = views.reduce((s, v) => s + paidOf(v), 0);
-  // From the same slots the schedules draw, so the number and the bars agree.
-  const avgUtil = live.length ? live.reduce((s, v) => s + utilizationOf(v.slots, v.nowIndex), 0) / live.length : 0;
+  const payouts = live.map(v => num(stats[v.gpu.id]?.paidToHoldersLastNight));
+  const working = live.map(v => num(stats[v.gpu.id]?.workingPct20h));
+  const paidLatest = live.length && payouts.every(value => value !== null) ? payouts.reduce<number>((sum, value) => sum + value!, 0) : null;
+  const avgUtil = live.length && working.every(value => value !== null) ? working.reduce<number>((sum, value) => sum + value!, 0) / live.length : null;
+  const featuredStats = featured ? stats[featured.gpu.id] : undefined;
 
   return (
     <main id="top">
@@ -51,9 +49,9 @@ export function HomeContent() {
               Own a <em>share</em> of a GPU.
             </h1>
             <p className="sub">
-              Moonshift splits real GPUs into shares on the XRP Ledger. Right now {gpuWords(live.length)} {live.length === 1 ? "is" : "are"} taking customer tasks, busy{" "}
-              <LiveNumber value={avgUtil} digits={1} suffix="%" /> of the last 20 hours. Last night shareholders were paid{" "}
-              <LiveNumber value={paidLastNight} digits={2} /> USDC.
+              Moonshift splits real GPUs into shares on the XRP Ledger. Right now <strong className="hero-stat">{live.length} {live.length === 1 ? "GPU" : "GPUs"}</strong> {live.length === 1 ? "is" : "are"} online.
+              {avgUtil !== null && <> Recorded work occupied <strong className="hero-stat"><LiveNumber value={avgUtil} digits={1} suffix="%" /></strong> of their capacity over the last <strong className="hero-stat">20 hours</strong>.</>}
+              {paidLatest !== null && <> Shareholders received <strong className="hero-stat"><LiveNumber value={paidLatest} digits={2} /> USDC</strong> in their latest payouts.</>}
             </p>
             <div className="ctas">
               <Button href="/market" arrow>
@@ -62,24 +60,6 @@ export function HomeContent() {
               <Button href="/#schedule" variant="ghost">
                 See how it earns
               </Button>
-            </div>
-            <div className="proof">
-              <div>
-                <b>
-                  <LiveNumber value={paidLastNight} digits={2} /> USDC
-                </b>
-                paid to holders last night
-              </div>
-              <div>
-                <b>
-                  <LiveNumber value={avgUtil} digits={1} suffix="%" />
-                </b>
-                of the last 20 hours working
-              </div>
-              <div>
-                <b>{live.length}</b>
-                {live.length === 1 ? "GPU" : "GPUs"} live on the XRP Ledger
-              </div>
             </div>
           </Reveal>
           <Hero3DMark />
@@ -146,19 +126,19 @@ export function HomeContent() {
                     <div>
                       <span>Working, last 20 hours</span>
                       <b>
-                        <LiveNumber value={utilizationOf(featured.slots, featured.nowIndex)} digits={1} suffix="%" />
+                        {num(featuredStats?.workingPct20h) !== null ? <LiveNumber value={Number(featuredStats!.workingPct20h)} digits={1} suffix="%" /> : "Loading"}
                       </b>
                     </div>
                     <div>
                       <span>Revenue, last 24h</span>
                       <b>
-                        <LiveNumber value={num(stats[featured.gpu.id]?.revenue24h) ?? featured.revenue24h} digits={2} /> USDC
+                        {num(featuredStats?.revenue24h) !== null ? <><LiveNumber value={Number(featuredStats!.revenue24h)} digits={2} /> USDC</> : "Loading"}
                       </b>
                     </div>
                     <div>
                       <span>Paid per share, last 24h</span>
                       <b>
-                        <LiveNumber value={num(stats[featured.gpu.id]?.paidPerShare24h) ?? featured.split.holders / 1000} digits={6} /> USDC
+                        {num(featuredStats?.paidPerShare24h) !== null ? <><LiveNumber value={Number(featuredStats!.paidPerShare24h)} digits={6} /> USDC</> : "Loading"}
                       </b>
                     </div>
                   </div>
