@@ -79,8 +79,8 @@ export function HomeContent() {
         <div className="wrap">
           <Reveal>
             <div className="shead">
-              <h2>Two GPUs, trading now.</h2>
-              <p>Each one is an NVIDIA T4 running on AWS. Prices come from the order book on the XRP Ledger DEX. Yield is last 24 hours of payouts, annualized.</p>
+              <h2>Two GPUs, earning now.</h2>
+              <p>Prices come from the order book on the XRP Ledger DEX. Yield is the last 24 hours of payouts, annualized.</p>
             </div>
           </Reveal>
           <Reveal>
@@ -171,11 +171,11 @@ export function HomeContent() {
               <Reveal>
                 <div className="shead" style={{ marginBottom: 0 }}>
                   <h2>Borrow without selling.</h2>
-                  <p>Lock your shares in an XRPL escrow and borrow up to half their value in USDC. Locked shares keep earning their nightly payout.</p>
+                  <p>Lock your shares and borrow up to half their value in USDC. Locked shares keep earning their nightly payout.</p>
                 </div>
                 <div className="ledger">
                   <div>
-                    <code>EscrowCreate</code>
+                    <code>Lock</code>
                     <span>locks your shares until the loan is repaid</span>
                   </div>
                   <div>

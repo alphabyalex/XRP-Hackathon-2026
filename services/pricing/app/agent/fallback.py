@@ -82,28 +82,20 @@ def credit_memo(credit_profile: dict, quote: dict, loan_request: dict) -> str:
 
 
 def risk_alert(event: dict) -> str:
-    event_type = event.get("type", "margin_call")
-    loan_id = event.get("loanId") or event.get("loan_id") or "loan"
-    ltv = event.get("ltv", "0")
-    threshold = (
-        event.get("thresholdLtv")
-        or event.get("marginCallLtv")
-        or event.get("margin_call_ltv")
-        or "0"
-    )
-    liq_threshold = event.get("liquidationLtv") or event.get("liquidation_ltv") or "0"
-    balance = event.get("outstandingBalance") or event.get("outstanding_balance") or "0"
-    gpu_id = event.get("gpuId") or event.get("gpu_id") or "GPU"
+    from app.agent.memo_format import present_alert
 
-    if event_type == "liquidation":
+    e = present_alert(event)
+    ltv = e.get("ltv", "its limit")
+    gpu = e.get("gpu", "GPU")
+    balance = e.get("outstandingBalance", "the outstanding balance")
+    if e["type"] == "liquidation":
         return (
-            f"Loan {loan_id} has breached the liquidation threshold of {liq_threshold or threshold} with an LTV of {ltv}. "
-            f"Collateral shares of {gpu_id} are being liquidated to satisfy the outstanding balance of {balance} TDX."
+            f"Your loan reached the liquidation line of {e.get('liquidationLtv', 'its limit')} with an LTV of {ltv}. "
+            f"Your {gpu} shares are being sold to repay the outstanding balance of {balance}."
         )
     return (
-        f"A margin call has been issued for loan {loan_id}. "
-        f"The current loan-to-value ratio has risen to {ltv}, crossing the margin call threshold of {threshold}. "
-        f"Please deposit additional collateral or pay down principal on your outstanding balance of {balance} TDX to prevent liquidation."
+        f"Margin call on your loan. Its loan-to-value ratio rose to {ltv}, above the margin call line of {e.get('marginCallLtv', 'its limit')}. "
+        f"Add collateral or pay down principal on your outstanding balance of {balance} to avoid liquidation at {e.get('liquidationLtv', 'the liquidation line')}."
     )
 
 

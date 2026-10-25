@@ -31,9 +31,3 @@ export function shortHash(hash: string): string {
 export function isMockHash(hash: string): boolean {
   return hash.startsWith("MOCK");
 }
-
-// Second line of a write-action toast per BRAND.md section 6: ends with
-// "simulated" while apps/api is in mock mode (tx hash prefixed MOCK).
-export function txToastLine(detail: string, hash: string): string {
-  return `${detail} · tx ${shortHash(hash)}`;
-}

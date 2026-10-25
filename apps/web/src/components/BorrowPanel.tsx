@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button } from "./Button";
-import { fmt, txToastLine, typedAmount } from "@/lib/format";
+import { fmt, typedAmount, usdc } from "@/lib/format";
 import { openLoan } from "@/lib/api";
 import { useToast } from "./Toast";
 
@@ -37,10 +37,7 @@ export function BorrowPanel({
     setBusy(true);
     try {
       const loan = await openLoan(gpuId, String(c));
-      toast(
-        `Borrowed ${fmt(Number(loan.principal), 2)} USDC`,
-        txToastLine("EscrowCreate + Payment in one Batch", loan.disburseTx ?? loan.escrowTx ?? "")
-      );
+      toast(`Borrowed ${usdc(loan.principal)} USDC`, `${fmt(c, 0)} ${gpuLabel} shares locked`, loan.disburseTx ?? loan.escrowTx);
       onBorrowed?.();
     } catch (err) {
       toast("Borrow failed", (err as Error).message);

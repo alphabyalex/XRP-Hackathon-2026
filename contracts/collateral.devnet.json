@@ -168,6 +168,13 @@
       "owner": "rM3xbxu9LmbPHtp5jBRTvCmXmSADaAdA87",
       "escrowSequence": 6390377,
       "nonce": "42625615D363420DCF138DDB"
+    },
+    "AEC86C26A690A15BA23C4F9464A758610F45039F9998C024358E15A3E7DFC33E": {
+      "gpuId": "gpu-a",
+      "shares": "100.000000",
+      "owner": "rpSt2eKyuauA654685tN12QEqUBqugLtz7",
+      "escrowSequence": 6390888,
+      "nonce": "12F91A2251A2CA1367264E3D"
     }
   }
 }

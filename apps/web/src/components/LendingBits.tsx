@@ -3,7 +3,7 @@
 import { useState } from "react";
 import clsx from "clsx";
 import type { StressResult, XlsLoanRecord } from "@moonshift/shared";
-import { fmt, shortHash } from "@/lib/format";
+import { fmt, usdc } from "@/lib/format";
 import { pct, restorePrice, stress, txUrl } from "@/lib/lendingApi";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
@@ -11,7 +11,7 @@ import { useToast } from "./Toast";
 export function TxLink({ network, hash, label }: { network: string; hash?: string | null; label?: string }) {
   if (!hash) return null;
   const url = txUrl(network, hash);
-  const text = `${label ? `${label} ` : ""}${shortHash(hash)}`;
+  const text = label ? `${label} · View transaction` : "View transaction";
   return url ? (
     <a className="txl" href={url} target="_blank" rel="noreferrer">
       {text}
@@ -64,14 +64,14 @@ export function HealthMeter({ ltv, marginCallLtv, liquidationLtv }: { ltv: numbe
 }
 
 const STEP_LABEL: Record<string, string> = {
-  escrow: "Collateral escrow",
-  loanSet: "LoanSet",
-  pay: "LoanPay",
-  pay2: "LoanPay",
-  release: "Collateral release",
-  delete: "LoanDelete",
+  escrow: "Shares locked",
+  loanSet: "Loan opened",
+  pay: "Payment",
+  pay2: "Payment",
+  release: "Shares returned",
+  delete: "Loan closed",
   marginCall: "Margin call",
-  seize: "Collateral seized",
+  seize: "Shares taken",
   default: "Default",
 };
 
@@ -110,7 +110,8 @@ export function StressControls({
       const act = r.actions[0];
       toast(
         level === "margin_call" ? "GPU price crashed toward the margin call line" : "GPU price crashed past liquidation",
-        `${gpuId.toUpperCase()} oracle ${fmt(Number(r.priceBefore), 2)} to ${fmt(Number(r.priceAfter), 2)} USDC · ${act ? `${act.action === "liquidate" ? "liquidation" : "margin call"} tx ${shortHash(act.tx?.hash ?? "")}` : "no loan crossed a line"}`
+        `${gpuId.toUpperCase()} ${usdc(r.priceBefore)} to ${usdc(r.priceAfter)} USDC per share${act ? "" : " · no loan crossed a line"}`,
+        act?.tx?.hash
       );
       onDone?.(r);
     } catch (e) {
@@ -125,7 +126,7 @@ export function StressControls({
     try {
       const r = await restorePrice(gpuId);
       setLast(null);
-      toast("Oracle price restored", `${gpuId.toUpperCase()} ${fmt(Number(r.price), 2)} USDC per share · tx ${shortHash(r.tx.hash)}`);
+      toast("Price restored", `${gpuId.toUpperCase()} ${usdc(r.price)} USDC per share`, r.tx.hash);
       onDone?.(null);
     } catch (e) {
       toast("Restore failed", (e as Error).message);
@@ -136,7 +137,7 @@ export function StressControls({
 
   return (
     <div className={clsx("stress", compact && "compact")}>
-      <span className="lbl">Stress test (devnet oracle)</span>
+      <span className="lbl">Stress test</span>
       <div className="stress-btns">
         <Button size="sm" variant="ghost" disabled={!!busy} onClick={() => run("margin_call")}>
           {busy === "margin_call" ? "Crashing..." : "Crash price to margin call"}
@@ -151,7 +152,7 @@ export function StressControls({
       {last && !compact && (
         <div className="facts" style={{ marginTop: 14 }}>
           <div>
-            <span>Oracle price</span>
+            <span>Share price</span>
             <b>
               {fmt(Number(last.priceBefore), 2)} to {fmt(Number(last.priceAfter), 2)}
             </b>

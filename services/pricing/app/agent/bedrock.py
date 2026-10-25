@@ -14,7 +14,7 @@ from functools import lru_cache
 
 from app import config as C
 from app.agent import fallback, guardrails
-from app.agent.memo_format import present
+from app.agent.memo_format import present, present_alert
 from app.agent.prompts import (
     CREDIT_MEMO_SYSTEM_PROMPT,
     RISK_ALERT_SYSTEM_PROMPT,
@@ -219,7 +219,7 @@ def _memo(text: str, started: float, outcome: str) -> CreditMemo:
 def generate_risk_alert(event: dict) -> RiskAlert:
     """Generate risk alert explanation for margin call or liquidation."""
     started = time.monotonic()
-    allowed = guardrails.allowed_numbers(event)
+    allowed = guardrails.allowed_numbers(event) | guardrails.allowed_numbers(present_alert(event))
 
     def fallback_result() -> RiskAlert:
         latency = int((time.monotonic() - started) * 1000)

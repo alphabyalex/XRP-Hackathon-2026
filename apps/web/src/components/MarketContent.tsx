@@ -19,8 +19,8 @@ export function MarketContent() {
     <main className="s">
       <div className="wrap">
         <div className="shead">
-          <h2>Two GPUs, trading now.</h2>
-          <p>Multi-cloud GPU compute: GPU-A on AWS EC2, GPU-B on Akash Network decentralized cloud. Transparent hardware resource pricing (GPU, vCPU, RAM, NVMe SSD) indexed in real time.</p>
+          <h2>Two GPUs, earning now.</h2>
+          <p>Prices come from the order book on the XRP Ledger DEX. Yield is the last 24 hours of payouts, annualized.</p>
         </div>
         {unreachable && <ApiErrorNotice />}
         <AppWindow tabs={["Market", "Portfolio", "Borrow", "Playground"]} activeTab="Market" acct={<AccountBalance />}>

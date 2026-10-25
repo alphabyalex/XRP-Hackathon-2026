@@ -50,7 +50,7 @@ export function AccountPortfolio() {
   useEffect(()=>{if(!chart.current)return;const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){setInView(true);observer.disconnect();}},{threshold:0.15});observer.observe(chart.current);return()=>observer.disconnect();},[deferred,data?.holdings.length]);
   async function repay(id:string){
     setBusy(id);
-    try{const loan=await payOff(id);toast("Loan repaid",Object.entries(loan.txs).filter(([key])=>key.startsWith("pay")).map(([,hash])=>hash).join(" · "));await refresh();}
+    try{const loan=await payOff(id);toast("Loan repaid",`${fmt(Number(loan.collateralShares),0)} shares back in your wallet`,loan.txs.release??loan.txs.pay??null);await refresh();}
     catch{toast("Repayment unavailable","Please try again.");}finally{setBusy(null);}
   }
   const held=data?.holdings??[];

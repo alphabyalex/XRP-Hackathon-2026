@@ -3,7 +3,7 @@
 // loan-book stats from the risk desk, and the stress test.
 import { useCallback, useEffect, useState } from "react";
 import type { BookStats, VaultOverview, VaultState, XlsLoanRecord } from "@moonshift/shared";
-import { fmt, shortHash, typedAmount } from "@/lib/format";
+import { fmt, typedAmount, usdc } from "@/lib/format";
 import { bookStats, deposit, getPositions, getVault, listLoans, pct, useApiEvents, withdraw } from "@/lib/lendingApi";
 import { useWallet } from "@/lib/wallet";
 import { ConnectPrompt } from "./ConnectPrompt";
@@ -57,7 +57,7 @@ function RoundCard({ v, title, network, children }: { v: VaultState; title: stri
       </div>
       {v.explorerUrl && network !== "mock" && (
         <a className="txl" href={v.explorerUrl} target="_blank" rel="noreferrer">
-          Vault account on the {network} explorer
+          View vault account
         </a>
       )}
       {children}
@@ -112,10 +112,7 @@ export function LendContent() {
     setBusy(kind);
     try {
       const r = kind === "deposit" ? await deposit(amount) : await withdraw(amount);
-      toast(
-        kind === "deposit" ? `Deposited ${fmt(Number(amount), 2)} USDC` : `Withdrew ${fmt(Number(amount), 2)} USDC`,
-        `round ${r.round} · ${kind === "deposit" ? "VaultDeposit" : "VaultWithdraw"} tx ${shortHash(r.tx.hash)}`
-      );
+      toast(kind === "deposit" ? `Deposited ${usdc(amount)} USDC` : `Withdrew ${usdc(amount)} USDC`, `Round ${r.round}`, r.tx.hash);
       await refresh();
     } catch (e) {
       toast(kind === "deposit" ? "Deposit failed" : "Withdraw failed", (e as Error).message);
@@ -136,9 +133,8 @@ export function LendContent() {
         <div className="shead">
           <h2>Lend USDC to GPU owners.</h2>
           <p>
-            Deposits go into an XRPL vault (XLS-65) that Moonshift lends from as a native loan broker (XLS-66). Every loan is backed by escrowed GPU
-            shares and a first-loss cover. Vaults run in rounds: a round takes deposits, then lends for a fixed term, then pays lenders back, so you
-            deposit into the next round while the current one is lending.
+            Your deposit funds loans to GPU shareholders. Every loan is backed by locked GPU shares and a first-loss cover. You deposit into the
+            next round while the current one is lending.
           </p>
         </div>
         {err && <p className="note dn">{err}</p>}

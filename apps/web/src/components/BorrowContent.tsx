@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AgentText, CreditProfile, LoanQuoteApiResponse, PortfolioResponse, XlsLoanRecord } from "@moonshift/shared";
 import { getPortfolio } from "@/lib/api";
-import { fmt, shortHash, typedAmount } from "@/lib/format";
+import { fmt, shortHash, typedAmount, usdc } from "@/lib/format";
 import { borrowerProfile, listLoans, maxPrincipal, openFromQuote, walletGet, type ConnectedWallet, payNext, payOff, pct, quoteLoan, quoteMemo, txUrl, useApiEvents } from "@/lib/lendingApi";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
@@ -300,7 +300,7 @@ export function BorrowContent({
   useApiEvents(["loan", "vault", "risk"], (type, data) => {
     if (type === "loan" && data?.alert?.text) setAlerts((a) => ({ ...a, [data.id]: data.alert.text }));
     if (type === "loan" && data?.type === "margin_call") toast("Margin call", `${data.alert?.text?.slice(0, 120) ?? ""}`);
-    if (type === "loan" && data?.type === "liquidated") toast("Loan liquidated", `collateral seized · tx ${shortHash(data.tx ?? "")}`);
+    if (type === "loan" && data?.type === "liquidated") toast("Loan liquidated", "Your locked shares repaid the loan.", data.tx);
     void refresh();
   });
 
@@ -309,10 +309,7 @@ export function BorrowContent({
     setBusy("open");
     try {
       const loan = await openFromQuote(quote.quoteId);
-      toast(
-        `Borrowed ${fmt(Number(loan.principal), 2)} USDC on ${loan.network}`,
-        `XLS-66 LoanSet tx ${shortHash(loan.txs.loanSet ?? "")} · ${loan.collateralShares} ${code} escrowed`
-      );
+      toast(`Borrowed ${usdc(loan.principal)} USDC`, `${fmt(Number(loan.collateralShares), 0)} ${code} shares locked`, loan.txs.loanSet);
       setPrincipal(""); // a quote opens one loan; the next one starts from a fresh amount
       setRequote((n) => n + 1); // the profile and the max change after a loan
       await refresh();
@@ -327,10 +324,8 @@ export function BorrowContent({
     setBusy(loan.id + (full ? "full" : "next"));
     try {
       const r = full ? await payOff(loan.id) : await payNext(loan.id);
-      toast(
-        full ? "Loan paid off, collateral released" : "Installment paid",
-        full ? `Batch release tx ${shortHash(r.txs.release ?? "")} · ${r.collateralShares} ${code} back` : `LoanPay tx ${shortHash(r.txs.pay ?? "")}`
-      );
+      if (full) toast("Loan paid off", `${fmt(Number(r.collateralShares), 0)} ${code} shares back in your wallet`, r.txs.release);
+      else toast("Installment paid", "", r.txs.pay);
       await refresh();
     } catch (e) {
       toast("Payment failed", (e as Error).message);
@@ -357,8 +352,8 @@ export function BorrowContent({
     <div className="shead">
       <h2>Borrow against your GPU shares.</h2>
       <p>
-        Your shares stay yours. They sit in an XRPL escrow while you borrow USDC from the Moonshift lending vault, and they come back the moment you
-        repay. Terms come from your on-chain payment history and the GPU&apos;s real revenue.
+        Your shares stay yours. They are locked while you borrow USDC from the Moonshift lending vault and come back the moment you repay. Terms
+        come from your payment history and the GPU&apos;s real revenue.
       </p>
     </div>
   );
@@ -382,8 +377,8 @@ export function BorrowContent({
         <div className="shead">
           <h2>Borrow against your GPU shares.</h2>
           <p>
-            Your shares stay yours. They sit in an XRPL escrow while you borrow USDC from the Moonshift lending vault, and they come back the moment you
-            repay. Terms come from your on-chain payment history and the GPU&apos;s real revenue.
+            Your shares stay yours. They are locked while you borrow USDC from the Moonshift lending vault and come back the moment you repay. Terms
+            come from your payment history and the GPU&apos;s real revenue.
           </p>
         </div>
 
@@ -425,7 +420,7 @@ export function BorrowContent({
                             const url = txUrl(f.from ?? credit.network, h);
                             return url ? (
                               <a key={h} className="txl" href={url} target="_blank" rel="noreferrer">
-                                {shortHash(h)}
+                                View transaction
                               </a>
                             ) : null;
                           })}
@@ -439,14 +434,13 @@ export function BorrowContent({
                       c.role === "reference" ? (
                         <div key={c.part} className="ref">
                           <span>
-                            Mainnet history · {shortHash(c.address)} · score {c.ownScore.score}
+                            Wallet history · {shortHash(c.address)} · score {c.ownScore.score}
                           </span>
                         </div>
                       ) : (
                         <div key={c.part}>
                           <b>{c.part}</b>
                           <span>
-                            {c.network === "mainnet" ? "" : `XRPL ${c.network} · `}
                             {shortHash(c.address)}
                           </span>
                           {/* the wallet row above already says it for a connected wallet */}
@@ -563,7 +557,7 @@ export function BorrowContent({
             {quoteErr && !q && <p className="note dn">{quoteErr}</p>}
             <Button disabled={!q || q.decision !== "approve" || !!busy || quoting} onClick={doOpen}>
               {busy === "open"
-                ? "Signing LoanSet on devnet..."
+                ? "Opening your loan..."
                 : q?.decision === "decline"
                   ? "Not approved"
                   : Number(principal) > 0

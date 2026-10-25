@@ -15,7 +15,7 @@ loansRouter.post("/loans/open", async (req, res) => {
   // XLS-66 path: open from an accepted quote (POST /loans/quote first).
   if ((req.body as any)?.quoteId) {
     if (!lendingAvailable()) {
-      res.status(409).json({ error: { code: "LENDING_UNAVAILABLE", message: "XLS-66 lending needs NETWORK=devnet (or MOCK_XRPL=1)" } });
+      res.status(409).json({ error: { code: "LENDING_UNAVAILABLE", message: "Lending is unavailable right now." } });
       return;
     }
     try {

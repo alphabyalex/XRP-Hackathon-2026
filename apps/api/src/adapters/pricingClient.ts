@@ -207,8 +207,8 @@ export async function riskAlert(req: {
 }): Promise<AgentText> {
   const text =
     req.type === "margin_call"
-      ? `Margin call on loan ${req.loanId.slice(0, 8)}. LTV rose to ${pct(req.ltv)}, above the ${pct(req.thresholdLtv)} margin call line. Add collateral or pay down principal on the ${Number(req.outstandingBalance).toFixed(2)} USDC balance to avoid liquidation at ${pct(req.liquidationLtv)}.`
-      : `Loan ${req.loanId.slice(0, 8)} was liquidated at ${pct(req.ltv)} LTV, above the ${pct(req.liquidationLtv)} liquidation line. The escrowed GPU shares (worth ${Number(req.collateralValue).toFixed(2)} USDC) moved to the lender side; first-loss cover absorbs part of any shortfall.`;
+      ? `Margin call on your loan. LTV rose to ${pct(req.ltv)}, above the ${pct(req.thresholdLtv)} margin call line. Add collateral or pay down principal on the ${Number(req.outstandingBalance).toFixed(2)} USDC balance to avoid liquidation at ${pct(req.liquidationLtv)}.`
+      : `Your loan was liquidated at ${pct(req.ltv)} LTV, above the ${pct(req.liquidationLtv)} liquidation line. Your locked GPU shares (worth ${Number(req.collateralValue).toFixed(2)} USDC) repaid the lender; first-loss cover absorbs part of any shortfall.`;
   const fallback = (source: AgentText["source"]): AgentText => ({ text, modelId: null, latencyMs: 0, fellBack: true, source });
   if (MOCK) return fallback("mock");
   try {

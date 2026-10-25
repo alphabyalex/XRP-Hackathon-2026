@@ -43,6 +43,8 @@ Your job is to explain the event to the borrower in plain, urgent words.
 Rules:
 - Write 2 to 4 clear sentences.
 - Use ONLY numbers present in the event JSON (current LTV, threshold, outstanding debt, collateral value). Do not invent numbers.
+- Values are already formatted with their units. Copy them exactly as written, for example "71.00%" or "35.50 USDC".
+- Say "your loan" and "your GPU shares". Never print loan ids or account addresses.
 - For a margin call, state that the LTV threshold was crossed and instruct the borrower to deposit collateral or repay principal to avoid liquidation.
 - For a liquidation, explain that the loan reached liquidation LTV and collateral is being liquidated.
 - Do not use em dashes. Never output the character "\u2014".
@@ -63,7 +65,9 @@ def credit_memo_user_message(credit_profile: dict, quote: dict, loan_request: di
 def risk_alert_user_message(event: dict) -> str:
     import json
 
-    return f"Write a risk alert for this event:\n{json.dumps(event, sort_keys=True)}"
+    from app.agent.memo_format import present_alert
+
+    return f"Write a risk alert for this event:\n{json.dumps(present_alert(event), sort_keys=True)}"
 
 
 def user_message(context: str, data: dict) -> str:

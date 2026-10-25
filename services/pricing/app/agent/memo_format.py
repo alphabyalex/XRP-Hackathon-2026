@@ -101,3 +101,17 @@ def present(credit_profile: dict, quote: dict, loan_request: dict) -> dict[str, 
         for k in [k for k, v in part.items() if v is None]:
             del part[k]
     return out
+
+
+def present_alert(event: dict) -> dict[str, Any]:
+    """A margin call or liquidation as the borrower reads it. Loan ids and addresses are left out."""
+    out = {
+        "type": "liquidation" if event.get("type") == "liquidation" else "margin call",
+        "gpu": (event.get("gpuId") or event.get("gpu_id") or "GPU").upper(),
+        "ltv": pct(event.get("ltv")),
+        "marginCallLtv": pct(event.get("thresholdLtv") or event.get("marginCallLtv") or event.get("margin_call_ltv")),
+        "liquidationLtv": pct(event.get("liquidationLtv") or event.get("liquidation_ltv")),
+        "outstandingBalance": money(event.get("outstandingBalance") or event.get("outstanding_balance")),
+        "collateralValue": money(event.get("collateralValue") or event.get("collateral_value")),
+    }
+    return {k: v for k, v in out.items() if v is not None}

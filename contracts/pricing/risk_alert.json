@@ -12,7 +12,7 @@
     "reason": "MARGIN_CALL_THRESHOLD_CROSSED"
   },
   "response": {
-    "alert": "A margin call has been issued for loan loan-demo-001. The current loan-to-value ratio has risen to 71%, exceeding the margin call threshold of 70%. Please deposit additional collateral or pay down principal against your outstanding balance of 35.500000 TDX to prevent liquidation at 85% LTV.",
+    "alert": "Margin call on your loan. Its loan-to-value ratio rose to 71.00%, above the margin call line of 70.00%. Add collateral or pay down principal on your outstanding balance of 35.50 USDC to avoid liquidation at 85.00%.",
     "modelId": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
     "latencyMs": 720,
     "fellBack": false

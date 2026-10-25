@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Segmented } from "./Segmented";
 import { ComputeCheckout } from "./ComputeCheckout";
 import { Button } from "./Button";
-import { fmt, txToastLine, typedAmount } from "@/lib/format";
+import { fmt, typedAmount, usdc } from "@/lib/format";
 import { perSharePerNight } from "@/lib/economics";
 import { buyShares } from "@/lib/api";
 import { useRefreshLive } from "@/lib/liveData";
@@ -37,7 +37,7 @@ export function TradePanel({
     setBusy(true);
     try {
       const tx = await buyShares(gpuId, String(qty));
-      toast(`Bought ${qty} ${gpuLabel} shares`, txToastLine(`${fmt(qty * sharePrice, 2)} USDC · OfferCreate`, tx.hash));
+      toast(`Bought ${fmt(qty, 0)} ${gpuLabel} shares`, `${usdc(qty * sharePrice)} USDC`, tx.hash);
       refreshLive();
       onTraded?.();
     } catch (err) {
