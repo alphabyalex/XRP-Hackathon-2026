@@ -8,6 +8,7 @@ import { logTx } from "../db/helpers.js";
 import { db } from "../db/db.js";
 import { broadcast } from "../sse.js";
 import * as svc from "../lending/service.js";
+import { requireOperator } from "../middleware/auth.js";
 import { actorFor, asActor, clearedSessionCookie, cookieValue, sessionCookie } from "../middleware/session.js";
 import { SESSION_COOKIE, createSession, endSession } from "../users/accounts.js";
 
@@ -147,6 +148,17 @@ lendingRouter.post(
     return out;
   })
 );
+// Operator: give a wallet a fresh account (clean Moonshift loan history).
+lendingRouter.post(
+  "/operator/accounts/reset",
+  requireOperator,
+  handle(async (req) => {
+    const wallet = String(req.body?.wallet ?? "");
+    if (!/^r[1-9A-HJ-NP-Za-km-z]{24,34}$/.test(wallet)) throw new svc.LendingError("BAD_REQUEST", "wallet must be a classic XRPL address");
+    return svc.resetWalletAccount(wallet);
+  })
+);
+
 // The signed-in wallet and its account (wallet: null when signed out).
 lendingRouter.get("/wallet/me", handle(async (req) => svc.walletMe(req.user ?? null)));
 lendingRouter.delete(

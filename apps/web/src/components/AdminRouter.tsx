@@ -13,6 +13,7 @@ import {
   providerName,
   quote,
   reclaim,
+  resetAccount,
   type CatalogOffer,
   type FleetGpu,
   type Order,
@@ -36,6 +37,8 @@ export function AdminRouter() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [why, setWhy] = useState<string | null>(null);
   const [adminKey, setAdminKey] = useState("");
+  const [resetWallet, setResetWallet] = useState("");
+  const [resetting, setResetting] = useState(false);
   const toast = useToast();
 
   const load = useCallback(() => {
@@ -59,6 +62,19 @@ export function AdminRouter() {
       load();
     } catch (err) {
       toast("Reclaim failed", (err as Error).message);
+    }
+  }
+
+  async function doReset() {
+    setResetting(true);
+    try {
+      const r = await resetAccount(resetWallet.trim(), adminKey);
+      toast("Account reset", `${r.wallet.slice(0, 8)}... now uses ${r.account.slice(0, 8)}...`);
+      setResetWallet("");
+    } catch (err) {
+      toast("Reset failed", (err as Error).message);
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -161,6 +177,23 @@ export function AdminRouter() {
             <p className="why">{why}</p>
           </>
         )}
+
+        <h3>Accounts</h3>
+        <p className="why">Gives a wallet a fresh Moonshift account with the starting balance and no loan history. The old account stays on the ledger.</p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
+          <div className="inp" style={{ flex: "1 1 320px", maxWidth: 460 }}>
+            <input
+              placeholder="Wallet address (r...)"
+              value={resetWallet}
+              onChange={(e) => setResetWallet(e.target.value)}
+              style={{ fontSize: 15 }}
+              aria-label="Wallet address"
+            />
+          </div>
+          <Button size="sm" disabled={resetting || !/^r\w{24,34}$/.test(resetWallet.trim())} onClick={doReset}>
+            {resetting ? "Resetting..." : "Reset account for wallet"}
+          </Button>
+        </div>
 
         <h3>Loan stress test</h3>
         <p className="why">Moves a GPU&apos;s collateral price so open loans hit a margin call or liquidation. Restore puts the market price back.</p>

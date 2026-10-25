@@ -3,11 +3,13 @@
 **Before the pitch (5 minutes ahead):**
 
 ```
-npm run demo:reset    # clean devnet world: lending round open, prices at 5.00, ALICE holds GPU shares
-npm run demo          # web :3000, api :4000 on devnet (+ Python services if 3.11+ is installed)
+npm run demo:reset    # clean devnet world: lending round open, market quoted
+npm run demo:prod     # production web :3000, api :4000 on devnet, Python services
 ```
 
-Open http://localhost:3000/borrow and http://localhost:3000/lend in two tabs. The app acts as **ALICE** (borrower) and **BOB** (lender).
+Connect the presenter's Crossmark wallet (Testnet). The wallet is the user: it gets its own Moonshift account (10,000 USDC, 500 GPU-A, 200 GPU-B shares). Open /borrow and /lend in two tabs, and /admin/router in a third for the operator controls.
+
+**Stress tests never touch the presenter's account.** Crash to margin call and crash to liquidation (on /admin/router) hit every loan on that GPU, and a liquidation stays in the borrower's credit record (it drops the score to grade E). Before pressing them, the presenter has no open loan on that GPU; show the stress on a loan opened by a second wallet (sign it in from a private window) or by the DEV account. If the presenter's account was hit anyway, use **Reset account for wallet** on /admin/router: the wallet gets a fresh account with the starting balance and no loan history.
 
 **The one line to say:** Moonshift lends against fractional GPU shares. We underwrite with two things nobody else has: the GPU's real revenue history and the borrower's on-chain payment history. Loans are native XRPL loans (XLS-66) from a native XRPL vault (XLS-65). The collateral layer is ours, because XLS-66 has none.
 
@@ -21,14 +23,15 @@ Open http://localhost:3000/borrow and http://localhost:3000/lend in two tabs. Th
 | 0:55 | /borrow | The amount opens at the largest approved loan. Raise it by 10 and watch it decline, then put it back. | "Risk prices it live: APR, LTV against the margin call and liquidation lines, and how many times the GPU's dividends cover the payment." | Kristian's risk desk uses the GPU's revenue as the cash flow behind the collateral |
 | 1:15 | /borrow | Read one line of the memo | "Bedrock explains the numbers. It never creates them." | Tharun's credit memo (or its labeled fallback) |
 | 1:25 | /borrow | **Lock 100 GPA, borrow** (the approved amount) | "Two transactions: her shares go into an XRPL escrow, then a LoanSet that our broker signs and she countersigns." Open the tx. | Real XLS-66 LoanSet on devnet, with shares escrowed as collateral |
-| 1:50 | /borrow | **Crash price to margin call** | "GPU prices drop. We publish the new price to the on-ledger oracle; the keeper sees LTV cross the line." | OracleSet plus an on-ledger MS_MARGIN_CALL. The alert text is the AI risk alert. |
-| 2:10 | /borrow | **Crash price to liquidation** | "It keeps falling. The escrowed shares move to the lender side. First-loss cover absorbs part of the loss." | EscrowFinish seizes collateral. The XLS-66 default follows after the grace period. |
+| 1:50 | /admin/router | **Crash price to margin call** (a second wallet's or DEV's loan, not the presenter's) | "GPU prices drop. We publish the new price to the on-ledger oracle; the keeper sees LTV cross the line." | OracleSet plus an on-ledger MS_MARGIN_CALL. The alert text is the AI risk alert. |
+| 2:10 | /admin/router | **Crash price to liquidation** (same loan) | "It keeps falling. The escrowed shares move to the lender side. First-loss cover absorbs part of the loss." | EscrowFinish seizes collateral. The XLS-66 default follows after the grace period. |
 | 2:25 | /lend | Point at the loan book and grade stats | "Vault loss, cover drawn, and our simulated loan book by grade." | Loss accounting; simulated data is labeled |
-| 2:35 | /borrow | **Restore price**, then a new loan, then **Pay off, release shares** | "The good path: she repays early with real interest, and her shares come back in the same ledger, atomically." | LoanPay + Batch(EscrowFinish + Payment) + LoanDelete |
+| 2:35 | /admin/router, then /borrow | **Restore price**, then the presenter opens a new loan and presses **Pay off, release shares** | "The good path: she repays early with real interest, and her shares come back in the same ledger, atomically." | LoanPay + Batch(EscrowFinish + Payment) + LoanDelete |
 | 2:55 | Any tx | Open one tx on devnet.xrpl.org | "Every step you saw is on the ledger." | |
 
 If something stalls:
-- Press **Restore price**. If no vault round is lending, run `npm run demo:reset`.
+- Press **Restore price** on /admin/router. If no vault round is lending, run `npm run demo:reset`.
+- The presenter's /borrow says "No approved amount": the account has a liquidation on record. Reset it from /admin/router.
 - Every service has a labeled fallback, so the path keeps working with any Python service down.
 
 ## Honest labels (say them if asked)

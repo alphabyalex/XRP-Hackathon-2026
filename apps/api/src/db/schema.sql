@@ -170,6 +170,14 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Funded, ready accounts handed out on first connect (instant sign-up).
+-- Accounts an operator reset took away from their wallet (kept: they stay on the ledger).
+CREATE TABLE IF NOT EXISTS retired_accounts (
+  account_address TEXT PRIMARY KEY,
+  wallet_address TEXT NOT NULL,
+  seed_enc TEXT NOT NULL,
+  retired_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS account_pool (
   account_address TEXT PRIMARY KEY,
   seed_enc TEXT NOT NULL,

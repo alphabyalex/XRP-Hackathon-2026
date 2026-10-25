@@ -151,6 +151,14 @@ export interface FleetGpu {
 
 export const fleet = () => apiFetch<FleetGpu[]>("/router/fleet");
 
+// Operator: a fresh Moonshift account for a wallet (clean loan history).
+export const resetAccount = (wallet: string, adminKey: string) =>
+  apiFetch<{ wallet: string; previousAccount: string; account: string; setupMs: number }>("/operator/accounts/reset", {
+    method: "POST",
+    headers: adminKey ? { "X-MS-Admin-Key": adminKey } : {},
+    body: JSON.stringify({ wallet }),
+  });
+
 export const reclaim = (id: string, adminKey: string, warningSeconds?: number) =>
   apiFetch<{ affectedOrders: string[] }>(`/router/fleet/${id}/reclaim`, {
     method: "POST",

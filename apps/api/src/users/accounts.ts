@@ -131,6 +131,19 @@ export async function accountForWallet(wallet: string, walletNetwork: string): P
   return { user: userForWallet(wallet)!, created: true, setupMs };
 }
 
+// Operator reset: the wallet gets a fresh account, so its Moonshift loan
+// record starts clean. The old account stays on the ledger, unassigned.
+export async function resetAccountForWallet(wallet: string): Promise<{ previous: string; user: UserAccount; created: boolean; setupMs: number }> {
+  const prev = userForWallet(wallet);
+  if (!prev) throw new Error("NO_ACCOUNT: this wallet has no Moonshift account yet");
+  db.prepare(
+    `INSERT OR REPLACE INTO retired_accounts (account_address, wallet_address, seed_enc, retired_at) SELECT account_address, wallet_address, seed_enc, ? FROM users WHERE wallet_address = ?`
+  ).run(new Date().toISOString(), wallet);
+  db.prepare(`DELETE FROM users WHERE wallet_address = ?`).run(wallet);
+  const next = await accountForWallet(wallet, prev.walletNetwork);
+  return { previous: prev.address, ...next };
+}
+
 // Keep POOL_SIZE funded accounts ready (one at a time; the faucet is the bottleneck).
 export function refillPool(): Promise<void> {
   if (MOCK || POOL_SIZE <= 0) return Promise.resolve();
