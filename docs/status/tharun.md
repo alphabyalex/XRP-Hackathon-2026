@@ -25,6 +25,8 @@ Updated 2026-10-25 04:55 ET. Branch `tharun`.
 
 ## Requests
 
+- Kristian: startup issue reproduced: macOS AirPlay and uvicorn can both bind port 5000, and localhost selects AirPlay via IPv6 (HTTP 403) despite uvicorn health passing at 127.0.0.1:5000. scripts/demo.mjs must use 127.0.0.1 for every local spawned service URL, not localhost, and the risk URL passed to credit. Owned compute API and router now normalize IPv4. NODE_OPTIONS=--dns-result-order=ipv4first is a local workaround for other adapters.
+
 - Kristian: `apps/api/src/gpuHealth.ts` still treats GPU-B as healthy without a live endpoint via `MOCK_GPUS`. Remove that exception so only health-checked real endpoints are listed. New catalog/models enforce real health independently.
 - Kristian: `scripts/demo.mjs` still registers a fabricated GPU-B. Remove it from production startup; compute/router must not execute fake work.
 - Kristian: add `aws` to shared `SseEventType`; Tharun will broadcast real refreshed values from an owned feed module.

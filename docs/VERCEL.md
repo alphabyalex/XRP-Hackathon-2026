@@ -20,10 +20,13 @@ git switch alex
 git pull --ff-only origin alex
 npm ci
 WEB_ORIGIN=https://moonshift-protocol.vercel.app BEDROCK_ENABLED=1 \
+  NODE_OPTIONS=--dns-result-order=ipv4first RISK_URL=http://127.0.0.1:7000 \
   FLEET_SOURCE=own PRICE_SOURCES=aws_public npm run demo
 ```
 
-The script starts services and selects port 5001 if macOS owns port 5000.
+The script starts services. On macOS AirPlay may also answer localhost on IPv6.
+The IPv4 DNS setting above and IPv4 compute adapters avoid that collision.
+Check the startup log for the selected compute and risk ports.
 Do not start a second stack. Verify the API before opening its tunnel:
 
 ```bash

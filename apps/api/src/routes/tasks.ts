@@ -10,7 +10,7 @@ import { broadcast as defaultBroadcast } from "../sse.js";
 import { cachedRentalCatalog as defaultCachedCatalog, getRentalCatalog as defaultGetCatalog } from "../marketData/rentalCatalog.js";
 import { buildQuote, fallbackSizing, fits, hourlyBlocks, integer, parseEstimate, parseQuote, parseSizing, settleHeldBooking, TaskError, type CalendarEvent, type Sizing } from "./tasksCore.js";
 
-const computeUrl = () => (process.env.COMPUTE_URL ?? "http://localhost:5001").replace(/\/+$/, "");
+const computeUrl = () => (process.env.COMPUTE_URL ?? "http://127.0.0.1:5001").replace(/\/+$/, "").replace("://localhost:", "://127.0.0.1:");
 const pricingUrl = () => (process.env.PRICING_URL ?? "http://localhost:6100").replace(/\/+$/, "");
 
 interface EstimateResult { source: string; modelId: string | null; sizing: unknown }

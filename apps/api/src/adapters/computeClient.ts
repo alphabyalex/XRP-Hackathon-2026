@@ -14,7 +14,7 @@ export class ComputeError extends Error {
 }
 
 async function computeJson<T>(path: string, init: RequestInit = {}, timeoutMs = 5000): Promise<T> {
-  const base = (process.env.COMPUTE_URL ?? "http://localhost:5001").replace(/\/+$/, "");
+  const base = (process.env.COMPUTE_URL ?? "http://127.0.0.1:5001").replace(/\/+$/, "").replace("://localhost:", "://127.0.0.1:");
   try {
     const response = await fetch(`${base}${path}`, {
       ...init,
