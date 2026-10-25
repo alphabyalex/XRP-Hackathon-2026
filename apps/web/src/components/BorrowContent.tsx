@@ -2,10 +2,11 @@
 // /borrow: credit profile, live risk quote, Bedrock memo, then a real XLS-66
 // loan on devnet with GPU shares escrowed. Loan health updates live.
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import type { AgentText, CreditProfile, LoanQuoteApiResponse, PortfolioResponse, XlsLoanRecord } from "@moonshift/shared";
-import { getPortfolio } from "@/lib/api";
+import { getGpu, getPortfolio } from "@/lib/api";
 import { fmt, shortHash, typedAmount, usdc } from "@/lib/format";
-import { ApiCodeError, borrowerProfile, collateralOptions, listLoans, maxPrincipal, openFromQuote, walletGet, type CollateralOption, type ConnectedWallet, payNext, payOff, pct, quoteLoan, quoteMemo, txUrl, useApiEvents } from "@/lib/lendingApi";
+import { ApiCodeError, getVault, borrowerProfile, collateralOptions, listLoans, maxPrincipal, openFromQuote, walletGet, type CollateralOption, type ConnectedWallet, payNext, payOff, pct, quoteLoan, quoteMemo, txUrl, useApiEvents } from "@/lib/lendingApi";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
 import { HealthMeter, LoanTxs, StatusChip, TxLink } from "./LendingBits";
@@ -13,6 +14,12 @@ import { WalletConnect } from "./WalletConnect";
 import { useWallet } from "@/lib/wallet";
 import { ConnectPrompt } from "./ConnectPrompt";
 import "./lending/lending.css";
+import type { VaultOverview } from "@moonshift/shared";
+import type { LinePoint } from "./charts";
+import { BorrowCharts } from "./lending/BorrowCharts";
+import { AccountHistory } from "./lending/AccountHistory";
+import { Apply } from "./lending/Apply";
+import { NetworkLine } from "./lending/NetworkLine";
 
 const FACTOR_TEXT: Record<string, string> = {
   accountAgeDays: "Account age (days)",
@@ -109,6 +116,10 @@ export function BorrowContent({
   const [options, setOptions] = useState<CollateralOption[] | null>(null);
   // The api refused an amount above the limit (409 OVER_LIMIT).
   const [refused, setRefused] = useState<string | null>(null);
+  // The lending round that funds the loan, and the collateral's real hourly prices.
+  const [vault, setVault] = useState<VaultOverview | null>(null);
+  const [priceHistory, setPriceHistory] = useState<{ t: number; price: number }[]>([]);
+  const [coverage, setCoverage] = useState<LinePoint[]>([]);
   const [shares, setShares] = useState(defaultShares);
   // The borrower types the amount; the largest approved one is shown beside it.
   const [principal, setPrincipal] = useState("");
@@ -170,7 +181,43 @@ export function BorrowContent({
     setRefused(null);
     // Keep the typed share count unless the new GPU has fewer.
     if (Number(shares) > h) setShares(h > 0 ? String(Math.floor(h)) : "");
+    setCoverage([]);
   }
+
+  // The round lending now: which market funds the loan and what it has available.
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      getVault()
+        .then((v) => alive && setVault(v))
+        .catch(() => {});
+    void load();
+    const t = setInterval(load, 15_000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, []);
+
+  // The GPU's hourly share prices plus the live one, for LTV over time.
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      getGpu(gpuId)
+        .then((g) => {
+          if (!alive) return;
+          const hist = ((g as { priceHistory?: { t: number; price: number }[] }).priceHistory ?? []).filter((p) => p.price > 0);
+          const now = Number(g.sharePrice);
+          setPriceHistory(now > 0 ? [...hist, { t: Date.now(), price: now }] : hist);
+        })
+        .catch(() => {});
+    void load();
+    const t = setInterval(load, 30_000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [gpuId]);
 
   // Credit profile (cached by the api). The server usually renders it already.
   useEffect(() => {
@@ -285,6 +332,13 @@ export function BorrowContent({
     return () => clearTimeout(t);
   }, [shares, principal, gpuId, requote, overMax]);
 
+  // Each live quote adds a coverage point.
+  useEffect(() => {
+    if (!quote || quote.counterOffer) return;
+    const v = Number(quote.quote.coverageRatio);
+    if (Number.isFinite(v)) setCoverage((c) => [...c, { t: Date.now(), v }].slice(-120));
+  }, [quote]);
+
   // The credit memo arrives after the quote: show the quote now, the memo when Bedrock is done.
   useEffect(() => {
     if (!quote) return;
@@ -328,6 +382,7 @@ export function BorrowContent({
   }, [refresh, walletKey]);
 
   useApiEvents(["loan", "vault", "risk"], (type, data) => {
+    if (type === "vault") getVault().then(setVault).catch(() => {});
     if (type === "loan" && data?.alert?.text) setAlerts((a) => ({ ...a, [data.id]: data.alert.text }));
     if (type === "loan" && data?.type === "margin_call") toast("Margin call", `${data.alert?.text?.slice(0, 120) ?? ""}`);
     if (type === "loan" && data?.type === "liquidated") toast("Loan liquidated", "Your locked shares repaid the loan.", data.tx);
@@ -373,8 +428,8 @@ export function BorrowContent({
   const overHeld = Number(shares) > held;
   const blocked = overLimit || overHeld;
   const q = overLimit ? undefined : quote?.quote;
+  const inv = vault?.investing ?? null;
   const active = loans.filter((l) => l.status === "open" || l.status === "margin_call");
-  const past = loans.filter((l) => !(l.status === "open" || l.status === "margin_call")).slice(0, 6);
   // The profile drives the card: it is refetched on every wallet change, so it
   // is never older than the quote's copy.
   const credit = profile ?? quote?.credit;
@@ -406,6 +461,7 @@ export function BorrowContent({
           <div className="trade card">
             <ConnectPrompt />
           </div>
+          <Apply />
         </div>
       </main>
     );
@@ -414,18 +470,23 @@ export function BorrowContent({
   return (
     <main className="s">
       <div className="wrap">
-        <div className="shead">
+        <div className="shead bw-head">
           <h2>Borrow against your GPU shares.</h2>
           <p>
-            Your shares stay yours. They are locked while you borrow USDC from the Moonshift lending vault and come back the moment you repay. Terms
-            come from your payment history and the GPU&apos;s real revenue.
+            Lock shares, borrow USDC from the lending round, and get them back the moment you repay. Terms come from your payment history and the
+            GPU&apos;s real revenue.
           </p>
         </div>
 
         <div className="lend-grid">
           {/* Credit profile */}
           <div className="trade card">
-            <span className="lbl">Credit profile</span>
+            <div className="bw-card-head">
+              <span className="lbl" style={{ margin: 0 }}>
+                Credit rating
+              </span>
+              <NetworkLine />
+            </div>
             {credit ? (
               <>
                 <div className={live && live.score !== live.scoreBefore ? "score flash" : "score"}>
@@ -513,7 +574,7 @@ export function BorrowContent({
                     )}
                   </div>
                 )}
-                {credit.components?.some((c) => c.source === "quicknode") && <p className="via">via Quicknode</p>}
+
               </>
             ) : (
               <p className="note">{"Reading your payment history..."}</p>
@@ -522,6 +583,18 @@ export function BorrowContent({
 
           {/* Quote and open */}
           <div className="trade card">
+            {inv ? (
+              <div className="bw-fund">
+                <span>
+                  Funded by <Link href="/lend">round {inv.round}</Link>
+                </span>
+                <b>{fmt(Number(inv.assetsAvailable), 2)} USDC available</b>
+              </div>
+            ) : vault ? (
+              <div className="bw-fund">
+                <span>No round is lending right now.</span>
+              </div>
+            ) : null}
             <div className="gpu-pick">
               <span className="lbl">Collateral</span>
               {options === null ? (
@@ -648,9 +721,11 @@ export function BorrowContent({
           </div>
         </div>
 
+        <BorrowCharts quote={q ? quote : null} priceHistory={priceHistory} coverage={coverage} />
+
         {active.length > 0 && (
           <>
-            <h3 className="sub-h" style={{ marginTop: 64 }}>
+            <h3 className="sub-h" style={{ marginTop: 40 }}>
               Your open loans
             </h3>
             <div className="loans">
@@ -707,43 +782,9 @@ export function BorrowContent({
           </>
         )}
 
-        {past.length > 0 && (
-          <>
-            <h3 className="sub-h" style={{ marginTop: 56 }}>
-              History
-            </h3>
-            <div className="tbl">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Loan</th>
-                    <th>Status</th>
-                    <th>Principal</th>
-                    <th>Collateral</th>
-                    <th>Ledger</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {past.map((l) => (
-                    <tr key={l.id}>
-                      <td>{l.id.slice(0, 8)}</td>
-                      <td>
-                        <StatusChip status={l.status} />
-                      </td>
-                      <td className="num">{fmt(Number(l.principal), 2)}</td>
-                      <td className="num">
-                        {fmt(Number(l.collateralShares), 0)} {code}
-                      </td>
-                      <td>
-                        <TxLink network={l.network} hash={l.txs.release ?? l.txs.seize ?? l.txs.loanSet} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+        <AccountHistory loans={loans} />
+
+        <Apply />
       </div>
     </main>
   );
