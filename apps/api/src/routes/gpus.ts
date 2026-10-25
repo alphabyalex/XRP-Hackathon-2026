@@ -7,7 +7,7 @@ import { db } from "../db/db.js";
 import { historyCalendar } from "../marketHistory.js";
 import { change24hPct, priceHistory, sharePrice } from "../sharePrice.js";
 import { gpuHealth, isListed, listedGpus } from "../gpuHealth.js";
-import { gpuStats } from "../gpuStats.js";
+import { gpuStats, payoutYield } from "../gpuStats.js";
 
 export const gpusRouter = Router();
 
@@ -40,7 +40,8 @@ async function buildSummary(gpuId: GpuId) {
     navPerShare: nav.nav_per_share,
     revenue24h: nav.trailing_revenue_24h,
     utilizationPct: String(computeState?.utilization_pct_1h ?? 0),
-    impliedYieldPct: nav.implied_yield_pct,
+    // Last 24 h of payouts per share, annualized at the share price (gpuStats.payoutYield).
+    impliedYieldPct: payoutYield(gpuId, market.price).yieldPct ?? "0.00",
     holdersCount: holders.length,
     monteCarlo: (computeState as any)?.monte_carlo,
     // Hosting and its cost breakdown: real hardware only.

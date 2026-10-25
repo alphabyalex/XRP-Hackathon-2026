@@ -5,6 +5,7 @@ import * as lending from "../adapters/lendingAdapter.js";
 import * as compute from "../adapters/computeClient.js";
 import * as pricing from "../adapters/pricingClient.js";
 import * as svc from "../lending/service.js";
+import { payoutYield } from "../gpuStats.js";
 import { db } from "../db/db.js";
 import { buildReturns } from "../marketData/returns.js";
 import { change24hPct, sharePrice } from "../sharePrice.js";
@@ -71,7 +72,7 @@ export async function buildAccount(input: string): Promise<AccountResponse> {
     const free = n(balances.tokens[gpu.shareCode]);
     const locked = open.filter(l => l.gpuId === gpu.id && l.ledger?.collateral?.locked).reduce((s,l) => s + n(l.collateralShares),0);
     const shares = free + locked;
-    return { gpuId: gpu.id, label: gpu.label, hardware: gpu.hw.replace(/\s*\(simulated[^)]*\)/gi, ""), slots, free: fix6(free), locked: fix6(locked), shares: fix6(shares), sharePrice: oracle.price, value: fix6(shares * n(oracle.price)), change24h: change24hPct(gpu.id, oracle.price), yield: nav.implied_yield_pct, earned7d: fix6(earned(7,gpu.id)), ownershipPct: fix6(shares/1000) };
+    return { gpuId: gpu.id, label: gpu.label, hardware: gpu.hw.replace(/\s*\(simulated[^)]*\)/gi, ""), slots, free: fix6(free), locked: fix6(locked), shares: fix6(shares), sharePrice: oracle.price, value: fix6(shares * n(oracle.price)), change24h: change24hPct(gpu.id, oracle.price), yield: payoutYield(gpu.id, oracle.price).yieldPct ?? "0.00", earned7d: fix6(earned(7,gpu.id)), ownershipPct: fix6(shares/1000) };
   }).filter(h => n(h.shares)>0);
   const gpuPerformance = gpuData.filter(d => holdings.some(h => h.gpuId===d.gpu.id)).map(({gpu, history}) => {
     const dayMap = new Map<string, {booked:number; inference:number; active:number; minutes:number}>();

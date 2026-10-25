@@ -37,6 +37,17 @@ async function workingPct(gpuId: GpuId, hours: number): Promise<string> {
   return ((busy / (hours * HOUR)) * 100).toFixed(1);
 }
 
+// Paid per share in the last 24 h (the dividend ledger) and the yield it implies at `price`.
+// /gpus, the stats route and the portfolio all use this, so every yield on the site agrees.
+export function payoutYield(gpuId: GpuId, price: string | number): { paidPerShare24h: string; yieldPct: string | null } {
+  const since = new Date(Date.now() - 24 * HOUR).toISOString();
+  const row = db
+    .prepare(`SELECT COALESCE(SUM(CAST(per_share AS REAL)), 0) AS perShare FROM dividend_runs WHERE gpu_id = ? AND status = 'paid' AND created_at >= ?`)
+    .get(gpuId, since) as { perShare: number };
+  const p = Number(price);
+  return { paidPerShare24h: row.perShare.toFixed(6), yieldPct: p > 0 ? ((row.perShare * 365) / p * 100).toFixed(2) : null };
+}
+
 export async function gpuStats(gpuId: GpuId) {
   const gpu = GPUS.find((g) => g.id === gpuId)!;
   const since = new Date(Date.now() - 24 * HOUR).toISOString();
