@@ -125,6 +125,12 @@ rejects even when false. The stream must finish explicitly; an upstream error or
 truncated reply fails the task. Failed router tasks refund their full price cap,
 including when part of an answer was already streamed.
 
+The Monte Carlo helper is a local CPU toy used only by `MOCK=1` tests. Its
+synthetic counters, VRAM figures and switching timings do not describe the remote
+GPU. Live workers do not construct or run it, `/gpus` omits its telemetry,
+`/monte-carlo/status` returns `{}`, and `/monte-carlo/switch-demo` returns HTTP 503
+with `FEATURE_UNAVAILABLE`. A remote GPU tensor backend has not been implemented.
+
 No real T4 has been benchmarked from this local workspace. Before a judge demo,
 record the measured throughput, time to first token, p50/p95 256-token latency,
 and drain time in the team handoff. Update `GPU_A_TOKENS_PER_SEC` from that

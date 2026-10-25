@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import replace
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -13,6 +14,7 @@ from fastapi.testclient import TestClient
 from compute.config import Settings
 from compute.main import create_app
 from compute.models import ChatMessage
+from compute.pricing import RateClient
 from compute.providers import ProviderError, VllmProvider
 from compute.resume import StreamRequest, vllm_tokens
 
@@ -153,3 +155,37 @@ def test_live_workers_cannot_register_the_same_endpoint_twice(tmp_path):
         workers = {gpu["id"]: gpu for gpu in client.get("/gpus").json()}
         assert workers["gpu-a"]["state"] == "READY"
         assert workers["gpu-b"]["state"] == "OFFLINE"
+
+
+def test_live_compute_omits_cpu_fixture_and_inference_still_works(tmp_path):
+    settings = replace(Settings.from_env(), state_dir=tmp_path, mock=False, model=MODEL,
+                       vllm_url="http://worker", gpu_b_vllm_url="", api_url="", pricing_url="")
+    app = create_app(settings)
+    calls = []
+
+    def upstream(request):
+        calls.append(request.url.path)
+        return httpx.Response(200, json={"model": ALIAS, "choices": [{"message": {"content": "Real provider path"}}],
+                                        "usage": {"prompt_tokens": 2, "completion_tokens": 3}})
+
+    app.state.router.providers["gpu-a"] = VllmProvider("http://worker", 5, ALIAS, httpx.MockTransport(upstream))
+    app.state.router.rates = RateClient("", 30, 5, False, api_url="http://api", transport=httpx.MockTransport(
+        lambda request: httpx.Response(200, json={"gpus": [{"id": "gpu-a", "status": "serving", "prices": {
+            "rentalUsdPerHour": "0.550000", "economy": {"usdPerHour": "0.550000", "updatedAt": datetime.now(UTC).isoformat()}
+        }}]})
+    ))
+    with TestClient(app) as client:
+        assert all(worker.monte_carlo is None for worker in app.state.scheduler.workers.values())
+        assert all("monte_carlo" not in gpu for gpu in client.get("/gpus").json())
+        assert client.get("/monte-carlo/status").json() == {}
+        disabled = client.post("/monte-carlo/switch-demo?gpu_id=gpu-a")
+        assert disabled.status_code == 503
+        assert disabled.json()["error"]["code"] == "FEATURE_UNAVAILABLE"
+        assert calls == []
+        reply = client.post("/v1/chat/completions", headers={"X-MS-Buyer": "DEV"},
+                            json={"messages": [{"role": "user", "content": "Hi"}], "max_tokens": 10})
+        assert reply.status_code == 200, reply.text
+        assert reply.json()["choices"][0]["message"]["content"] == "Real provider path"
+        assert reply.json()["x_ms"]["simulated"] is False
+        assert calls == ["/v1/chat/completions"]
+        assert all(worker.monte_carlo is None for worker in app.state.scheduler.workers.values())

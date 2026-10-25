@@ -196,12 +196,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if req.gpu_id not in providers:
             providers[req.gpu_id] = provider_for(req.gpu_id)
         await supervisor.load_snapshot()
-        supervisor.monte_carlo.start()
+        if supervisor.monte_carlo is not None:
+            supervisor.monte_carlo.start()
         return {"registered": True, "gpu_id": req.gpu_id, "status": await supervisor.status()}
 
     @app.get("/monte-carlo/status")
     async def monte_carlo_status() -> dict[str, object]:
-        return {gpu_id: worker.monte_carlo.metrics() for gpu_id, worker in scheduler.workers.items()}
+        return {gpu_id: worker.monte_carlo.metrics() for gpu_id, worker in scheduler.workers.items()
+                if worker.monte_carlo is not None}
 
     @app.post("/monte-carlo/switch-demo")
     async def monte_carlo_switch_demo(
@@ -209,6 +211,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         prompt: str = Query(default="Calculate Black-Scholes delta for XRP call"),
     ) -> dict[str, object]:
         worker = scheduler.worker(gpu_id)
+        if worker.monte_carlo is None:
+            raise ComputeError("FEATURE_UNAVAILABLE", "GPU background risk processing is not available.", 503)
         pre_metrics = worker.monte_carlo.metrics()
 
         # Measure preemption yield time
