@@ -37,21 +37,22 @@
     "runtimeLimitHours": null,
     "runtimeEndsAt": null
   },
-  "status": "state_migrated_inert",
+  "status": "live",
   "verification": {
-    "verifiedAt": "2026-10-25T14:11:55.797526Z",
+    "verifiedAt": "2026-10-25T14:20:01.162098Z",
     "leaseAccepted": true,
     "providerTlsVerified": true,
     "persistentClassAudited": true,
     "publicIngressTlsVerified": true,
-    "inactiveHealthStatus": 502,
     "releaseDownloaded": true,
     "dependenciesReady": true,
-    "activationFileExists": false,
-    "apiProcessCount": 0,
-    "uvicornProcessCount": 0
+    "activationFileExists": true,
+    "apiProcessCount": 1,
+    "uvicornProcessCount": 5,
+    "publicApiHealthStatus": 200,
+    "preActivationHealthStatus": 502
   },
-  "activationControl": "API services remain stopped until the operator transfers a consistent snapshot and creates /data/state/ACTIVATE. No activation was performed during infrastructure setup.",
+  "activationControl": "The operator activated this single backend replica only after stopping the source backend and independently verifying the migrated manifest, all file hashes and SQLite integrity and row counts. A persistent volume lock guards replacement replicas.",
   "apiOrigin": "https://hqlndvicrddu7bkcop8kaptoh8.ingress.akash-palmito.org",
   "revisionUpdateAudit": {
     "previousRevision": "a9e5e6b940166a67c435babaade4bf4e3622ed2a",
@@ -87,5 +88,86 @@
     "apiProcessCount": 0,
     "uvicornProcessCount": 0,
     "transport": "akt console shell --stdin, exact bounded byte count; tar completed with exit zero"
+  },
+  "liveVerification": {
+    "verifiedAt": "2026-10-25T14:20:01.162098Z",
+    "revision": "f9d3e8519eaf1611bab4c7c82d7a2e6bf74f1f7a",
+    "apiProcessCount": 1,
+    "pythonServiceProcessCount": 5,
+    "privatePythonPortsLoopbackOnly": true,
+    "privatePythonPorts": [
+      5000,
+      6100,
+      7000,
+      7100,
+      7200
+    ],
+    "apiPort": 4000,
+    "apiBindAddress": "::",
+    "publicTlsVerified": true,
+    "publicHealthStatus": 200,
+    "publicCatalogStatus": 200,
+    "servingGpus": [
+      {
+        "id": "gpu-a",
+        "card": "NVIDIA T4",
+        "vramGb": 16,
+        "vcpu": 4,
+        "ramGb": 16,
+        "storageGb": 100,
+        "modelId": "Qwen/Qwen2.5-1.5B-Instruct",
+        "status": "serving"
+      },
+      {
+        "id": "gpu-b",
+        "card": "NVIDIA Tesla V100",
+        "vramGb": 32,
+        "vcpu": 4,
+        "ramGb": 16,
+        "storageGb": 50,
+        "modelId": "Qwen/Qwen2.5-3B-Instruct",
+        "status": "serving"
+      }
+    ],
+    "modelCatalogs": [
+      {
+        "path": "/models?gpuId=gpu-a",
+        "status": 200,
+        "tlsVerified": true,
+        "servingModels": [
+          {
+            "gpuId": "gpu-a",
+            "modelId": "Qwen/Qwen2.5-1.5B-Instruct",
+            "acceptsRequests": true
+          }
+        ],
+        "onRequestCount": 2
+      },
+      {
+        "path": "/models?gpuId=gpu-b",
+        "status": 200,
+        "tlsVerified": true,
+        "servingModels": [
+          {
+            "gpuId": "gpu-b",
+            "modelId": "Qwen/Qwen2.5-3B-Instruct",
+            "acceptsRequests": true
+          }
+        ],
+        "onRequestCount": 2
+      }
+    ],
+    "accountLoadFailureCount": 0,
+    "storedUserAccountCount": 0,
+    "decryptionFailureCount": 0,
+    "decryptionCoverage": "No stored user records existed in the migrated snapshot. There were no account-load or cryptographic-authentication warnings.",
+    "errorCategoryCounts": {
+      "accountLoadFailure": 0,
+      "cryptographicAuthenticationFailure": 0,
+      "missingRuntimeSetting": 0,
+      "unhandledException": 0,
+      "upstreamConnectionRefused": 0,
+      "networkTimeout": 0
+    }
   }
 }
