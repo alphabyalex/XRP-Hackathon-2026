@@ -1,0 +1,173 @@
+{
+  "description": "Live DEV-only paid arithmetic smoke on two genuine distinct Akash GPU nodes. No private prompts, endpoints, credentials or keys are included.",
+  "verifiedAt": "2026-10-25T14:09:32.077Z",
+  "network": "devnet",
+  "pricing": "Each verified lease cost plus configured margin. Balanced receives half the fresh same-card AWS spot discount when a pair exists.",
+  "notes": [
+    "GPU-A passed once before the router restart; its existing order was read back without another payment.",
+    "The first GPU-B attempt returned NO_FEASIBLE_PLAN before order creation or payment because V100 planning throughput was missing. A per-model planning observation fixed that gate.",
+    "GPU-B planning uses the conservative minimum of two direct 128-token observations including prefill and network time. It is not a pure decoder benchmark."
+  ],
+  "receipts": [
+    {
+      "gpuId": "gpu-a",
+      "modelId": "Qwen/Qwen2.5-1.5B-Instruct",
+      "observedAt": "2026-10-25T14:09:19.052Z",
+      "orderId": "ord_0067a0aa",
+      "buyer": "DEV",
+      "status": "settled",
+      "output": "46",
+      "capUsdc": "0.000022",
+      "chargedUsdc": "0.000002",
+      "payment": {
+        "from": "DEV",
+        "to": "PROTOCOL_FEES",
+        "amountUsdc": "0.000022",
+        "hash": "4A56EE2EF6DC752FCE4099A4F00B87CB796C5E3543499BA4C9EAA9F4BB031FD4",
+        "validated": true,
+        "kind": "escrow"
+      },
+      "refund": {
+        "to": "DEV",
+        "amountUsdc": "0.000020",
+        "hash": "4B3544BBB2307F187540865F4D48A6D49D6F877CF79ACEFC17D5FE8BF74A6D3D"
+      },
+      "settlements": [
+        {
+          "to": "TREASURY_GPU_A",
+          "gpuId": "gpu-a",
+          "amountUsdc": "0.000002",
+          "hash": "13C2EAEDBB2D6F3F632C7A21489FC51BD141FFF682979FEBB4388535A91139AD"
+        }
+      ],
+      "segments": [
+        {
+          "gpuId": "gpu-a",
+          "label": "GPU-A",
+          "provider": "moonshift",
+          "served": 2,
+          "startedAt": "2026-10-25T14:04:14Z",
+          "endedAt": "2026-10-25T14:04:14Z"
+        }
+      ],
+      "checks": {
+        "outputIs46": true,
+        "canonicalModel": true,
+        "buyerIsDev": true,
+        "settled": true,
+        "paymentValidated": true,
+        "pinnedToActualGpu": true,
+        "chargeWithinCap": true,
+        "refundBalancesCap": true,
+        "payoutsEqualCharged": true,
+        "refundReturnsToDev": true
+      }
+    },
+    {
+      "gpuId": "gpu-b",
+      "modelId": "Qwen/Qwen2.5-3B-Instruct",
+      "observedAt": "2026-10-25T14:09:32.077Z",
+      "orderId": "ord_e59f314d",
+      "buyer": "DEV",
+      "status": "settled",
+      "output": "46",
+      "capUsdc": "0.000027",
+      "chargedUsdc": "0.000002",
+      "payment": {
+        "from": "DEV",
+        "to": "PROTOCOL_FEES",
+        "amountUsdc": "0.000027",
+        "hash": "AE5FF9E46EAED99F74B1E2A6150DB643B17180F651D797983AD675B8C4E783FE",
+        "validated": true,
+        "kind": "escrow"
+      },
+      "refund": {
+        "to": "DEV",
+        "amountUsdc": "0.000025",
+        "hash": "A20F0A10137092DEEE7C7303E98ECBE192F70E526968E4A3FF37BCE84C319E49"
+      },
+      "settlements": [
+        {
+          "to": "TREASURY_GPU_B",
+          "gpuId": "gpu-b",
+          "amountUsdc": "0.000002",
+          "hash": "19E0F811A991A9289B9E62C06CDB00C89E5FEF75C4893F6D572D28E4EE29FBD7"
+        }
+      ],
+      "segments": [
+        {
+          "gpuId": "gpu-b",
+          "label": "GPU-B",
+          "provider": "moonshift",
+          "served": 2,
+          "startedAt": "2026-10-25T14:09:24Z",
+          "endedAt": "2026-10-25T14:09:25Z"
+        }
+      ],
+      "checks": {
+        "outputIs46": true,
+        "canonicalModel": true,
+        "buyerIsDev": true,
+        "settled": true,
+        "paymentValidated": true,
+        "pinnedToActualGpu": true,
+        "chargeWithinCap": true,
+        "refundBalancesCap": true,
+        "payoutsEqualCharged": true,
+        "refundReturnsToDev": true,
+        "responseChargeMatches": true
+      }
+    }
+  ],
+  "fleetObservation": {
+    "observedAt": "2026-10-25T14:09:52.297Z",
+    "gpus": [
+      {
+        "gpuId": "gpu-a",
+        "modelId": "Qwen/Qwen2.5-1.5B-Instruct",
+        "card": "NVIDIA T4",
+        "vramGb": 16,
+        "vcpu": 4,
+        "ramGb": 16,
+        "storageGb": 100,
+        "provider": "Akash Network",
+        "location": {
+          "city": "Lisbon (LIS)",
+          "region": "eu-southwest, Portugal"
+        },
+        "rentalRate": {
+          "usdPerHour": "0.204000",
+          "updatedAt": "2026-10-25T13:58:04.856010Z",
+          "source": "Akash lease plus margin",
+          "priceBasis": "akash_lease_plus_margin",
+          "expiresAt": null,
+          "costUsdPerHour": "0.163200",
+          "marginPct": "25.00"
+        }
+      },
+      {
+        "gpuId": "gpu-b",
+        "modelId": "Qwen/Qwen2.5-3B-Instruct",
+        "card": "NVIDIA Tesla V100",
+        "vramGb": 32,
+        "vcpu": 4,
+        "ramGb": 16,
+        "storageGb": 50,
+        "provider": "Akash Network / ZenCloud",
+        "location": {
+          "city": "NYL",
+          "region": "eu-west, Belgium"
+        },
+        "rentalRate": {
+          "usdPerHour": "0.287933",
+          "updatedAt": "2026-10-25T13:56:39.192910Z",
+          "source": "Akash lease plus margin",
+          "priceBasis": "akash_lease_plus_margin",
+          "expiresAt": null,
+          "costUsdPerHour": "0.230346",
+          "marginPct": "25.00"
+        }
+      }
+    ]
+  }
+}
