@@ -292,7 +292,7 @@ def loan_numbers(
 def resources_breakdown() -> dict[str, dict]:
     return {
         "gpu-a": {
-            "provider": "AWS EC2",
+            "provider": "AWS",
             "instance_type": "g4dn.xlarge",
             "region": "us-east-2",
             "components": {
@@ -306,7 +306,7 @@ def resources_breakdown() -> dict[str, dict]:
             "indexed_savings_vs_aws_pct": "0.0%",
         },
         "gpu-b": {
-            "provider": "Akash Network (akt CLI)",
+            "provider": "Akash Network",
             "instance_type": "dCloud SDL (Audited Provider)",
             "region": "Decentralized Cloud",
             "components": {
@@ -320,9 +320,9 @@ def resources_breakdown() -> dict[str, dict]:
             "indexed_savings_vs_aws_pct": "91.8%",
         },
         "gpu-c": {
-            "provider": "Akash Network (akt CLI)",
-            "instance_type": "dCloud SDL (Audited Provider)",
-            "region": "Decentralized Cloud",
+            "provider": "OpenOcean",
+            "instance_type": "OpenOcean Cluster",
+            "region": "OpenOcean Cloud",
             "components": {
                 "gpu": {"label": "GPU Compute", "spec": "1x NVIDIA A100 80GB", "hourly_usd": "1.400000"},
                 "cpu": {"label": "vCPU Compute", "spec": "8 vCPUs (AMD EPYC / Intel)", "hourly_usd": "0.048000"},
@@ -334,9 +334,9 @@ def resources_breakdown() -> dict[str, dict]:
             "indexed_savings_vs_aws_pct": "63.7%",
         },
         "gpu-d": {
-            "provider": "Akash Network (akt CLI)",
-            "instance_type": "dCloud SDL (Audited Provider)",
-            "region": "Decentralized Cloud",
+            "provider": "Vast.ai",
+            "instance_type": "Vast On-Demand",
+            "region": "Vast.ai US-Central",
             "components": {
                 "gpu": {"label": "GPU Compute", "spec": "1x NVIDIA H100 SXM5 80GB", "hourly_usd": "2.450000"},
                 "cpu": {"label": "vCPU Compute", "spec": "8 vCPUs (Intel Xeon / AMD)", "hourly_usd": "0.070000"},
@@ -348,7 +348,7 @@ def resources_breakdown() -> dict[str, dict]:
             "indexed_savings_vs_aws_pct": "79.0%",
         },
         "gpu-e": {
-            "provider": "Akash Network (akt CLI)",
+            "provider": "Akash Network",
             "instance_type": "dCloud SDL (Audited Provider)",
             "region": "Decentralized Cloud",
             "components": {
@@ -362,9 +362,9 @@ def resources_breakdown() -> dict[str, dict]:
             "indexed_savings_vs_aws_pct": "71.9%",
         },
         "gpu-f": {
-            "provider": "Akash Network (akt CLI)",
-            "instance_type": "dCloud SDL (Audited Provider)",
-            "region": "Decentralized Cloud",
+            "provider": "Vast.ai",
+            "instance_type": "Vast Datacenter",
+            "region": "Vast.ai EU-West",
             "components": {
                 "gpu": {"label": "GPU Compute", "spec": "1x NVIDIA RTX 3090 24GB", "hourly_usd": "0.090000"},
                 "cpu": {"label": "vCPU Compute", "spec": "4 vCPUs (AMD EPYC / Intel)", "hourly_usd": "0.020000"},
@@ -376,9 +376,9 @@ def resources_breakdown() -> dict[str, dict]:
             "indexed_savings_vs_aws_pct": "87.1%",
         },
         "gpu-g": {
-            "provider": "Akash Network (akt CLI)",
-            "instance_type": "dCloud SDL (Audited Provider)",
-            "region": "Decentralized Cloud",
+            "provider": "OpenOcean",
+            "instance_type": "OpenOcean High-Mem",
+            "region": "OpenOcean Cloud",
             "components": {
                 "gpu": {"label": "GPU Compute", "spec": "1x NVIDIA RTX 4000 Ada 20GB", "hourly_usd": "0.240000"},
                 "cpu": {"label": "vCPU Compute", "spec": "4 vCPUs (AMD EPYC / Intel)", "hourly_usd": "0.024000"},
@@ -390,7 +390,7 @@ def resources_breakdown() -> dict[str, dict]:
             "indexed_savings_vs_aws_pct": "71.2%",
         },
         "gpu-h": {
-            "provider": "Akash Network (akt CLI)",
+            "provider": "Akash Network",
             "instance_type": "dCloud SDL (Audited Provider)",
             "region": "Decentralized Cloud",
             "components": {

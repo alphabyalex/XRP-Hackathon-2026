@@ -24,6 +24,7 @@ async function buildSummary(gpuId: GpuId) {
     label: gpu.label,
     hw: gpu.hw,
     model: gpu.model,
+    provider: (gpu as any).provider ?? RESOURCE_BREAKDOWN[gpuId]?.provider,
     state: computeState?.state ?? "OFFLINE",
     simulated: computeState?.simulated ?? false,
     // Market price: DEX best bid/ask midpoint, else the last trade, else the oracle NAV.

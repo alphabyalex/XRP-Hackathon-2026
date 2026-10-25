@@ -15,6 +15,7 @@ export const GPUS = [
     label: "GPU A",
     hw: "NVIDIA T4 16GB",
     model: "Qwen/Qwen3-1.7B",
+    provider: "AWS",
     shareCode: "GPA",
     contractCode: "HRA",
     sharesTotal: 1000,
@@ -24,6 +25,7 @@ export const GPUS = [
     label: "GPU B",
     hw: "NVIDIA Tesla V100 16GB",
     model: "Qwen/Qwen3-1.7B",
+    provider: "Akash Network",
     shareCode: "GPB",
     contractCode: "HRB",
     sharesTotal: 1000,
@@ -33,6 +35,7 @@ export const GPUS = [
     label: "GPU C",
     hw: "NVIDIA A100 80GB",
     model: "Qwen/Qwen3-1.7B",
+    provider: "OpenOcean",
     shareCode: "GPC",
     contractCode: "HRC",
     sharesTotal: 1000,
@@ -42,6 +45,7 @@ export const GPUS = [
     label: "GPU D",
     hw: "NVIDIA H100 80GB",
     model: "Qwen/Qwen3-1.7B",
+    provider: "Vast.ai",
     shareCode: "GPD",
     contractCode: "HRD",
     sharesTotal: 1000,
@@ -51,6 +55,7 @@ export const GPUS = [
     label: "GPU E",
     hw: "NVIDIA RTX 4090 24GB",
     model: "Qwen/Qwen3-1.7B",
+    provider: "Akash Network",
     shareCode: "GPE",
     contractCode: "HRE",
     sharesTotal: 1000,
@@ -60,6 +65,7 @@ export const GPUS = [
     label: "GPU F",
     hw: "NVIDIA RTX 3090 24GB",
     model: "Qwen/Qwen3-1.7B",
+    provider: "Vast.ai",
     shareCode: "GPF",
     contractCode: "HRF",
     sharesTotal: 1000,
@@ -69,6 +75,7 @@ export const GPUS = [
     label: "GPU G",
     hw: "NVIDIA RTX 4000 Ada 20GB",
     model: "Qwen/Qwen3-1.7B",
+    provider: "OpenOcean",
     shareCode: "GPG",
     contractCode: "HRG",
     sharesTotal: 1000,
@@ -78,6 +85,7 @@ export const GPUS = [
     label: "GPU H",
     hw: "NVIDIA Tesla P40 24GB",
     model: "Qwen/Qwen3-1.7B",
+    provider: "Akash Network",
     shareCode: "GPH",
     contractCode: "HRH",
     sharesTotal: 1000,
@@ -109,7 +117,7 @@ export interface GpuResourceBreakdown {
 
 export const RESOURCE_BREAKDOWN: Record<GpuId, GpuResourceBreakdown> = {
   "gpu-a": {
-    provider: "AWS EC2",
+    provider: "AWS",
     instanceType: "g4dn.xlarge",
     region: "us-east-2",
     components: {
@@ -123,7 +131,7 @@ export const RESOURCE_BREAKDOWN: Record<GpuId, GpuResourceBreakdown> = {
     indexedSavingsVsAwsPct: "0.0%",
   },
   "gpu-b": {
-    provider: "Akash Network (akt CLI)",
+    provider: "Akash Network",
     instanceType: "dCloud SDL (Audited Provider)",
     region: "Decentralized Cloud",
     components: {
@@ -137,9 +145,9 @@ export const RESOURCE_BREAKDOWN: Record<GpuId, GpuResourceBreakdown> = {
     indexedSavingsVsAwsPct: "91.8%",
   },
   "gpu-c": {
-    provider: "Akash Network (akt CLI)",
-    instanceType: "dCloud SDL (Audited Provider)",
-    region: "Decentralized Cloud",
+    provider: "OpenOcean",
+    instanceType: "OpenOcean Cluster",
+    region: "OpenOcean Cloud",
     components: {
       gpu: { label: "GPU Compute", spec: "1x NVIDIA A100 80GB", hourlyUsd: "1.400000" },
       cpu: { label: "vCPU Compute", spec: "8 vCPUs (AMD EPYC / Intel)", hourlyUsd: "0.048000" },
@@ -151,9 +159,9 @@ export const RESOURCE_BREAKDOWN: Record<GpuId, GpuResourceBreakdown> = {
     indexedSavingsVsAwsPct: "63.7%",
   },
   "gpu-d": {
-    provider: "Akash Network (akt CLI)",
-    instanceType: "dCloud SDL (Audited Provider)",
-    region: "Decentralized Cloud",
+    provider: "Vast.ai",
+    instanceType: "Vast On-Demand",
+    region: "Vast.ai US-Central",
     components: {
       gpu: { label: "GPU Compute", spec: "1x NVIDIA H100 SXM5 80GB", hourlyUsd: "2.450000" },
       cpu: { label: "vCPU Compute", spec: "8 vCPUs (Intel Xeon / AMD)", hourlyUsd: "0.070000" },
@@ -165,7 +173,7 @@ export const RESOURCE_BREAKDOWN: Record<GpuId, GpuResourceBreakdown> = {
     indexedSavingsVsAwsPct: "79.0%",
   },
   "gpu-e": {
-    provider: "Akash Network (akt CLI)",
+    provider: "Akash Network",
     instanceType: "dCloud SDL (Audited Provider)",
     region: "Decentralized Cloud",
     components: {
@@ -179,9 +187,9 @@ export const RESOURCE_BREAKDOWN: Record<GpuId, GpuResourceBreakdown> = {
     indexedSavingsVsAwsPct: "71.9%",
   },
   "gpu-f": {
-    provider: "Akash Network (akt CLI)",
-    instanceType: "dCloud SDL (Audited Provider)",
-    region: "Decentralized Cloud",
+    provider: "Vast.ai",
+    instanceType: "Vast Datacenter",
+    region: "Vast.ai EU-West",
     components: {
       gpu: { label: "GPU Compute", spec: "1x NVIDIA RTX 3090 24GB", hourlyUsd: "0.090000" },
       cpu: { label: "vCPU Compute", spec: "4 vCPUs (AMD EPYC / Intel)", hourlyUsd: "0.020000" },
@@ -193,9 +201,9 @@ export const RESOURCE_BREAKDOWN: Record<GpuId, GpuResourceBreakdown> = {
     indexedSavingsVsAwsPct: "87.1%",
   },
   "gpu-g": {
-    provider: "Akash Network (akt CLI)",
-    instanceType: "dCloud SDL (Audited Provider)",
-    region: "Decentralized Cloud",
+    provider: "OpenOcean",
+    instanceType: "OpenOcean High-Mem",
+    region: "OpenOcean Cloud",
     components: {
       gpu: { label: "GPU Compute", spec: "1x NVIDIA RTX 4000 Ada 20GB", hourlyUsd: "0.240000" },
       cpu: { label: "vCPU Compute", spec: "4 vCPUs (AMD EPYC / Intel)", hourlyUsd: "0.024000" },
@@ -207,7 +215,7 @@ export const RESOURCE_BREAKDOWN: Record<GpuId, GpuResourceBreakdown> = {
     indexedSavingsVsAwsPct: "71.2%",
   },
   "gpu-h": {
-    provider: "Akash Network (akt CLI)",
+    provider: "Akash Network",
     instanceType: "dCloud SDL (Audited Provider)",
     region: "Decentralized Cloud",
     components: {
