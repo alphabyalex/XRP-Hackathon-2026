@@ -116,6 +116,7 @@ export function AdminRouter() {
         </div>
 
         <h3>Fleet</h3>
+        <div className="tbl">
         <table>
           <thead>
             <tr>
@@ -152,8 +153,10 @@ export function AdminRouter() {
             ))}
           </tbody>
         </table>
+        </div>
 
         <h3>Orders</h3>
+        <div className="tbl">
         <table>
           <thead>
             <tr>
@@ -180,6 +183,7 @@ export function AdminRouter() {
             ))}
           </tbody>
         </table>
+        </div>
 
         {why && (
           <>
@@ -221,6 +225,7 @@ export function AdminRouter() {
           Tasks run only on GPU-A and GPU-B. These offers are the market: each GPU is priced at the cheapest on-demand offer for the same GPU, so a
           customer never pays more than renting it elsewhere. Not shown to customers.
         </p>
+        <div className="tbl">
         <table>
           <thead>
             <tr>
@@ -256,6 +261,7 @@ export function AdminRouter() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </main>
   );
