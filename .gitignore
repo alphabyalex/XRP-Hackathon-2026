@@ -12,6 +12,7 @@ contracts/active_loans.json
 # dependencies and build output
 node_modules/
 .next/
+.vercel/
 dist/
 *.tsbuildinfo
 
