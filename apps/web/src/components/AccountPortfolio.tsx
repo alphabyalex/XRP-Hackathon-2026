@@ -89,16 +89,16 @@ export function AccountPortfolio() {
     <GpuMarketPrices/>
     <section aria-labelledby="earnings-heading"><div className="account-section-head"><h2 id="earnings-heading">GPU revenue</h2>{!!options.length && <Segmented options={options} value={selected} onChange={setSelection}/>}</div>
       {!deferred?<div className="account-skeleton account-chart-skeleton"/>:!held.length?<p className="account-muted">No GPU earnings yet</p>:<div className="account-earnings" ref={chart}>
-        <div className="account-chart"><div className="account-chart-legend"><span><i/>Booked</span><span><i/>Inference</span></div>
+        <div className="account-chart"><div className="account-chart-legend"><span><i/>Earned</span></div>
           <svg viewBox="0 0 700 245" role="img" aria-label="GPU revenue over seven days" className={inView?"account-bars-visible":""}>
             <line x1="12" y1="207" x2="688" y2="207" stroke="var(--rule)"/>
-            {days.map((d,i)=>{const x=30+i*96,booked=d.booked/max*170,inference=d.inference/max*170;return <g key={d.date} tabIndex={0} role="graphics-symbol" aria-label={`${date(d.date+"T12:00:00Z")} Booked ${money(d.booked)} Inference ${money(d.inference)} USDC`} onMouseEnter={()=>setHover(i)} onMouseLeave={()=>setHover(null)} onFocus={()=>setHover(i)} onBlur={()=>setHover(null)}>
+            {days.map((d,i)=>{const x=30+i*96,booked=d.booked/max*170,inference=d.inference/max*170;return <g key={d.date} tabIndex={0} role="graphics-symbol" aria-label={`${date(d.date+"T12:00:00Z")} Earned ${money(d.booked+d.inference)} USDC`} onMouseEnter={()=>setHover(i)} onMouseLeave={()=>setHover(null)} onFocus={()=>setHover(i)} onBlur={()=>setHover(null)}>
               <rect x={x-8} y="12" width="72" height="198" fill="transparent"/>
-              <g className="account-bar"><rect x={x} y={207-booked} width="48" height={booked} fill="var(--ink)"/><rect x={x} y={207-booked-inference} width="48" height={inference} fill="var(--accent)"/></g>
+              <g className="account-bar"><rect x={x} y={207-booked-inference} width="48" height={booked+inference} fill="var(--accent)"/></g>
               <text x={x+24} y="235" textAnchor="middle" fill="var(--ink3)" fontSize="13">{new Intl.DateTimeFormat("en-US",{weekday:"short",timeZone:"UTC"}).format(new Date(d.date+"T12:00:00Z"))}</text>
             </g>;})}
           </svg>
-          <div className="account-tooltip" role="status">{hover!==null && days[hover] ? `${new Intl.DateTimeFormat("en-US",{weekday:"short",day:"numeric",timeZone:"UTC"}).format(new Date(days[hover].date+"T12:00:00Z"))} · Booked ${money(days[hover].booked)} · Inference ${money(days[hover].inference)} USDC`:"\u00a0"}</div>
+          <div className="account-tooltip" role="status">{hover!==null && days[hover] ? `${new Intl.DateTimeFormat("en-US",{weekday:"short",day:"numeric",timeZone:"UTC"}).format(new Date(days[hover].date+"T12:00:00Z"))} · Earned ${money(days[hover].booked+days[hover].inference)} USDC`:"\u00a0"}</div>
         </div>
         <dl className="account-stats"><div><dt>Revenue 24h</dt><dd>{money(revenue)} <span>USDC</span></dd></div><div><dt>Utilization 24h</dt><dd>{money(utilization)}%</dd></div><div><dt>Your share</dt><dd>{money(ownership*100)}% <span>· <span className="account-income">+{money(earned)} USDC</span></span></dd></div></dl>
       </div>}

@@ -18,9 +18,9 @@ export interface BuiltSchedule {
   windowStart: Date;
 }
 
+// One activity state: any work (a task, a booking, inference) is "working".
 function kindToState(kind: string): SlotState | null {
-  if (kind === "BOOKED" || kind === "CONTRACT") return "b";
-  if (kind === "INFERENCE") return "l";
+  if (kind === "BOOKED" || kind === "CONTRACT" || kind === "INFERENCE") return "l";
   return null;
 }
 
@@ -66,8 +66,8 @@ export function hm(d: Date): string {
 }
 
 export const SLOT_LABEL: Record<SlotState, string> = {
-  b: "Booked",
-  l: "Night shift",
+  b: "Working",
+  l: "Working",
   i: "Idle",
   o: "Open to book",
 };

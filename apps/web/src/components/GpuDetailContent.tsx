@@ -62,12 +62,8 @@ export function GpuDetailContent({ id }: { id: string }) {
             <ScheduleRows slots={v.slots} nowIndex={v.nowIndex} windowStart={v.windowStart} />
             <div className="key">
               <span>
-                <i className="k-b" />
-                Booked
-              </span>
-              <span>
                 <i className="k-l" />
-                Night shift (inference)
+                Working
               </span>
               <span>
                 <i className="k-i" />

@@ -38,10 +38,10 @@ export function HomeContent() {
         <div className="wrap hero-in">
           <div>
             <h1>
-              Own the <em>night shift</em> of a GPU.
+              Own a <em>share</em> of a GPU.
             </h1>
             <p className="sub">
-              Moonshift splits real GPUs into 1,000 shares on the XRP Ledger. When someone books the machine, shareholders earn. When nobody does, it sells AI inference, and shareholders still earn. Payouts land every night in USDC.
+              Moonshift splits real GPUs into shares on the XRP Ledger. Customers send tasks, the router runs each one on the best GPU, and every hour a GPU works pays its shareholders. Payouts land every night in USDC.
             </p>
             <div className="ctas">
               <Button href="/market" arrow>
@@ -97,11 +97,11 @@ export function HomeContent() {
             <Reveal>
               <div className="shead">
                 <h2>
-                  Booked by day.
+                  Working around
                   <br />
-                  Earning all night.
+                  the clock.
                 </h2>
-                <p>This is {featured.dashLabel}&apos;s last 20 hours and next 4, in five minute slots. Booked time always wins. The moment a booking ends, the router fills the gap with paid inference, so the machine is almost never idle.</p>
+                <p>This is {featured.dashLabel}&apos;s last 20 hours and next 4, in five minute slots. Lit time is the GPU working on customers&apos; tasks; gray is idle. As one task ends the router places the next, so the machine is rarely idle.</p>
               </div>
             </Reveal>
             <div className="sched-grid">
@@ -110,12 +110,8 @@ export function HomeContent() {
                 <ScheduleRows slots={featured.slots} nowIndex={featured.nowIndex} windowStart={featured.windowStart} />
                 <div className="key">
                   <span>
-                    <i className="k-b" />
-                    Booked
-                  </span>
-                  <span>
                     <i className="k-l" />
-                    Night shift (inference)
+                    Working
                   </span>
                   <span>
                     <i className="k-i" />

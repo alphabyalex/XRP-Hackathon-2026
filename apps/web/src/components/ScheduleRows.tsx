@@ -10,7 +10,7 @@ import { useReveal } from "@/hooks/useReveal";
 // Ported from the "sched" block (rowSVG + sched() + the tooltip listeners)
 // in moonshift_v2_source.html. See BRAND.md section 5.
 
-const EARN: Record<SlotState, number> = { b: 0.045, l: 0.025, i: 0, o: 0 };
+const EARN: Record<SlotState, number> = { b: 0.035, l: 0.035, i: 0, o: 0 };
 
 export function ScheduleRows({
   slots,

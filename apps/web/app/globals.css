@@ -699,8 +699,9 @@ tr.soon td {
 .js .sched.in .srow svg g {
   transform: none;
 }
+/* One activity color: working is the accent, idle is gray. */
 svg .sb {
-  fill: var(--mk-b);
+  fill: var(--mk-f);
 }
 svg .sl {
   fill: var(--mk-f);
@@ -781,7 +782,7 @@ section.tinted .nowline span {
   border-radius: 2px;
 }
 .k-b {
-  background: var(--mk-b);
+  background: var(--mk-f);
 }
 .k-l {
   background: var(--mk-f);

@@ -2,7 +2,7 @@
 // Ported from drawMark/rowsOf/runs/rowSVG in moonshift_v2_source.html.
 // See BRAND.md section 4 for the math this implements.
 
-export type SlotState = "b" | "l" | "i" | "o"; // booked, night shift (lit), idle, open
+export type SlotState = "b" | "l" | "i" | "o"; // working (b and l draw the same), idle, open
 
 export const MK = { R: 44, cx: 50, cy: 50, inR: 38, inCx: 40, off: 7 } as const;
 
