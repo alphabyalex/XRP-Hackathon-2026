@@ -52,14 +52,11 @@ export default async function BorrowPage() {
         sharePrice={Number(gpu.sharePrice) || 0}
       />
     );
-  } catch (err) {
-    if (err instanceof ApiUnreachableError) {
-      return (
-        <main className="wrap" style={{ paddingBlock: 120 }}>
-          <ApiErrorNotice />
-        </main>
-      );
-    }
-    throw err;
+  } catch (_err) {
+    return (
+      <main className="wrap" style={{ paddingBlock: 120 }}>
+        <ApiErrorNotice />
+      </main>
+    );
   }
 }

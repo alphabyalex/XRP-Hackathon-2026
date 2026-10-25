@@ -7,8 +7,7 @@ export async function fetchAllGpus(): Promise<{ gpus: GpuMap; unreachable: boole
     const listed = await getGpus();
     const entries = await Promise.all(listed.map((g) => getGpu(g.id)));
     return { gpus: Object.fromEntries(entries.map((e) => [e.id, e])), unreachable: false };
-  } catch (err) {
-    if (err instanceof ApiUnreachableError) return { gpus: {}, unreachable: true };
-    throw err;
+  } catch (_err) {
+    return { gpus: {}, unreachable: true };
   }
 }

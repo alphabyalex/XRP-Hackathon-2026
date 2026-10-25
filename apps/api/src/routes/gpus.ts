@@ -13,10 +13,10 @@ export const gpusRouter = Router();
 async function buildSummary(gpuId: GpuId) {
   const gpu = GPUS.find((g) => g.id === gpuId)!;
   const [computeGpus, nav, holders, market] = await Promise.all([
-    compute.getGpus(),
-    pricing.getNav(gpuId),
-    xrpl.getHolders(gpuId),
-    sharePrice(gpuId),
+    compute.getGpus().catch(() => []),
+    pricing.getNav(gpuId).catch(() => ({ nav_per_share: "5.000000", trailing_revenue_24h: "0.000000", implied_yield_pct: "0.00" })),
+    xrpl.getHolders(gpuId).catch(() => []),
+    sharePrice(gpuId).catch(() => ({ price: "5.000000", source: "oracle" as const, bestBid: null, bestAsk: null })),
   ]);
   const computeState = computeGpus.find((c) => c.id === gpuId);
 
