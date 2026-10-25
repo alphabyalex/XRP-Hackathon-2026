@@ -460,3 +460,23 @@
 .bw-right .bw-charts {
   margin-top: 0;
 }
+.bw-grid {
+  grid-template-areas: "credit right" "memo right";
+  grid-template-rows: auto 1fr;
+}
+.bw-grid > .bw-credit {
+  grid-area: credit;
+}
+.bw-grid > .bw-right {
+  grid-area: right;
+}
+.bw-grid > .bw-memo {
+  grid-area: memo;
+  align-self: start;
+}
+@media (max-width: 900px) {
+  .bw-grid {
+    grid-template-areas: "credit" "right" "memo";
+    grid-template-rows: auto;
+  }
+}

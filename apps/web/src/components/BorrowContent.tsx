@@ -619,9 +619,9 @@ export function BorrowContent({
           </p>
         </div>
 
-        <div className="lend-grid">
+        <div className="lend-grid bw-grid">
           {/* Credit profile */}
-          <div className="trade card">
+          <div className="trade card bw-credit">
             <div className="bw-card-head">
               <span className="lbl" style={{ margin: 0 }}>
                 Credit rating
@@ -929,16 +929,6 @@ export function BorrowContent({
                       {q.reasons.join(", ").toLowerCase().replace(/_/g, " ")}
                     </p>
                   )}
-                  {memo ? (
-                    <blockquote className="memo">
-                      {memo.text.replace(/TDX/g, "USDC")}
-                      {!memo.fellBack && (
-                        <span className="via">via Amazon Bedrock</span>
-                      )}
-                    </blockquote>
-                  ) : (
-                    <p className="memo-pending">Writing credit memo...</p>
-                  )}
                 </>
               )}
               {quoteErr && !q && !overLimit && (
@@ -973,6 +963,20 @@ export function BorrowContent({
               />
             )}
           </div>
+          {/* The credit memo sits under the rating on wide screens, after the quote on phones. */}
+          {q && (
+            <div className="trade card bw-memo">
+              <span className="lbl">Credit memo</span>
+              {memo ? (
+                <blockquote className="memo" style={{ marginTop: 6 }}>
+                  {memo.text.replace(/TDX/g, "USDC")}
+                  {!memo.fellBack && <span className="via">via Amazon Bedrock</span>}
+                </blockquote>
+              ) : (
+                <p className="memo-pending">Writing credit memo...</p>
+              )}
+            </div>
+          )}
         </div>
 
         {q && (
