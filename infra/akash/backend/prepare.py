@@ -1,0 +1,88 @@
+"""Render a pinned SDL and create an inert deployment using native secret input.
+
+Never put secret values in the SDL, command arguments, logs, or Git. This script
+passes the allowlisted runtime settings to akt through its stdin pipe.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import secrets
+import subprocess
+
+ROOT = Path(__file__).resolve().parents[3]
+PRIVATE = Path.home() / ".local/state/moonshift/backend"
+
+
+def dotenv(path: Path) -> dict[str, str]:
+    result = {}
+    for line in path.read_text().splitlines():
+        match = re.match(r"\s*([A-Za-z_][A-Za-z_0-9]*)\s*=\s*(.*)\s*$", line)
+        if match:
+            key, value = match.groups()
+            if len(value) > 1 and value[0] == value[-1] and value[0] in "\"'":
+                value = value[1:-1]
+            result[key] = value
+    return result
+
+
+def runtime_settings() -> dict[str, str]:
+    exact = {"INTERNAL_API_KEY", "ADMIN_KEY", "MOONSHIFT_ACCOUNT_KEY", "DEVNET_WSS", "XRPL_WSS",
+             "QUICKNODE_WSS", "QUICKNODE_XRPL_MAINNET_URL", "QUICKNODE_XRPL_TESTNET_URL", "SLOT_MINUTES",
+             "AKASH_LEASE_USD_PER_HOUR", "OWN_MARGIN", "OWN_PRICE_UPDATED_AT", "GPU_B_MODE"}
+    result = {key: value for key, value in dotenv(ROOT / ".env").items() if value and
+              (key in exact or re.fullmatch(r"DEVNET_[A-Z_]+_SEED", key) or
+               re.fullmatch(r"GPU_[A-Z]_(VLLM_URL|VLLM_MODEL|WIRE_MODEL|MODEL_ID|CARD|VRAM_GB|VCPU|RAM_GB|STORAGE_GB|CITY|REGION|LEASE_USD_PER_HOUR|PRICE_UPDATED_AT|OWN_MARGIN)", key))}
+    # Separate strong operator keys for the public backend. Preserve the account
+    # encryption key so existing wallet accounts and sessions remain usable.
+    previous = PRIVATE / "secrets.json"
+    existing = json.loads(previous.read_text()) if previous.exists() else {}
+    for key in ("INTERNAL_API_KEY", "ADMIN_KEY"):
+        result[key] = existing.get(key) or secrets.token_hex(32)
+    if len(result.get("MOONSHIFT_ACCOUNT_KEY", "")) != 64:
+        raise RuntimeError("The existing account encryption key is required")
+    if not result.get("GPU_A_VLLM_URL") or not result.get("GPU_B_VLLM_URL") or result["GPU_A_VLLM_URL"].rstrip("/") == result["GPU_B_VLLM_URL"].rstrip("/"):
+        raise RuntimeError("Two distinct verified GPU endpoints are required")
+    if result.get("GPU_B_MODE") != "real" or not result.get("GPU_B_MODEL_ID"):
+        raise RuntimeError("The second GPU must be verified and configured")
+    return result
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--revision", required=True)
+    parser.add_argument("--create", action="store_true")
+    args = parser.parse_args()
+    if not re.fullmatch(r"[a-f0-9]{40}", args.revision):
+        raise RuntimeError("Use a full verified commit SHA")
+    PRIVATE.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(PRIVATE, 0o700)
+    settings = runtime_settings()
+    secret_path = PRIVATE / "secrets.json"
+    secret_path.write_text(json.dumps(settings))
+    os.chmod(secret_path, 0o600)
+    template = (Path(__file__).parent / "deploy.yaml").read_text()
+    template = template.replace("RENDER_FULL_COMMIT_SHA", args.revision)
+    template = template.replace("      - MARKET_MAKER=1", "      - MARKET_MAKER=1\n" +
+        "\n".join(f"      - {key}=ac-secret://{key}" for key in sorted(settings)))
+    sdl_path = PRIVATE / "deploy.yaml"
+    sdl_path.write_text(template)
+    os.chmod(sdl_path, 0o600)
+    print("Rendered pinned SDL with secret references; no cloud deployment yet", flush=True)
+    if args.create:
+        result = subprocess.run(["akt", "console", "deployment", "create", str(sdl_path), "--yes", "--secrets-file", "-", "-o", "json"],
+                                input=json.dumps(settings), text=True, capture_output=True)
+        # CLI errors can embed request payloads. Never print raw response bodies.
+        if result.returncode:
+            raise RuntimeError("Deployment creation failed; inspect the private operator response")
+        payload = json.loads(result.stdout)
+        (PRIVATE / "create-response.json").write_text(json.dumps(payload))
+        os.chmod(PRIVATE / "create-response.json", 0o600)
+        print("Backend deployment order created; inspect its bids before accepting a lease", flush=True)
+
+
+if __name__ == "__main__":
+    main()

@@ -2,7 +2,7 @@
 
 Moonshift uses Amazon Bedrock for task sizing and credit explanations. A live,
 read-only AWS price feed supplies spot and on-demand comparisons. Compute runs
-on the existing Akash NVIDIA T4, not on AWS.
+on separate Akash NVIDIA T4 and Tesla V100 leases.
 
 EC2 GPU quota was denied; no EC2 GPU instance is deployed.
 
@@ -44,13 +44,19 @@ bounded retry and deterministic fallback. No secrets or full prompts are logged.
 
 ## Price feed and rental formula
 
-GPU Economy supplies a card's observed median USD per GPU-hour. The rental
-catalog uses this live median directly. Missing or stale rates are unavailable,
-not replaced by hardcoded sample prices. Resource sliders must fit the actual
+The rental price uses each GPU's verified Akash lease cost plus the configured
+margin (25% by default). The accepted bids were verified through the Akash CLI:
+GPU-A is 272 uact/block and GPU-B is 383.910083 uact/block. At 600 blocks/hour,
+these are $0.1632/hour and $0.2303460498/hour before margin. The conversion is an
+estimate based on block cadence, not a fixed fiat charge per wall-clock hour.
+Each policy includes its verification timestamp. GPU Economy supplies a
+separate observed median comparison; losing that comparison does not invalidate
+a configured lease price. Missing lease prices remain unavailable.
+Resource sliders must fit the actual
 node; without separately published component prices, the whole node rate is
 charged and unpublished CPU/RAM/storage unit rates remain null.
 
-AWS spot and on-demand rates are separate provider comparisons. They are not
+AWS spot and on-demand rates supply provider comparisons. They are not
 claims that an AWS GPU is deployed or rented by this application. All values
 carry their original source timestamp and source URL. The router's live AWS
 collector uses official public price feeds without launching an instance.
@@ -75,9 +81,12 @@ real router leases, not marketplace stock counts.
 
 `POST /tasks/quote` calculates price per hour, total price and a cap from the
 cached catalog. The request makes no upstream price call, so slider requests
-stay fast. Cheapest, Balanced and Fastest retain the requested duration when
-there is no measured performance evidence for different speeds. One online
-physical node cannot promise multiple simultaneously available GPUs.
+stay fast. The morning service policy derives priority discounts from a fresh
+spot/on-demand ratio for the same card; a missing or stale pair uses the full
+node rate. Cheapest includes a 30% duration allowance. This is scheduling
+guidance, not a measured hardware speed claim. The API and router use the same
+policy. Each physical node has one GPU and cannot promise multiple GPU capacity
+on that node.
 
 ## Reservations
 
@@ -106,5 +115,6 @@ fallback, inspect IAM/model access on Alex's machine without printing keys.
 Verify source timestamps on both AWS price classes. Run a small task and verify
 its settlement separately. Follow docs/VERCEL.md for the API tunnel and web release.
 
-No billable AWS infrastructure, Akash lease mutation or Vercel redeployment is
-part of the night run.
+The morning release adds the separately authorized V100 lease. Paid AWS
+infrastructure and Bedrock calls remain disabled on this machine and on the
+Akash backend.

@@ -1,0 +1,54 @@
+version: '2.0'
+services:
+  backend:
+    image: node:24-bookworm-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205
+    command: [/bin/sh, -ec]
+    args:
+      - >-
+        apt-get update -qq && apt-get install -y -qq --no-install-recommends curl ca-certificates &&
+        curl --fail --location --retry 3 --silent --show-error
+        "https://raw.githubusercontent.com/alphabyalex/XRP-Hackathon-2026/$MOONSHIFT_REVISION/infra/akash/backend/bootstrap.sh"
+        -o /tmp/bootstrap.sh && exec /bin/sh /tmp/bootstrap.sh
+    env:
+      - MOONSHIFT_REVISION=RENDER_FULL_COMMIT_SHA
+      - WEB_ORIGIN=https://moonshift-protocol.vercel.app
+      - NETWORK=devnet
+      - MOCK_XRPL=0
+      - MARKET_MAKER=1
+      - ORACLE_AUTO=0
+    params:
+      storage:
+        state:
+          mount: /data
+          readOnly: false
+    expose:
+      - port: 4000
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    backend:
+      resources:
+        cpu:
+          units: 2
+        memory:
+          size: 4Gi
+        storage:
+          - size: 10Gi
+          - name: state
+            size: 20Gi
+            attributes:
+              persistent: true
+              class: beta3
+  placement:
+    akash:
+      pricing:
+        backend:
+          denom: uact
+          amount: 50
+deployment:
+  backend:
+    akash:
+      profile: backend
+      count: 1

@@ -15,6 +15,7 @@ import type { AccountName } from "@moonshift/shared";
 import { internalHeaders } from "../adapters/serviceFetch.js";
 import { actorFor, asActor } from "../middleware/session.js";
 import { getRentalCatalog } from "../marketData/rentalCatalog.js";
+import { selectServingGpu } from "./servingModel.js";
 
 const ROUTER_URL = () => (process.env.ROUTER_URL ?? "http://localhost:7200").replace(/\/$/, "");
 const MAX_PAYMENT_TDX = 1000;
@@ -124,15 +125,8 @@ type Msg = { role: "system" | "user" | "assistant"; content: string };
 routerPublic.post("/v1/chat/completions", async (req, res) => {
   const body = req.body as { model?: string; messages?: Msg[]; max_tokens?: number; priority?: string; gpuId?: string; gpu_id?: string };
   const pinnedGpu = body.gpuId ?? body.gpu_id;
-  if (pinnedGpu !== undefined && pinnedGpu !== "gpu-a") {
+  if (pinnedGpu !== undefined && (typeof pinnedGpu !== "string" || !/^gpu-[a-z]$/.test(pinnedGpu))) {
     res.status(400).json({ error: { code: "GPU_NOT_SERVING", message: "This GPU is not currently serving this model." } });
-    return;
-  }
-  const servingModel = "Qwen/Qwen2.5-1.5B-Instruct";
-  // Accept the historical transport alias for older SDK clients, but always
-  // identify the actual deployed weights in public responses.
-  if (body.model && ![servingModel, "Qwen/Qwen3-1.7B"].includes(body.model)) {
-    res.status(400).json({ error: { code: "MODEL_NOT_SERVING", message: "This model is not currently serving requests." } });
     return;
   }
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
@@ -148,14 +142,16 @@ routerPublic.post("/v1/chat/completions", async (req, res) => {
   const buyer = req.user?.name ?? "DEV";
   try {
     const catalog = await getRentalCatalog();
-    if (!catalog.gpus.some(gpu => gpu.id === "gpu-a" && gpu.status === "serving")) {
-      res.status(503).json({ error: { code: "MODEL_OFFLINE", message: "The model endpoint is currently offline." } });
+    const selected = selectServingGpu(catalog.gpus, pinnedGpu, body.model);
+    if (!selected) {
+      res.status(503).json({ error: { code: "MODEL_OFFLINE", message: "The requested model endpoint is currently offline." } });
       return;
     }
+    const servingModel = selected.modelId ?? `Qwen/${selected.model}`;
     const created = await fetch(`${ROUTER_URL()}/orders`, {
       method: "POST",
       headers: internalHeaders(true),
-      body: JSON.stringify({ kind: "inference", mode: priority, buyer, maxTokens: body.max_tokens ?? 128, requests: [body.messages], ...(pinnedGpu ? { gpuId: pinnedGpu } : {}) }),
+      body: JSON.stringify({ kind: "inference", mode: priority, buyer, maxTokens: body.max_tokens ?? 128, requests: [body.messages], gpuId: selected.id }),
       signal: AbortSignal.timeout(15_000),
     });
     if (!created.ok) {
