@@ -11,7 +11,7 @@ import type {
   VaultOverview,
   XlsLoanRecord,
 } from "@moonshift/shared";
-import { apiFetch, eventsUrl } from "./api";
+import { API_BASE, ApiUnreachableError, apiFetch, eventsUrl, getPortfolio } from "./api";
 
 const post = <T,>(path: string, body: unknown) => apiFetch<T>(path, { method: "POST", body: JSON.stringify(body ?? {}) });
 
@@ -44,7 +44,59 @@ export const walletGet = (init?: RequestInit) => apiFetch<WalletSession & { acti
 export const walletChallenge = () => post<{ challengeId: string; message: string; messageHex: string; expiresAt: string }>("/wallet/challenge", {});
 export const walletVerify = (b: { challengeId: string; publicKey: string; signature: string; address?: string }) => post<WalletSession>("/wallet/verify", b);
 export const walletDisconnect = () => apiFetch<{ wallet: null }>("/wallet/me", { method: "DELETE" });
-export const openFromQuote = (quoteId: string) => post<XlsLoanRecord>("/loans/open", { quoteId });
+// An api error that keeps its code (OVER_LIMIT, LENDING_UNAVAILABLE, ...).
+export class ApiCodeError extends Error {
+  constructor(public status: number, public code: string, message: string) {
+    super(message);
+    this.name = "ApiCodeError";
+  }
+}
+
+async function postCoded<T>(path: string, body: unknown): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body ?? {}),
+      cache: "no-store",
+      credentials: "include",
+    });
+  } catch {
+    throw new ApiUnreachableError();
+  }
+  if (!res.ok) {
+    const b = await res.json().catch(() => ({}));
+    throw new ApiCodeError(res.status, b?.error?.code ?? "INTERNAL", b?.error?.message ?? `apps/api returned ${res.status}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+// 409 OVER_LIMIT when the quote is above what risk approves: never a smaller loan.
+export const openFromQuote = (quoteId: string) => postCoded<XlsLoanRecord>("/loans/open", { quoteId });
+
+// Every GPU the signed-in account holds shares in. GET /loans/collateral-options,
+// or the account's own share balances while that route is not deployed.
+export type CollateralOption = { gpuId: string; label: string; shares: number };
+export async function collateralOptions(): Promise<CollateralOption[]> {
+  const norm = (rows: any[]) =>
+    rows
+      .map((r) => ({
+        gpuId: String(r.gpuId ?? r.id),
+        label: String(r.label ?? String(r.gpuId ?? r.id).toUpperCase()),
+        shares: Number(r.shares ?? r.qty ?? r.held ?? r.available ?? 0),
+      }))
+      .filter((o) => o.gpuId && o.shares > 0);
+  try {
+    const r = await apiFetch<any>("/loans/collateral-options");
+    const rows = Array.isArray(r) ? r : (r?.options ?? r?.gpus ?? []);
+    if (Array.isArray(rows)) return norm(rows);
+  } catch {
+    // not deployed yet: fall through to the portfolio
+  }
+  const p = await getPortfolio();
+  return norm(p.shares);
+}
 // mine: the signed-in account's loans; otherwise the public loan book.
 export const listLoans = (mine = false) => apiFetch<{ loans: XlsLoanRecord[] }>(`/loans${mine ? "?borrower=me" : ""}`);
 export const payNext = (id: string) => post<XlsLoanRecord>(`/loans/${id}/pay`, { mode: "next" });
