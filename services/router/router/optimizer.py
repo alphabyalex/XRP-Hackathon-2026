@@ -17,6 +17,15 @@ always give the same plans. docs/ROUTER.md explains the model; the short version
   cheapest: min cost s.t. deadline, budget     fastest: min eta s.t. budget (and deadline if any plan meets it)
   balanced: Pareto frontier of feasible plans, both axes min-max normalized over the frontier,
             pick the plan closest to the ideal corner (0, 0) by Euclidean distance (the knee).
+
+Service levels (service_levels below) replace that search when every GPU is Moonshift's own and priced
+from a market benchmark (FLEET_SOURCE=own): on identical GPUs the frontier is one point, so the three
+modes are terms of service instead.
+  Cheapest  "Pausable"    1 GPU at the spot benchmark rate; yields to priority work, ETA x (1 + PAUSABLE_SLOWDOWN)
+  Balanced  "Guaranteed"  1 GPU at the on-demand benchmark rate
+  Fastest   "Priority"    every available GPU in parallel at on-demand x (1 + PRIORITY_PREMIUM)
+  cost = GPU-hours x rate (the whole job, never shrunk to fit), eta = wall clock; a deadline it misses
+  is reported (deadlineMet false), not met by quietly doing less.
 """
 
 from __future__ import annotations
@@ -281,6 +290,7 @@ class Choice:
     reason: str | None = None
     score: dict[str, float] | None = None
     deadline_met: bool = True
+    level: dict[str, Any] | None = None  # service level: name and rate (service_levels)
 
 
 def choose(plans: Sequence[Plan], order: OrderSpec) -> dict[Mode, Choice]:
@@ -302,6 +312,88 @@ def choose(plans: Sequence[Plan], order: OrderSpec) -> dict[Mode, Choice]:
     else:
         out["fastest"] = Choice("fastest", None, reason)
     return out
+
+
+# ---- Service levels (identical GPUs priced from the market) --------------------------------
+
+LEVELS: dict[Mode, str] = {"cheapest": "Pausable", "balanced": "Guaranteed", "fastest": "Priority"}
+
+
+def service_fleet(views: Sequence[GpuView], order: OrderSpec) -> list[GpuView] | None:
+    """The candidate pool when it is all Moonshift GPUs with a market spot benchmark, else None."""
+    pool = candidates(views, order)
+    executable = [v for v in views if v.executable]
+    if not executable or any(v.provider != "moonshift" or v.spotUsdcPerHour <= 0 for v in executable):
+        return None
+    return pool
+
+
+def level_rate(g: GpuView, mode: Mode) -> float:
+    if mode == "cheapest":
+        return g.spotUsdcPerHour
+    if mode == "fastest":
+        return g.priceUsdcPerHour * (1 + C.PRIORITY_PREMIUM)
+    return g.priceUsdcPerHour
+
+
+def _level_part(g: GpuView, units: int, order: OrderSpec, mode: Mode, params: Params) -> Part:
+    if order.kind == "inference":
+        work = order.tokens * units / order.total_units
+        run_s = work / max(g.tokensPerSec, 1e-9)
+    else:
+        work = float(units * C.SLOT_MINUTES)
+        run_s = work * 60.0
+    start = earliest_start(g, g.startupSeconds + run_s, params.booking_guard_s if g.bookedWindows else 0.0)
+    wall = run_s * (1 + C.PAUSABLE_SLOWDOWN) if mode == "cheapest" else run_s
+    cost = level_rate(g, mode) / 3600.0 * run_s  # paid per GPU-second served; pauses are not billed
+    return Part(g, units, work, start, run_s, start + g.startupSeconds + wall, cost, 0.0, params.resume_latency_s, 0.0)
+
+
+def service_levels(order: OrderSpec, views: Sequence[GpuView], params: Params | None = None) -> dict[Mode, Choice]:
+    params = params or Params()
+    pool = service_fleet(views, order) or []
+    out: dict[Mode, Choice] = {}
+    single_stream = order.kind == "inference" and order.requests <= 1
+    for mode in MODES:
+        if not pool:
+            out[mode] = Choice(mode, None, "NO_CAPACITY")
+            continue
+        if mode == "fastest" and not single_stream:
+            gpus = pool[: min(len(pool), order.total_units, params.max_parts)]
+            units = scale(order.total_units, (1,) * len(gpus)) or (order.total_units,)
+            gpus = gpus[: len(units)]
+        else:  # one GPU: the one that finishes first
+            gpus = [min(pool, key=lambda g: (_level_part(g, order.total_units, order, mode, params).eta_s, g.id))]
+            units = (order.total_units,)
+        parts = tuple(_level_part(g, u, order, mode, params) for g, u in zip(gpus, units, strict=True))
+        plan = Plan(parts, sum(p.cost for p in parts), max(p.eta_s for p in parts), 0.0)
+        level = {"name": LEVELS[mode], "rateUsdcPerGpuHour": round(level_rate(gpus[0], mode), 6), "gpus": len(parts)}
+        if order.budgetUsdc is not None and plan.cost > order.budgetUsdc + 1e-12:
+            out[mode] = Choice(mode, None, "OVER_BUDGET", level=level)
+            continue
+        met = order.deadlineSeconds is None or plan.eta_s <= order.deadlineSeconds
+        out[mode] = Choice(mode, plan, deadline_met=met, level=level)
+    return out
+
+
+def choose_for(order: OrderSpec, views: Sequence[GpuView], params: Params | None = None) -> tuple[dict[Mode, Choice], int]:
+    """The three options and how many plans were weighed: service levels on our own fleet, else the search."""
+    if service_fleet(views, order) is not None:
+        return service_levels(order, views, params), len(MODES)
+    plans = enumerate_plans(order, views, params)
+    return choose(plans, order), len(plans)
+
+
+def max_gpu_hours(views: Sequence[GpuView]) -> float:
+    """The largest task: every executable GPU working MAX_TASK_DAYS."""
+    return len([v for v in views if v.executable]) * C.MAX_TASK_DAYS * 24.0
+
+
+def gpu_hours(order: OrderSpec, views: Sequence[GpuView]) -> float:
+    if order.kind == "rental":
+        return order.size / 60.0
+    tps = min((v.tokensPerSec for v in views if v.executable and v.tokensPerSec > 0), default=1.0)
+    return order.tokens / tps / 3600.0
 
 
 # ---- Output ------------------------------------------------------------------------------
@@ -342,7 +434,10 @@ def part_dict(p: Part, order: OrderSpec) -> dict[str, Any]:
 
 def plan_dict(c: Choice, order: OrderSpec, now: datetime) -> dict[str, Any]:
     if c.plan is None:
-        return {"mode": c.mode, "feasible": False, "reason": c.reason}
+        out: dict[str, Any] = {"mode": c.mode, "feasible": False, "reason": c.reason}
+        if c.level is not None:
+            out["serviceLevel"] = c.level["name"]
+        return out
     p = c.plan
     providers = list(dict.fromkeys(part.gpu.provider for part in p.parts))
     d: dict[str, Any] = {
@@ -359,9 +454,13 @@ def plan_dict(c: Choice, order: OrderSpec, now: datetime) -> dict[str, Any]:
         d["score"] = c.score
     if not c.deadline_met:
         d["deadlineMet"] = False
+    if c.level is not None:
+        d["serviceLevel"] = c.level["name"]
+        d["rateUsdcPerGpuHour"] = f"{c.level['rateUsdcPerGpuHour']:.6f}"
+        d["gpuHours"] = round(sum(x.run_s for x in p.parts) / 3600.0, 4)
     return d
 
 
 def best_for(order: OrderSpec, mode: Mode, views: Sequence[GpuView], params: Params | None = None) -> Choice:
     """One mode only (used to re-place remaining work after a move)."""
-    return choose(enumerate_plans(order, views, params), order)[mode]
+    return choose_for(order, views, params)[0][mode]

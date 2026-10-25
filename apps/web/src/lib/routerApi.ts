@@ -27,6 +27,11 @@ export interface Plan {
   reason?: string;
   priceUsdc?: string;
   etaSeconds?: number;
+  completesAt?: string;
+  deadlineMet?: boolean; // false: this option finishes after the deadline (it is still the whole job)
+  serviceLevel?: string; // Pausable, Guaranteed, Priority (our own GPUs)
+  rateUsdcPerGpuHour?: string;
+  gpuHours?: number;
   providers?: string[];
   parts?: PlanPart[];
 }
@@ -37,6 +42,7 @@ export interface Quote {
   options: Record<Mode, Plan>;
   alternativesConsidered: Record<string, number>;
   why: string | null;
+  limits?: { maxGpuHours: number; maxTokens: number; days: number }; // what the fleet finishes in `days`
 }
 
 export interface Segment {
@@ -205,6 +211,10 @@ export function fmtEta(seconds: number | undefined): string {
   const m = Math.round(s / 60);
   if (m < 60) return `${m} min`;
   const h = Math.floor(m / 60);
+  if (h >= 24) {
+    const d = Math.floor(h / 24);
+    return h % 24 ? `${d} d ${h % 24} h` : `${d} d`;
+  }
   return m % 60 ? `${h} h ${m % 60} min` : `${h} h`;
 }
 

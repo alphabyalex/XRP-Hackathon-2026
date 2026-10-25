@@ -24,7 +24,7 @@ from router.catalog import iso, now_utc
 from router.engine import GenEvent, Signal, engine_for
 from router.errors import RouterError
 from router.fleet import FleetEntry
-from router.quoting import OrderIn, spec_dict, to_spec
+from router.quoting import OrderIn, check_size, spec_dict, to_spec
 from router.service import Service
 from router.state import LeaseTaken, StateStore
 
@@ -119,7 +119,9 @@ class Orders:
         await self.service.state.refresh_compute(self.service.entries, self.compute_transport)
         now = now_utc()
         spec = to_spec(req)
-        choice = O.choose(O.enumerate_plans(spec, self.service.views(now)), spec)[req.mode]  # type: ignore[index]
+        views = self.service.views(now)
+        check_size(spec, views)
+        choice = O.choose_for(spec, views)[0][req.mode]  # type: ignore[index]
         if choice.plan is None:
             raise RouterError(409, "NO_FEASIBLE_PLAN", choice.reason or "nothing fits this order")
         order_id = "ord_" + secrets.token_hex(4)
@@ -368,10 +370,19 @@ class Orders:
             "served": 0.0,
             "unit": "tokens" if order["kind"] == "inference" else "minutes",
             "reason": reason,
-            "unitPriceUsdc": f"{unit_price(entry, order['kind']):.12f}",
+            "unitPriceUsdc": f"{self._unit(order, entry):.12f}",
         }
         order["segments"].append(seg)
         return seg
+
+    def _unit(self, order: dict[str, Any], entry: FleetEntry) -> float:
+        """USDC per token or minute on this GPU: the order's service-level rate when it has one."""
+        rate = order.get("plan", {}).get("rateUsdcPerGpuHour")
+        if rate is None:
+            return unit_price(entry, order["kind"])
+        if order["kind"] == "inference":
+            return float(rate) / 3600.0 / max(entry.offer.tokensPerSec, 1e-9)
+        return float(rate) / 60.0
 
     def _register(self, gpu_id: str, order_id: str, key: int) -> Signal:
         sig = Signal()

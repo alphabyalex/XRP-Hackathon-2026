@@ -77,7 +77,7 @@ Sources in this run:
 | Time | Where | Click | Say | What it proves |
 |---|---|---|---|---|
 | 0:00 | /admin/router | Market benchmark table and the fleet's "Priced from" column | "We price against the live market for the same GPU across eight clouds. A customer never pays more than renting a T4 elsewhere." | Multi-provider catalog as a pricing benchmark |
-| 0:15 | /market | Run a task: the default inference batch. Point at the estimate and the cap | "Estimate, plus a 25% cap. That cap is set aside on the ledger." | Quote from the router, cap set aside |
+| 0:15 | /market | Run a task: the default inference batch. Point at the three options, then the estimate and the cap | "Three service levels on the same GPUs: Pausable at the AWS spot rate, Guaranteed at on-demand, Priority runs both GPUs at once for a 25% premium. Estimate, plus a 25% cap, set aside on the ledger." | Whole-job price and ETA per level from the router |
 | 0:35 | /market | **Submit task** | "It is running on GPU-A and GPU-B." Open the set-aside link. | MS_ORDER Payment on devnet, live progress over SSE |
 | 0:50 | /admin/router | **Reclaim** on GPU-A while the task runs | "GPU-A was just taken back with a warning window." | One reclaim path for manual, booking and cloud notices |
 | 1:00 | /market | The line "Moved to GPU-B, resumed" | "It checkpointed inside the warning window and continued on GPU-B. Nothing restarted." | Resume, don't restart |
