@@ -27,10 +27,11 @@ test("fractional ledger amounts round the cap up rather than undercharge", () =>
   assert.equal(quote.totalPrice, "0.002119");
 });
 
-test("all modes keep the estimated duration without invented speedups", () => {
+test("no mode is faster than the estimate; pausable Cheapest is estimated 30% longer", () => {
   const quote = buildQuote(input, [offer], now);
   assert.deepEqual(quote.options.map(option => option.mode), ["cheapest", "balanced", "fastest"]);
-  assert(quote.options.every(option => option.estimatedDurationSeconds === 3600));
+  const byMode = Object.fromEntries(quote.options.map(option => [option.mode, option.estimatedDurationSeconds]));
+  assert.deepEqual(byMode, { cheapest: 4680, balanced: 3600, fastest: 3600 });
 });
 
 test("the quote path handles slider updates well within 150 milliseconds", () => {

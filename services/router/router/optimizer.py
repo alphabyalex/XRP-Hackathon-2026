@@ -330,9 +330,42 @@ def service_fleet(views: Sequence[GpuView], order: OrderSpec) -> list[GpuView] |
     return pool
 
 
+_aws_cache: dict[str, Any] = {"at": 0.0, "ratio": None}
+
+
+def aws_spot_ratio() -> float | None:
+    """Live AWS spot / on-demand for the same card (api GET /catalog/aws), cached 60 s. None when the
+    feed has no fresh pair; then every mode is priced at our full rate rather than a made-up discount."""
+    import time
+
+    import httpx
+
+    now = time.monotonic()
+    if now - _aws_cache["at"] < 60:
+        return _aws_cache["ratio"]
+    ratio = None
+    try:
+        body = httpx.get(f"{C.API_URL}/catalog/aws", timeout=2.0).json()
+        spot = [float(r["usdPerHour"]) for r in body.get("spot", []) if float(r.get("usdPerHour") or 0) > 0]
+        od = [float(r["usdPerHour"]) for r in body.get("onDemand", []) if float(r.get("usdPerHour") or 0) > 0]
+        if spot and od:
+            ratio = min(1.0, min(spot) / min(od))
+    except (httpx.HTTPError, ValueError, KeyError, TypeError):
+        ratio = _aws_cache["ratio"]
+    _aws_cache.update(at=now, ratio=ratio)
+    return ratio
+
+
 def level_rate(g: GpuView, mode: Mode) -> float:
     if C.FLEET_SOURCE != "mock":
-        return g.priceUsdcPerHour
+        # Our GPUs: Fastest (Priority) is the full on-demand rate, the lease plus margin. Cheapest
+        # (Pausable) carries the live AWS spot discount; Balanced (Guaranteed) sits halfway.
+        full = C.OWN_RATE_USD_PER_HOUR
+        ratio = aws_spot_ratio()
+        if ratio is None or mode == "fastest":
+            return full
+        spot = full * ratio
+        return spot if mode == "cheapest" else (spot + full) / 2
     if mode == "cheapest":
         return g.spotUsdcPerHour
     if mode == "fastest":
@@ -348,7 +381,10 @@ def _level_part(g: GpuView, units: int, order: OrderSpec, mode: Mode, params: Pa
         work = float(units * C.SLOT_MINUTES)
         run_s = work * 60.0
     start = earliest_start(g, g.startupSeconds + run_s, params.booking_guard_s if g.bookedWindows else 0.0)
-    wall = run_s * (1 + C.PAUSABLE_SLOWDOWN) if mode == "cheapest" and C.FLEET_SOURCE == "mock" else run_s
+    if mode == "fastest" and C.FLEET_SOURCE != "mock":
+        start = min(start, g.startupSeconds)  # Priority goes ahead of queued work on our GPUs
+    # Pausable work yields to Guaranteed and Priority work, so it runs longer end to end.
+    wall = run_s * (1 + C.PAUSABLE_SLOWDOWN) if mode == "cheapest" else run_s
     cost = level_rate(g, mode) / 3600.0 * run_s  # paid per GPU-second served; pauses are not billed
     return Part(g, units, work, start, run_s, start + g.startupSeconds + wall, cost, 0.0, params.resume_latency_s, 0.0)
 

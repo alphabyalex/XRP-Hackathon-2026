@@ -76,7 +76,8 @@ class RateClient:
             if updated.tzinfo is None:
                 raise ValueError("Price time has no offset")
             age = (datetime.now(UTC) - updated).total_seconds()
-            if not hourly.is_finite() or hourly <= 0 or hourly != source_hourly or not -300 <= age < 48 * 3600:
+            # hourly is our own rate (lease plus margin); the market median only proves the feed is fresh.
+            if not hourly.is_finite() or hourly <= 0 or not source_hourly.is_finite() or not -300 <= age < 48 * 3600:
                 raise ValueError("Live rental rate is unavailable or stale")
             rate = RateCard(
                 input_per_mtok=Decimal("0"), output_per_mtok=Decimal("0"), base_fee=Decimal("0"),

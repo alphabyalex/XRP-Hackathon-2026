@@ -120,11 +120,20 @@ async def test_shared_gpu_economy_snapshot_is_cached_and_aws_does_not_set_rental
 
     await service.refresh_economy(httpx.MockTransport(feed))
     service.state.healthy_pools = {"gpu-a"}
+    # Our rate is the lease plus margin, not the market median; with no live AWS pair every mode pays it.
+    monkeypatch.setattr(O, "aws_spot_ratio", lambda: None)
     for _ in range(50):
         choices, _ = O.choose_for(O.OrderSpec("rental", minutes=60), service.views())
-        assert {choice.plan.cost for choice in choices.values()} == {0.55}
-        assert len({choice.plan.eta_s for choice in choices.values()}) == 1
-        assert {choice.level["rateUsdcPerGpuHour"] for choice in choices.values()} == {0.55}
+        assert {round(choice.plan.cost, 6) for choice in choices.values()} == {C.OWN_RATE_USD_PER_HOUR}
+        assert {choice.level["rateUsdcPerGpuHour"] for choice in choices.values()} == {C.OWN_RATE_USD_PER_HOUR}
+        # Pausable runs longer end to end.
+        assert choices["cheapest"].plan.eta_s > choices["balanced"].plan.eta_s
+    # With a live AWS spot / on-demand pair the three modes differ.
+    monkeypatch.setattr(O, "aws_spot_ratio", lambda: 0.5)
+    choices, _ = O.choose_for(O.OrderSpec("rental", minutes=60), service.views())
+    rates = {m: c.level["rateUsdcPerGpuHour"] for m, c in choices.items()}
+    full = C.OWN_RATE_USD_PER_HOUR
+    assert rates == {"cheapest": round(full * 0.5, 6), "balanced": round(full * 0.75, 6), "fastest": full}
     await service.refresh_economy(httpx.MockTransport(feed))
     assert requests == ["/gpu-prices"]
     assert service.entries[0].benchmark["source"] == "GPU Economy"

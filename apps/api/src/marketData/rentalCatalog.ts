@@ -10,7 +10,7 @@ export interface RentalGpu {
   vcpu: number; ramGb: number; storageGb: number;
   location: { city: string | null; region: string | null };
   model: string; status: "serving"; updatedAt: string;
-  prices: { rentalUsdPerHour: string | null; currency: "USD"; economy: LiveRate | null; awsSpot: LiveRate | null; awsOnDemand: LiveRate | null; change24hPct: string | null };
+  prices: { rentalUsdPerHour: string | null; currency: "USD"; ourCost?: { usdPerHour: string; source: string; marginPct: string }; economy: LiveRate | null; awsSpot: LiveRate | null; awsOnDemand: LiveRate | null; change24hPct: string | null };
   nodes: ReturnType<typeof nodeAvailability>;
   utilization24h: { time: string; utilizationPct: number; t: string; pct: number }[];
   utilizationMetric: "observed_worker_busy_pct";
@@ -84,8 +84,9 @@ export function refreshRentalCatalog(): Promise<RentalCatalog> {
         // location-region=eu-southwest. Environment overrides support relocation.
         location: { city: process.env.GPU_A_CITY?.trim() || "Lisbon (LIS)", region: process.env.GPU_A_REGION?.trim() || "eu-southwest, Portugal" },
         model: "Qwen2.5-1.5B-Instruct", status: "serving", updatedAt: online.checkedAt!,
-        prices: { rentalUsdPerHour: economy?.usdPerHour ?? null, currency: "USD", economy, awsSpot: aws.spot[0] ?? null,
-          awsOnDemand: aws.onDemand[0] ?? null, change24hPct: observedChange24h(rate?.observations ?? [], economy?.usdPerHour ?? null) },
+        // Our price: the real Akash lease plus our margin. The GPU market median and AWS stay beside it.
+        prices: { rentalUsdPerHour: OWN_RATE, currency: "USD", ourCost: { usdPerHour: AKASH_LEASE.toFixed(6), source: "Akash lease (GPU-A)", marginPct: (OWN_MARGIN * 100).toFixed(0) },
+          economy, awsSpot: aws.spot[0] ?? null, awsOnDemand: aws.onDemand[0] ?? null, change24hPct: null },
         nodes, utilization24h: samples, utilizationMetric: "observed_worker_busy_pct" });
     }
     db.prepare("DELETE FROM rental_utilization_samples WHERE observed_at<?").run(new Date(Date.now() - 24 * 3600_000).toISOString());
@@ -94,6 +95,11 @@ export function refreshRentalCatalog(): Promise<RentalCatalog> {
   })().finally(() => { pending = null; });
   return pending;
 }
+
+// GPU-A's real cost (its Akash lease) and our margin: 0.160 x 1.25 = 0.200 an hour.
+const AKASH_LEASE = Number(process.env.AKASH_LEASE_USD_PER_HOUR ?? "0.160");
+const OWN_MARGIN = Number(process.env.OWN_MARGIN ?? "0.25");
+const OWN_RATE = (AKASH_LEASE * (1 + OWN_MARGIN)).toFixed(6);
 
 export async function getRentalCatalog(): Promise<RentalCatalog> {
   const cached = cachedRentalCatalog();

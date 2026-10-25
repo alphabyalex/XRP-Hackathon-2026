@@ -7,7 +7,7 @@ export interface Sizing { gpus: number; vcpu: number; ramGb: number; storageGb: 
 export interface QuoteInput extends Omit<Sizing, "model"> { gpuId?: string; mode: TaskMode }
 export interface RentalOffer {
   id: string; vcpu: number | null; ramGb: number | null; storageGb: number | null;
-  prices: { rentalUsdPerHour: string | null; economy: { updatedAt: string } | null };
+  prices: { rentalUsdPerHour: string | null; economy: { updatedAt: string } | null; awsSpot?: { usdPerHour: string; updatedAt?: string } | null; awsOnDemand?: { usdPerHour: string; updatedAt?: string } | null };
   nodes: { total: number; free: number | null };
 }
 export class TaskError extends Error {
@@ -64,28 +64,44 @@ export function fits(input: Pick<QuoteInput, "gpus" | "vcpu" | "ramGb" | "storag
 export function buildQuote(input: QuoteInput, offers: RentalOffer[], now = Date.now()) {
   const matching = offers.filter(gpu => (!input.gpuId || gpu.id === input.gpuId) && fits(input, gpu));
   if (!matching.length) throw new TaskError("NO_COMPATIBLE_GPU", "No healthy GPU supports these resources.", 409);
+  // Rates as of the newest live AWS price (the mode discount comes from it), else the market feed.
+  const ratesAt = (gpu: RentalOffer) =>
+    [gpu.prices.awsSpot?.updatedAt, gpu.prices.awsOnDemand?.updatedAt, gpu.prices.economy?.updatedAt].filter((t): t is string => !!t).sort().at(-1) ?? "";
   const priced = matching.filter(gpu => {
     const rate = Number(gpu.prices.rentalUsdPerHour);
-    const time = Date.parse(gpu.prices.economy?.updatedAt ?? "");
+    const time = Date.parse(ratesAt(gpu));
     return Number.isFinite(rate) && rate > 0 && Number.isFinite(time) && now - time < 48 * 3600000 && time <= now + 300000;
   });
   if (!priced.length) throw new TaskError("PRICING_UNAVAILABLE", "Live rental prices are not available yet.", 503);
   const price = (gpu: RentalOffer) => Number(gpu.prices.rentalUsdPerHour) * input.gpus;
   const byCost = (a: RentalOffer, b: RentalOffer) => price(a) - price(b) || a.id.localeCompare(b.id);
   const byAvailability = (a: RentalOffer, b: RentalOffer) => Number((b.nodes.free ?? 0) >= input.gpus) - Number((a.nodes.free ?? 0) >= input.gpus) || byCost(a, b);
+  // Same rule as the router (services/router optimizer.level_rate): Fastest pays our full rate,
+  // Cheapest carries the live AWS spot / on-demand discount, Balanced sits halfway. Pausable work
+  // runs about 30% longer end to end.
+  const spotRatio = (gpu: RentalOffer) => {
+    const spot = Number(gpu.prices.awsSpot?.usdPerHour), od = Number(gpu.prices.awsOnDemand?.usdPerHour);
+    return spot > 0 && od > 0 ? Math.min(1, spot / od) : null;
+  };
+  const modeFactor = (gpu: RentalOffer, mode: string) => {
+    const r = spotRatio(gpu);
+    if (r === null || mode === "fastest") return 1;
+    return mode === "cheapest" ? r : (1 + r) / 2;
+  };
   const options = MODES.map(mode => {
     const gpu = [...priced].sort(mode === "cheapest" ? byCost : byAvailability)[0];
-    const hourly = price(gpu);
+    const hourly = price(gpu) * modeFactor(gpu, mode);
+    const seconds = Math.round(input.durationSeconds * (mode === "cheapest" ? 1.3 : 1));
     // Round the authorized cap upward to the ledger currency's six decimals.
     const total = (Math.ceil((hourly * input.durationSeconds / 3600 - Number.EPSILON) * 1e6) / 1e6).toFixed(6);
     return { mode, gpuId: gpu.id, gpus: input.gpus, pricePerHour: hourly.toFixed(6), totalPrice: total,
-      priceCap: total, estimatedDurationSeconds: input.durationSeconds,
-      availableNow: (gpu.nodes.free ?? 0) >= input.gpus, updatedAt: gpu.prices.economy!.updatedAt };
+      priceCap: total, estimatedDurationSeconds: seconds,
+      availableNow: (gpu.nodes.free ?? 0) >= input.gpus, updatedAt: ratesAt(gpu) };
   });
   const selected = options.find(option => option.mode === input.mode)!;
   return { currency: "USD", ...selected, options,
-    formula: "Live GPU Economy hourly median multiplied by GPU count and duration. CPU, RAM and storage are included within the node limits.",
-    durationSource: "request_estimate", performanceNote: "No measured speed difference is available. All modes retain the requested duration." };
+    formula: "Our hourly rate (the Akash lease plus 25%) times GPU count and duration; Cheapest carries the live AWS spot discount and Balanced half of it. CPU, RAM and storage are included within the node limits.",
+    durationSource: "request_estimate", performanceNote: "Pausable work yields to other work, so Cheapest is estimated 30% longer." };
 }
 
 export interface CalendarEvent { start: string; end: string; kind: string; ref: string }

@@ -13,7 +13,7 @@ import { buildQuote, fallbackSizing, fits, hourlyBlocks, integer, parseEstimate,
 const computeUrl = () => (process.env.COMPUTE_URL ?? "http://127.0.0.1:5001").replace(/\/+$/, "").replace("://localhost:", "://127.0.0.1:");
 const pricingUrl = () => (process.env.PRICING_URL ?? "http://localhost:6100").replace(/\/+$/, "");
 
-interface EstimateResult { source: string; modelId: string | null; sizing: unknown }
+interface EstimateResult { source: string; taskType?: string; modelId: string | null; sizing: unknown }
 export interface TaskRouteDependencies {
   db: typeof defaultDb;
   cachedCatalog: typeof defaultCachedCatalog;
@@ -79,12 +79,16 @@ tasksRouter.post("/tasks/estimate", async (req, res) => {
     let sizing: Sizing = fallbackSizing(input.description, input.type);
     let source: "bedrock" | "fallback" = "fallback";
     let modelId: string | null = null;
+    // Bedrock classifies the task from its description; otherwise the requested type stands.
+    let taskType: typeof input.type = input.type;
     try {
       const result = await estimate(input);
-      const validated = parseSizing(result.sizing, input.type);
+      const kind = (["inference", "fine-tune", "render", "other"] as const).find((k) => k === result.taskType) ?? input.type;
+      const validated = parseSizing(result.sizing, kind);
       if (result.source === "bedrock" || result.source === "fallback") {
         sizing = validated;
         source = result.source;
+        taskType = kind;
         modelId = source === "bedrock" && typeof result.modelId === "string" ? result.modelId : null;
       }
     } catch { /* The API also has the same deterministic estimator if pricing is offline. */ }
@@ -92,13 +96,13 @@ tasksRouter.post("/tasks/estimate", async (req, res) => {
     if (!catalog) void getRentalCatalog().catch(() => {});
     // Current healthy endpoints run text inference only. Do not suggest undeployed
     // training or rendering capabilities just because their hardware could fit.
-    const suggestedGpus = input.type === "inference" ? (catalog?.gpus ?? []).filter(gpu => fits(sizing, gpu)).map(gpu => gpu.id) : [];
+    const suggestedGpus = taskType === "inference" ? (catalog?.gpus ?? []).filter(gpu => fits(sizing, gpu)).map(gpu => gpu.id) : [];
     let pricing = null;
     if (suggestedGpus.length) {
       try { pricing = buildQuote({ ...sizing, mode: "balanced" }, (catalog?.gpus ?? []).filter(gpu => suggestedGpus.includes(gpu.id))); } catch { /* No live rate means no price. */ }
     }
-    res.json({ source, modelId, region: "us-east-2", latencyMs: Date.now() - started,
-      sizing, suggestedGpus, pricing, availability: suggestedGpus.length ? "available" : input.type === "inference" ? "offline" : "unsupported" });
+    res.json({ source, taskType, modelId, region: "us-east-2", latencyMs: Date.now() - started,
+      sizing, suggestedGpus, pricing, availability: suggestedGpus.length ? "available" : taskType === "inference" ? "offline" : "unsupported" });
   } catch (error) { fail(res, error); }
 });
 

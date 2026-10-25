@@ -77,7 +77,9 @@ def _converse(req: TaskEstimateRequest) -> str:
                       retries={"max_attempts": 0}),
     )
     system = (
-        "Size a compute task. Return only a JSON object with these integer fields: "
+        "Classify and size a compute task. Return only a JSON object with taskType, one of "
+        "inference, fine-tune, render or other (what the description actually asks for; the "
+        "requested type is only a hint), these integer fields: "
         "gpus (1..8), vcpu (1..128), ramGb (1..1024), storageGb (1..10000), "
         "durationSeconds (60..604800), and model. "
         "These values are estimates. Never give prices or costs. "
@@ -98,6 +100,7 @@ def _converse(req: TaskEstimateRequest) -> str:
 def estimate_task(req: TaskEstimateRequest) -> dict:
     started = time.monotonic()
     sizing = fallback_sizing(req)
+    task_type = req.type
     source = "fallback"
     outcome = "no_credentials"
     if os.getenv("BEDROCK_ENABLED", "0") == "1" and not C.MOCK and _has_local_credentials():
@@ -106,11 +109,15 @@ def estimate_task(req: TaskEstimateRequest) -> dict:
             raw = _pool.submit(_converse, req).result(timeout=min(C.BEDROCK_TIMEOUT_SECONDS, 12))
             # The model may wrap the object in a code fence or a sentence; take the object itself.
             start, end = raw.find("{"), raw.rfind("}")
-            parsed = Sizing.model_validate_json(raw[start : end + 1] if start >= 0 and end > start else raw)
-            expected_model = SERVING_MODEL if req.type == "inference" else None
+            body = json.loads(raw[start : end + 1] if start >= 0 and end > start else raw)
+            kind = body.pop("taskType", None) if isinstance(body, dict) else None
+            if kind not in ("inference", "fine-tune", "render", "other"):
+                raise ValueError("Missing or unknown taskType")
+            parsed = Sizing.model_validate(body)
+            expected_model = SERVING_MODEL if kind == "inference" else None
             if parsed.model != expected_model:
                 raise ValueError("Unsupported model")
-            sizing, source, outcome = parsed, "bedrock", "ok"
+            sizing, task_type, source, outcome = parsed, kind, "bedrock", "ok"
         except (ValidationError, ValueError) as error:
             log.info("task_sizing rejected the model output: %s", str(error).splitlines()[0][:160])
         except Exception as error:  # Every unavailable AWS path is a deterministic estimate.
@@ -118,5 +125,5 @@ def estimate_task(req: TaskEstimateRequest) -> dict:
     latency = int((time.monotonic() - started) * 1000)
     log.info("task_sizing model=%s region=%s latency_ms=%d outcome=%s",
              C.BEDROCK_MODEL_ID, REGION, latency, outcome)
-    return {"source": source, "modelId": C.BEDROCK_MODEL_ID if source == "bedrock" else None,
+    return {"source": source, "taskType": task_type, "modelId": C.BEDROCK_MODEL_ID if source == "bedrock" else None,
             "region": REGION, "latencyMs": latency, "sizing": sizing.model_dump()}

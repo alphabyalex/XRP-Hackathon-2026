@@ -50,10 +50,11 @@ def test_valid_bedrock_sizing_is_labelled(monkeypatch):
     monkeypatch.setattr(T.C, "MOCK", False)
     monkeypatch.setattr(T, "_has_local_credentials", lambda: True)
     req = T.TaskEstimateRequest(description="Summarize a short document", type="inference")
-    data = T.fallback_sizing(req).model_dump()
+    data = {"taskType": "inference", **T.fallback_sizing(req).model_dump()}
     monkeypatch.setattr(T, "_converse", lambda _: json.dumps(data))
     result = T.estimate_task(req)
     assert result["source"] == "bedrock"
+    assert result["taskType"] == "inference"
     assert result["region"] == "us-east-2"
     assert result["modelId"] == T.C.BEDROCK_MODEL_ID
 

@@ -129,6 +129,10 @@ ENGINE_TIME_SCALE = float(_env("ENGINE_TIME_SCALE", "1"))
 # Pausable work yields to priority work: its ETA carries this expected share of time paused.
 PAUSABLE_SLOWDOWN = float(_env("PAUSABLE_SLOWDOWN", "0.3"))
 PRIORITY_PREMIUM = float(_env("PRIORITY_PREMIUM", "0.25"))  # Fastest: on-demand rate plus this
+# Our own GPUs' price: the real Akash lease for GPU-A plus our margin (0.160 x 1.25 = 0.200 an hour).
+AKASH_LEASE_USD_PER_HOUR = float(_env("AKASH_LEASE_USD_PER_HOUR", "0.160"))
+OWN_MARGIN = float(_env("OWN_MARGIN", "0.25"))
+OWN_RATE_USD_PER_HOUR = round(AKASH_LEASE_USD_PER_HOUR * (1 + OWN_MARGIN), 6)
 MAX_TASK_DAYS = float(_env("MAX_TASK_DAYS", "7"))  # the largest task is what the fleet finishes in this time
 
 
