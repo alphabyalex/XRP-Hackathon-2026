@@ -123,6 +123,8 @@ export function BorrowContent({
     setRequote((n) => n + 1); // new history: refetch the profile, the max and the quote
   }, [walletKey]);
   const [activity, setActivity] = useState<Activity[]>([]);
+  const [allFactors, setAllFactors] = useState(false);
+  const [allActivity, setAllActivity] = useState(false);
   // The last live rescore: what moved, shown briefly on the card.
   const [live, setLive] = useState<{ at: number; scoreBefore: number; score: number; changes: FactorChange[] } | null>(null);
   const [quoteErr, setQuoteErr] = useState<string | null>(null);
@@ -341,12 +343,14 @@ export function BorrowContent({
   // is never older than the quote's copy.
   const credit = profile ?? quote?.credit;
   const changed = new Map((live?.changes ?? []).map((c) => [c.feature, c]));
-  const topFactors = credit
+  const factors = credit
     ? Object.entries(credit.features)
         .filter(([k, f]) => f.points !== 0 || changed.has(k))
         .sort((a, b) => Number(changed.has(b[0])) - Number(changed.has(a[0])) || Math.abs(b[1].points) - Math.abs(a[1].points))
-        .slice(0, Math.max(5, changed.size))
     : [];
+  // The top 3 (and any that just changed); the rest behind "Show all".
+  const topFactors = allFactors ? factors : factors.slice(0, Math.max(3, changed.size));
+  const shownActivity = allActivity ? activity : activity.slice(0, 3);
 
   const head = (
     <div className="shead">
@@ -403,31 +407,35 @@ export function BorrowContent({
                   </p>
                 )}
                 <div className="factors">
-                  {topFactors.map(([k, f]) => (
-                    <div key={k} className={changed.has(k) ? "flash" : undefined}>
-                      <span>
-                        {FACTOR_TEXT[k] ?? k}
-                      </span>
-                      <b className={f.points < 0 ? "dn" : "up"}>
-                        {f.points > 0 ? "+" : ""}
-                        {f.points}
-                      </b>
-                      <span className="ev">
-                        {f.txHashes
-                          .filter((h) => !/^0+[0-9]$/.test(h))
-                          .slice(0, 1)
-                          .map((h) => {
-                            const url = txUrl(f.from ?? credit.network, h);
-                            return url ? (
-                              <a key={h} className="txl" href={url} target="_blank" rel="noreferrer">
-                                View transaction
-                              </a>
-                            ) : null;
-                          })}
-                      </span>
-                    </div>
-                  ))}
+                  {topFactors.map(([k, f]) => {
+                    // The factor's name links to the transaction behind it.
+                    const hash = f.txHashes.find((h) => !/^0+[0-9]$/.test(h));
+                    const url = hash ? txUrl(f.from ?? credit.network, hash) : null;
+                    const name = FACTOR_TEXT[k] ?? k;
+                    return (
+                      <div key={k} className={changed.has(k) ? "flash" : undefined}>
+                        <span>
+                          {url ? (
+                            <a className="factor-link" href={url} target="_blank" rel="noreferrer">
+                              {name}
+                            </a>
+                          ) : (
+                            name
+                          )}
+                        </span>
+                        <b className={f.points < 0 ? "dn" : "up"}>
+                          {f.points > 0 ? "+" : ""}
+                          {f.points}
+                        </b>
+                      </div>
+                    );
+                  })}
                 </div>
+                {factors.length > 3 && (
+                  <button type="button" className="linkish more" onClick={() => setAllFactors((v) => !v)}>
+                    {allFactors ? "Show fewer" : `Show all ${factors.length} factors`}
+                  </button>
+                )}
                 {credit.components && credit.components.length > 0 && (
                   <div className="sources">
                     {credit.components.map((c) =>
@@ -453,7 +461,7 @@ export function BorrowContent({
                 {wallet && activity.length > 0 && (
                   <div className="activity">
                     <span className="lbl">Wallet activity</span>
-                    {activity.map((a) => (
+                    {shownActivity.map((a) => (
                       <div key={a.txHash}>
                         <span>{clock(a.at)}</span>
                         <span>{activityText(a)}</span>
@@ -462,6 +470,11 @@ export function BorrowContent({
                         <TxLink network={a.network} hash={a.txHash} />
                       </div>
                     ))}
+                    {activity.length > 3 && (
+                      <button type="button" className="linkish more" onClick={() => setAllActivity((v) => !v)}>
+                        {allActivity ? "Show fewer" : "Show all"}
+                      </button>
+                    )}
                   </div>
                 )}
                 {credit.components?.some((c) => c.source === "quicknode") && <p className="via">via Quicknode</p>}

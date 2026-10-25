@@ -18,7 +18,7 @@ import { ConnectPrompt } from "./ConnectPrompt";
 type Buffer = "10" | "25" | "50";
 
 const TYPES: { value: TaskType; label: string }[] = [
-  { value: "inference", label: "Inference batch" },
+  { value: "inference", label: "Inference" },
   { value: "fine-tune", label: "Fine-tune" },
   { value: "render", label: "Render" },
   { value: "other", label: "Other" },
@@ -31,14 +31,17 @@ function taskRequest(type: TaskType, size: number, deadline: string): OrderReque
   const deadlineSeconds = left > 60 ? Math.round(left) : undefined;
   if (type === "inference") {
     const tokens = Math.max(1, Math.round(size));
-    const parts = Math.min(20, Math.max(1, Math.round(tokens / 2000)));
+    // Long reports of up to about 3,000 words each; the default (5,000 tokens) is one per GPU, about 80 s.
+    const parts = Math.min(20, Math.max(1, Math.round(tokens / 3000)));
     const maxTokens = Math.min(8192, Math.ceil(tokens / parts));
     return {
       kind: "inference",
       taskType: type,
       tokens,
       maxTokens,
-      requests: Array.from({ length: parts }, (_, i) => [{ role: "user", content: `Batch item ${i + 1}` }]),
+      requests: Array.from({ length: parts }, (_, i) => [
+        { role: "user", content: `Write a detailed report of about ${maxTokens} words on batch item ${i + 1}: GPU utilization and revenue.` },
+      ]),
       deadlineSeconds,
     };
   }
@@ -47,7 +50,7 @@ function taskRequest(type: TaskType, size: number, deadline: string): OrderReque
 
 export function ComputeCheckout() {
   const [type, setType] = useState<TaskType>("inference");
-  const [size, setSize] = useState("50000");
+  const [size, setSize] = useState("5000");
   const [deadline, setDeadline] = useState("");
   const [mode, setMode] = useState<Mode>("balanced");
   const [buffer, setBuffer] = useState<Buffer>("25");
@@ -110,7 +113,7 @@ export function ComputeCheckout() {
       <span className="lbl">Task</span>
       <Segmented options={TYPES} value={type} onChange={(t) => {
           setType(t);
-          setSize(t === "inference" ? "50000" : "1");
+          setSize(t === "inference" ? "5000" : "1");
         }}
       />
       <div className="two" style={{ marginTop: 14 }}>

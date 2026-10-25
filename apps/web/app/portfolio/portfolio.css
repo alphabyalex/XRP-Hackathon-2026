@@ -1,6 +1,6 @@
 :root:has(.account-portfolio) {color-scheme:light;--bg:#fff;--surface:#fff;--tint:#f4f4f1;--tint2:#e8e8e4;--ink:#0d0d0e;--ink2:#55565b;--ink3:#8e8f94;--rule:#e6e6e3;--rule2:#d4d4d0;--accent-ink:#946800;--up:#0b8a4f;--down:#d6342a;--nav:rgba(255,255,255,.84);--card-shadow:0 1px 0 rgba(0,0,0,.04),0 30px 70px -32px rgba(13,13,14,.22),0 0 0 1px rgba(13,13,14,.06)}
 body:has(.account-portfolio) .theme-toggle {display:none}
-.account-portfolio {padding-top:clamp(32px,4vw,56px);padding-bottom:88px;font-variant-numeric:lining-nums tabular-nums;min-width:0}
+.account-portfolio {padding-top:clamp(32px,4vw,56px);padding-bottom:88px;font-variant-numeric:lining-nums;min-width:0}
 .account-portfolio section {margin-top:60px;min-width:0}
 .account-portfolio h2 {font-size:22px;font-weight:500;letter-spacing:-.025em;margin:0 0 24px}
 .account-header {display:flex;justify-content:space-between;gap:24px;align-items:flex-start;padding-bottom:12px}

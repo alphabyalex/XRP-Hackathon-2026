@@ -2,6 +2,7 @@
 import { utilizationOf } from "@/lib/schedule";
 import Link from "next/link";
 import clsx from "clsx";
+import type { GpuId } from "@moonshift/shared";
 import { useLiveGpu, useApiUnreachable, useNow } from "@/lib/liveData";
 import { gpuView } from "@/lib/gpuView";
 import { fmt } from "@/lib/format";

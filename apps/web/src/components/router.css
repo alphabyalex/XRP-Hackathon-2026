@@ -80,7 +80,16 @@
 }
 
 .rent-card {
-  max-width: 460px;
+  max-width: 600px;
+}
+/* once a task is placed, its status card spans the width */
+.rent-card:has(.os) {
+  max-width: none;
+}
+/* task type and price cap: labels stay on one line */
+.rent-card .seg button {
+  white-space: nowrap;
+  padding-inline: 6px;
 }
 
 .adm table {
