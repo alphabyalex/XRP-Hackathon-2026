@@ -59,8 +59,8 @@ def measure(gpu_id: str, env: dict[str, str | None], client: httpx.Client) -> di
     endpoint = normalized_endpoint(env.get(f"{prefix}_VLLM_URL") or "")
     canonical = env.get(f"{prefix}_MODEL_ID") or ""
     wire = env.get(f"{prefix}_WIRE_MODEL") or env.get(f"{prefix}_VLLM_MODEL") or canonical
-    if not endpoint or env.get(f"{prefix}_MODE") != "real" or canonical != "Qwen/Qwen2.5-3B-Instruct":
-        raise ValueError("Node must already be verified in real mode with the approved Qwen2.5-3B model")
+    if not endpoint or env.get(f"{prefix}_MODE") != "real" or canonical not in {"Qwen/Qwen2.5-1.5B-Instruct", "Qwen/Qwen2.5-3B-Instruct", "Qwen/Qwen3.5-4B"}:
+        raise ValueError("Node must already be verified in real mode with an approved canonical model")
     resources = [int(env.get(f"{prefix}_{key}") or "0") for key in ("VRAM_GB", "VCPU", "RAM_GB", "STORAGE_GB")]
     cost = float(env.get(f"{prefix}_LEASE_USD_PER_HOUR") or "nan")
     if not env.get(f"{prefix}_CARD") or min(resources) <= 0 or not math.isfinite(cost) or cost <= 0 or not env.get(f"{prefix}_PRICE_UPDATED_AT"):
@@ -73,10 +73,13 @@ def measure(gpu_id: str, env: dict[str, str | None], client: httpx.Client) -> di
     samples = []
     for _ in range(2):
         start = time.perf_counter()
-        response = client.post(f"{endpoint}/v1/chat/completions", json={
+        payload = {
             "model": wire, "messages": [{"role": "user", "content": "Count the integers from 1 through 80, separated by spaces. Continue counting without any explanation."}],
             "max_tokens": 128, "temperature": 0,
-        })
+        }
+        if canonical == "Qwen/Qwen3.5-4B":
+            payload["chat_template_kwargs"] = {"enable_thinking": False}
+        response = client.post(f"{endpoint}/v1/chat/completions", json=payload)
         response.raise_for_status()
         body = response.json()
         elapsed = time.perf_counter() - start

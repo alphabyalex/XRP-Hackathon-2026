@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "../db/db.js";
 import { getRentalCatalog } from "../marketData/rentalCatalog.js";
-import { modelsForGpu, observedOutputThroughput } from "../marketData/modelCatalog.js";
+import { modelObservationStart, modelsForGpu, observedOutputThroughput } from "../marketData/modelCatalog.js";
 
 // Older builds could mark generated responses as real. Only work served by the verified build
 // (from 2026-10-25 12:45 UTC, when GPU-A tasks were run and settled end to end) prices tokens.
@@ -17,7 +17,8 @@ modelsRouter.get("/models", async (req, res) => {
     const catalog = await getRentalCatalog();
     const gpus = catalog.gpus.filter(g => !gpuId || g.id === gpuId);
     const models = gpus.flatMap(gpu => {
-      const notBefore = Math.max(measurementStartedAt, Date.now() - 24 * 3600_000);
+      const notBefore = modelObservationStart(gpu.id, gpu.modelId, Math.max(measurementStartedAt, Date.now() - 24 * 3600_000));
+      if (notBefore === null) return modelsForGpu(gpu);
       const observations = db.prepare(`SELECT output_tokens,started_at,finished_at FROM usage_events
         WHERE gpu_id=? AND simulated=0 AND output_tokens>0 AND started_at>=?`)
         .all(gpu.id, new Date(notBefore).toISOString()).map(row => ({

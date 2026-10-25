@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+from types import SimpleNamespace
 from pathlib import Path
 
 import httpx
@@ -53,3 +55,25 @@ def test_env_update_changes_only_observed_public_scalars(tmp_path):
     module.update_settings(path, {"GPU_C_TOKENS_PER_SEC": "32.0", "GPU_C_PLANNING_MODEL_ID": "Qwen/Qwen2.5-3B-Instruct"})
     assert path.read_text() == "# preserved\nPRIVATE_VALUE=private-test-fixture\nGPU_C_TOKENS_PER_SEC=32.0\nGPU_C_PLANNING_MODEL_ID=Qwen/Qwen2.5-3B-Instruct\n"
     assert path.stat().st_mode & 0o777 == 0o600
+
+
+@pytest.mark.parametrize("model", ["Qwen/Qwen2.5-1.5B-Instruct", "Qwen/Qwen3.5-4B"])
+def test_approved_model_measures_its_own_identity(monkeypatch, model):
+    times = iter([0.0, 2.0, 2.0, 4.0])
+    monkeypatch.setattr(module, "time", SimpleNamespace(perf_counter=lambda: next(times)))
+    def handler(request):
+        if request.url.path == "/v1/models":
+            return httpx.Response(200, json={"data": [{"id": model, "root": model}]})
+        payload = json.loads(request.content)
+        if model == "Qwen/Qwen3.5-4B":
+            assert payload["chat_template_kwargs"] == {"enable_thinking": False}
+        else:
+            assert "chat_template_kwargs" not in payload
+        return httpx.Response(200, json={"model": model, "usage": {"completion_tokens": 128}, "choices": [{"message": {"content": "counting fixture"}}]})
+    settings = {"GPU_H_VLLM_URL": "http://verified-h", "GPU_H_MODE": "real", "GPU_H_MODEL_ID": model,
+                "GPU_H_CARD": "NVIDIA GeForce RTX 3060 Ti", "GPU_H_VRAM_GB": "8", "GPU_H_VCPU": "2", "GPU_H_RAM_GB": "8", "GPU_H_STORAGE_GB": "30",
+                "GPU_H_LEASE_USD_PER_HOUR": "0.2", "GPU_H_PRICE_UPDATED_AT": "2026-10-25T15:00:00Z"}
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        record = module.measure("gpu-h", settings, client)
+    assert record["modelId"] == model
+    assert record["planningTokensPerSec"] == 64

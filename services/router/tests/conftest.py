@@ -1,5 +1,6 @@
 import os
 import tempfile
+import pytest
 
 # Set before router.config is imported. load_dotenv never overrides existing env vars, so these
 # keep real keys and AWS settings in .env out of the tests.
@@ -32,3 +33,12 @@ os.environ.update(
     }
 )
 os.environ.pop("AWS_PROFILE", None)
+
+
+@pytest.fixture(autouse=True)
+def isolate_operator_expansion_settings(monkeypatch):
+    # Operator .env may now contain genuine C-H endpoints and lease prices.
+    # Unit tests opt into each additional worker with their own fixtures.
+    for key in list(os.environ):
+        if any(key.startswith(f"GPU_{letter}_") for letter in "CDEFGH"):
+            monkeypatch.setenv(key, "")

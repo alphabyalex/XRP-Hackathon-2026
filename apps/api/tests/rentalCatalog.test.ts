@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { liveAwsRates, nodeAvailability, observedChange24h } from "../src/marketData/rentalData.js";
-import { modelsForGpu, observedOutputThroughput } from "../src/marketData/modelCatalog.js";
+import { modelObservationStart, modelsForGpu, observedOutputThroughput } from "../src/marketData/modelCatalog.js";
 import type { RentalGpu } from "../src/marketData/rentalCatalog.js";
 
 const now = Date.parse("2026-10-25T09:00:00Z");
@@ -129,4 +129,25 @@ test("all eight physical IDs require their own matching canonical serving model"
     globalThis.fetch = originalFetch;
     for (const [key, value] of previous) if (value === undefined) delete process.env[key]; else process.env[key] = value;
   }
+});
+
+test("Qwen3.5-4B is available only on a verified deployed endpoint with adequate memory", () => {
+  const gpu = { id: "gpu-e", vramGb: 24, status: "serving", modelId: "Qwen/Qwen2.5-3B-Instruct", prices: { rentalUsdPerHour: "0.25" }, updatedAt: offer.asOf } as RentalGpu;
+  const requested = modelsForGpu(gpu).find(model => model.id === "Qwen/Qwen3.5-4B")!;
+  assert.equal(requested.status, "on_request");
+  assert.equal(requested.acceptsRequests, false);
+  assert.equal(requested.endpoint, null);
+  const deployed = modelsForGpu({ ...gpu, modelId: requested.id }).find(model => model.id === requested.id)!;
+  assert.equal(deployed.status, "serving");
+  assert.equal(deployed.contextLength, 4096);
+  assert.equal(deployed.publishedContextLength, 262144);
+  assert.equal(deployed.pricePer1MTokens, null);
+  assert.equal(modelsForGpu({ ...gpu, vramGb: 8 }).some(model => model.id === requested.id), false);
+});
+
+test("a model upgrade cannot use an older model's token throughput to advertise a price", () => {
+  const base = Date.parse("2026-10-25T10:00:00Z");
+  const env = { GPU_E_PLANNING_MODEL_ID: "Qwen/Qwen2.5-3B-Instruct", GPU_E_PLANNING_OBSERVED_AT: "2026-10-25T14:00:00Z" };
+  assert.equal(modelObservationStart("gpu-e", "Qwen/Qwen3.5-4B", base, env), null);
+  assert.equal(modelObservationStart("gpu-e", "Qwen/Qwen3.5-4B", base, { ...env, GPU_E_PLANNING_MODEL_ID: "Qwen/Qwen3.5-4B" }), Date.parse(env.GPU_E_PLANNING_OBSERVED_AT));
 });
