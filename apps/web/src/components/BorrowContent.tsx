@@ -282,6 +282,22 @@ export function BorrowContent({
         setRequote((n) => n + 1);
       });
   });
+  // The same rescore without the events stream: the api's cached profile, every 10 s.
+  const shownScore = profile?.score;
+  useEffect(() => {
+    if (!walletKey) return;
+    const t = setInterval(() => {
+      borrowerProfile()
+        .then((p) => {
+          if (p.score === shownScore) return;
+          setProfile(p);
+          setRequote((n) => n + 1);
+        })
+        .catch(() => {});
+    }, 10_000);
+    return () => clearInterval(t);
+  }, [walletKey, shownScore]);
+
   useEffect(() => {
     if (!live) return;
     const t = setTimeout(() => setLive((l) => (l && Date.now() - l.at >= HIGHLIGHT_MS ? null : l)), HIGHLIGHT_MS);
@@ -386,7 +402,8 @@ export function BorrowContent({
     }
     void refresh();
     const t = setInterval(() => setNow(Date.now()), 1000);
-    const poll = setInterval(() => void refresh(), 20_000);
+    // 5 s: where the events stream cannot reach the page (some tunnels drop SSE), polling still moves it.
+    const poll = setInterval(() => void refresh(), 5_000);
     return () => {
       clearInterval(t);
       clearInterval(poll);
