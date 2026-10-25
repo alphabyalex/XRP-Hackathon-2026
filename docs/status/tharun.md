@@ -4,6 +4,25 @@ Updated after each phase. Newest phase first in Done.
 
 ## Done
 
+### 8-GPU Fleet UI Integration & Full-Stack Expansion (2026-10-25)
+- **Market Table & Frontend UI Reflection**:
+  - Expanded `GPUS` array in `packages/shared/src/constants.ts` to include all 8 heterogeneous decentralized GPU nodes: GPU-A (NVIDIA T4 16GB), GPU-B (NVIDIA Tesla V100 16GB), GPU-C (NVIDIA A100 80GB), GPU-D (NVIDIA H100 80GB), GPU-E (NVIDIA RTX 4090 24GB), GPU-F (NVIDIA RTX 3090 24GB), GPU-G (NVIDIA RTX 4000 Ada 20GB), GPU-H (NVIDIA Tesla P40 24GB).
+  - Configured transparent component-level `RESOURCE_BREAKDOWN` for all 8 GPU architectures across GPU compute, vCPU processing, system RAM, and NVMe SSD storage.
+  - Verified live rendering of all 8 GPU cards in the Market table on `/` and `/market`, showing live MiniSchedules, DataMoon pills, prices, 24h deltas, yields, and Trade buttons.
+  - Subtitle on `/` and `/market` dynamically displays "Eight GPUs, earning now." matching Alex's word count copy.
+  - Verified static pre-generation for all 8 GPU detail routes (`/gpu/gpu-a` through `/gpu/gpu-h`), compiling 22/22 pages in Next.js.
+- **Pricing & Backend API Integration**:
+  - Expanded `GPUS` and `RESOURCE_BREAKDOWN` in `services/pricing/app/config.py` and `app/pricing.py`.
+  - Added reference prices in `services/pricing/data/reference_prices.json` for V100, RTX 4090, RTX 3090, RTX 4000 Ada, and P40.
+  - Restarted pricing daemon on port 6100; verified real-time NAV calculations for all 8 GPU assets.
+  - Updated `apps/api/src/marketHistory.ts` and `apps/api/src/marketMaker.ts` treasury mappings.
+  - Verified `GET /gpus` in `apps/api` returning all 8 GPUs with full hardware telemetry.
+- **Verification & Quality Assurance**:
+  - All 15 web routes verified returning HTTP 200 OK.
+  - Monorepo test suites passing: 93 credit tests, 39 risk tests, 18 compute tests, 11 pricing tests, 126 router tests, 10 XRPL tests.
+  - 100% clean TypeScript typecheck across all 4 packages.
+  - Zero em dashes, zero secrets.
+
 ### 8-GPU Decentralized Akash Fleet & Unified Qwen Serving (2026-10-24)
 - **Akash Live Deployment Verification & Optimization**:
   - Successfully debugged and stabilized active deployment `dseq: 1792883508772` on provider `akash1hgulk6aekakqzc0v6wukrd3dy9n90f5gkl4ezk` (`provider.h4i-dedicated.eu-sw-2.digitalfrontier.so:30151`).

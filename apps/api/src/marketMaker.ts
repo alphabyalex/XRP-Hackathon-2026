@@ -28,7 +28,16 @@ export async function syncOracle(gpuId: GpuId): Promise<string | null> {
 
 const BID_DISCOUNT = 0.03;
 const BID_SHARES = "100";
-const TREASURY: Record<GpuId, "TREASURY_GPU_A" | "TREASURY_GPU_B"> = { "gpu-a": "TREASURY_GPU_A", "gpu-b": "TREASURY_GPU_B" };
+const TREASURY: Record<GpuId, "TREASURY_GPU_A" | "TREASURY_GPU_B"> = {
+  "gpu-a": "TREASURY_GPU_A",
+  "gpu-b": "TREASURY_GPU_B",
+  "gpu-c": "TREASURY_GPU_B",
+  "gpu-d": "TREASURY_GPU_B",
+  "gpu-e": "TREASURY_GPU_B",
+  "gpu-f": "TREASURY_GPU_B",
+  "gpu-g": "TREASURY_GPU_B",
+  "gpu-h": "TREASURY_GPU_B",
+};
 
 let running: Promise<Record<string, unknown>> | null = null;
 

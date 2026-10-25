@@ -56,7 +56,13 @@ class GpuSpec:
 
 GPUS: dict[str, GpuSpec] = {
     "gpu-a": GpuSpec("gpu-a", "GPU A", "T4", "Qwen/Qwen3-1.7B", "GPA", "HRA", 1000, False),
-    "gpu-b": GpuSpec("gpu-b", "GPU B", "T4", "Qwen/Qwen3-1.7B", "GPB", "HRB", 1000, True),
+    "gpu-b": GpuSpec("gpu-b", "GPU B", "V100", "Qwen/Qwen3-1.7B", "GPB", "HRB", 1000, True),
+    "gpu-c": GpuSpec("gpu-c", "GPU C", "A100", "Qwen/Qwen3-1.7B", "GPC", "HRC", 1000, True),
+    "gpu-d": GpuSpec("gpu-d", "GPU D", "H100", "Qwen/Qwen3-1.7B", "GPD", "HRD", 1000, True),
+    "gpu-e": GpuSpec("gpu-e", "GPU E", "RTX 4090", "Qwen/Qwen3-1.7B", "GPE", "HRE", 1000, True),
+    "gpu-f": GpuSpec("gpu-f", "GPU F", "RTX 3090", "Qwen/Qwen3-1.7B", "GPF", "HRF", 1000, True),
+    "gpu-g": GpuSpec("gpu-g", "GPU G", "RTX 4000 Ada", "Qwen/Qwen3-1.7B", "GPG", "HRG", 1000, True),
+    "gpu-h": GpuSpec("gpu-h", "GPU H", "P40", "Qwen/Qwen3-1.7B", "GPH", "HRH", 1000, True),
 }
 
 # System accounts that must never receive a dividend (A8). Matched by name and by the
