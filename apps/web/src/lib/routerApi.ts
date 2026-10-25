@@ -180,10 +180,11 @@ export interface RoutedChat {
 }
 
 // The api picks who pays (the signed-in account, or the developer playground account).
-export const chatRouted = (content: string, priority: Mode) =>
+// gpuId pins the request to one GPU (the Home showcase asks GPU-A only).
+export const chatRouted = (content: string, priority: Mode, gpuId?: string) =>
   apiFetch<RoutedChat>("/v1/chat/completions", {
     method: "POST",
-    body: JSON.stringify({ model: "Qwen/Qwen3-1.7B", messages: [{ role: "user", content }], max_tokens: 160, priority }),
+    body: JSON.stringify({ model: "Qwen/Qwen3-1.7B", messages: [{ role: "user", content }], max_tokens: 160, priority, ...(gpuId ? { gpuId } : {}) }),
   });
 
 const PROVIDERS: Record<string, string> = {
