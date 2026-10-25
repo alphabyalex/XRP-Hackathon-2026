@@ -10,7 +10,8 @@ import type {
   PortfolioResponse,
   XlsLoanRecord,
 } from "@moonshift/shared";
-import { getGpu, getPortfolio } from "@/lib/api";
+import { apiFetch, getGpu, getPortfolio } from "@/lib/api";
+import { priceOf, toMs, type GpuStats } from "@/lib/gpuMarket";
 import { fmt, shortHash, typedAmount, usdc } from "@/lib/format";
 import {
   ApiCodeError,
@@ -269,25 +270,33 @@ export function BorrowContent({
     };
   }, []);
 
-  // The GPU's hourly share prices plus the live one, for LTV over time.
+  // The collateral's share price: GET /gpus/:id/stats (the one price Market and the GPU page
+  // show), its real ticks for LTV over time, refreshed every 5 s.
+  const [sharePrice, setSharePrice] = useState<number | null>(null);
   useEffect(() => {
     let alive = true;
     const load = () =>
-      getGpu(gpuId)
-        .then((g) => {
+      apiFetch<GpuStats>(`/gpus/${encodeURIComponent(gpuId)}/stats`)
+        .then((st) => {
           if (!alive) return;
-          const hist = (
-            (g as { priceHistory?: { t: number; price: number }[] })
-              .priceHistory ?? []
-          ).filter((p) => p.price > 0);
-          const now = Number(g.sharePrice);
-          setPriceHistory(
-            now > 0 ? [...hist, { t: Date.now(), price: now }] : hist,
-          );
+          const now = priceOf(st, null);
+          const hist = (st.ticks ?? []).map((t) => ({ t: toMs(t.t), price: Number(t.price) })).filter((p) => p.price > 0);
+          setSharePrice(now > 0 ? now : null);
+          setPriceHistory(now > 0 ? [...hist, { t: Date.now(), price: now }] : hist);
         })
-        .catch(() => {});
+        .catch(() =>
+          getGpu(gpuId)
+            .then((g) => {
+              if (!alive) return;
+              const now = Number(g.sharePrice);
+              const hist = ((g as { priceHistory?: { t: number; price: number }[] }).priceHistory ?? []).filter((p) => p.price > 0);
+              setSharePrice(now > 0 ? now : null);
+              setPriceHistory(now > 0 ? [...hist, { t: Date.now(), price: now }] : hist);
+            })
+            .catch(() => {})
+        );
     void load();
-    const t = setInterval(load, 30_000);
+    const t = setInterval(load, 5_000);
     return () => {
       alive = false;
       clearInterval(t);
@@ -828,6 +837,7 @@ export function BorrowContent({
                   </div>
                   <span className={overHeld ? "note dn" : "note"}>
                     You hold {fmt(held, 0)} {code}
+                  {sharePrice !== null && Number(shares) > 0 && ` · worth ${fmt(Number(shares) * sharePrice, 2)} USDC`}
                   </span>
                 </div>
                 <div>
