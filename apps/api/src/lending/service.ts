@@ -22,6 +22,7 @@ import {
   type XlsLoanRecord,
   type XlsLoanStatus,
 } from "@moonshift/shared";
+import { sharePrice } from "../sharePrice.js";
 import { db } from "../db/db.js";
 import { logTx } from "../db/helpers.js";
 import { broadcast } from "../sse.js";
@@ -84,11 +85,24 @@ export function oracleHistory(gpuId: string, from?: string, to?: string): PriceP
   return rows.map((r) => ({ timestamp: r.ts, price: r.price }));
 }
 
-// Quotes read the oracle through a 5 s cache; stress and restore drop it.
+// The collateral price for quotes, the max borrow and the keeper: the one share price
+// (sharePrice.ts), so /borrow, /portfolio and the market agree. Only a stress test overrides it,
+// with the crash price it also writes to the on-ledger oracle, until Restore price. The ledger
+// oracle itself is not read back: any other stack on the same devnet accounts can write it.
+const stressPrice = new Map<string, string>();
+// A stress test's crash price is in force for this GPU (until Restore price).
+export const stressActive = (gpuId: string) => stressPrice.has(gpuId);
+async function priceForLoans(gpuId: GpuId): Promise<Awaited<ReturnType<typeof lending.oraclePrice>>> {
+  const s = stressPrice.get(gpuId);
+  if (s) return { price: s, updatedAt: new Date().toISOString(), source: "live" };
+  return { price: (await sharePrice(gpuId)).price, updatedAt: new Date().toISOString(), source: lending.MOCK ? "mock" : "live" };
+}
+
+// Quotes read the price through a 5 s cache; stress and restore drop it.
 const oracleCache = swr<Awaited<ReturnType<typeof lending.oraclePrice>>>("oracle", 5_000, 5_000);
 
 async function collateralPrice(gpuId: GpuId) {
-  const o = await oracleCache.get(gpuId, () => lending.oraclePrice(gpuId));
+  const o = await oracleCache.get(gpuId, () => priceForLoans(gpuId));
   const hist = oracleHistory(gpuId, new Date(Date.now() - 7 * 86400e3).toISOString());
   if (!hist.length || hist[hist.length - 1].price !== o.price) recordOracle(gpuId, o.price, o.source === "live" ? "ledger" : "mock");
   const history = oracleHistory(gpuId, new Date(Date.now() - 7 * 86400e3).toISOString());
@@ -371,7 +385,7 @@ export async function loanRecord(id: string): Promise<XlsLoanRecord | null> {
   const r = getRow(id);
   if (!r) return null;
   const ledger = await lending.getLoan(id).catch(() => null);
-  const { price } = await lending.oraclePrice(r.gpuId as GpuId);
+  const { price } = await priceForLoans(r.gpuId as GpuId);
   const outstanding = ledger ? Number(ledger.totalValueOutstanding) : 0;
   const cv = Number(r.collateralShares) * Number(price);
   const { defaultEligibleAt: _d, ...rest } = r;
@@ -545,7 +559,7 @@ function saveAction(key: string, loanId: string, action: string, tx: TxResult | 
 
 async function alertFor(type: "margin_call" | "liquidation", r: ReturnType<typeof rowToRecord>, ltv: string): Promise<AgentText> {
   const ledger = await lending.getLoan(r.id).catch(() => null);
-  const { price } = await lending.oraclePrice(r.gpuId as GpuId);
+  const { price } = await priceForLoans(r.gpuId as GpuId);
   return pricing.riskAlert({
     type,
     loanId: r.id,
@@ -638,7 +652,7 @@ export async function builtInKeeperCheck(via = "api-keeper", onlyLoan?: string) 
   const actions: StressResult["actions"] = [];
   for (const l of await keeperLoans()) {
     if (onlyLoan && l.loanId !== onlyLoan) continue;
-    const { price } = await lending.oraclePrice(l.gpuId as GpuId);
+    const { price } = await priceForLoans(l.gpuId as GpuId);
     const cv = Number(l.collateralShares) * Number(price);
     const ltv = cv > 0 ? Number(l.outstandingBalance) / cv : 99;
     const ltvStr = ltv.toFixed(6);
@@ -697,7 +711,7 @@ export async function stress(p: Parameters<typeof stressRun>[0]): Promise<Stress
 async function stressRun(p: { gpuId: GpuId; level?: "margin_call" | "liquidation"; shockPct?: number; loanId?: string }): Promise<StressResult> {
   const gpu = GPUS.find((g) => g.id === p.gpuId);
   if (!gpu) throw new LendingError("BAD_REQUEST", `unknown gpuId ${p.gpuId}`);
-  const before = (await lending.oraclePrice(gpu.id)).price;
+  const before = (await priceForLoans(gpu.id)).price;
   if (!preStressPrice.has(gpu.id)) preStressPrice.set(gpu.id, before);
 
   let target = Number(before);
@@ -717,6 +731,7 @@ async function stressRun(p: { gpuId: GpuId; level?: "margin_call" | "liquidation
   }
   target = Math.max(0.000001, target);
   const oracleTx = await lending.publishPrice(gpu.id, fix6(target));
+  stressPrice.set(gpu.id, fix6(target));
   oracleCache.invalidate(gpu.id);
   recordOracle(gpu.id, fix6(target), "stress", oracleTx.hash);
   logTx(oracleTx, "oracle.stress", "ORACLE", `stress test: ${gpu.id.toUpperCase()} oracle price ${before} -> ${fix6(target)}`);
@@ -759,7 +774,9 @@ async function stressRun(p: { gpuId: GpuId; level?: "margin_call" | "liquidation
 }
 
 export async function restorePrice(gpuId: GpuId): Promise<{ price: string; tx: TxResult }> {
-  const price = preStressPrice.get(gpuId) ?? "5.250000";
+  // Back to the share price (it does not move during a stress test).
+  stressPrice.delete(gpuId);
+  const price = (await sharePrice(gpuId)).price;
   const tx = await lending.publishPrice(gpuId, price);
   oracleCache.invalidate(gpuId);
   recordOracle(gpuId, price, "restore", tx.hash);

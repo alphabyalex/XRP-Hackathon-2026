@@ -9,13 +9,14 @@ import * as xrpl from "./adapters/xrplAdapter.js";
 import { logTx } from "./db/helpers.js";
 import { priceMoved, referencePrice, sharePrice } from "./sharePrice.js";
 import * as lending from "./adapters/lendingAdapter.js";
-import { recordOracle } from "./lending/service.js";
+import { recordOracle, stressActive } from "./lending/service.js";
 
 // The on-ledger oracle (the loans' collateral price) tracks the market price,
 // so /borrow shows the same share price as the market, GPU and portfolio pages.
 const ORACLE_TOLERANCE = 0.0025;
 
 export async function syncOracle(gpuId: GpuId): Promise<string | null> {
+  if (stressActive(gpuId)) return null; // a stress test holds the crash price until Restore
   const [market, oracle] = await Promise.all([sharePrice(gpuId), lending.oraclePrice(gpuId)]);
   if (!(Number(market.price) > 0) || Math.abs(Number(market.price) / Number(oracle.price) - 1) <= ORACLE_TOLERANCE) return null;
   const tx = await lending.publishPrice(gpuId, market.price);
