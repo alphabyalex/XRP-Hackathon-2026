@@ -308,6 +308,7 @@ export interface ApiGpuSummary {
   label: string;
   hw: string;
   model: string;
+  provider?: string;
   state: GpuState;
   simulated: boolean;
   // Market price: DEX best bid/ask midpoint, else the last trade, else the oracle NAV.

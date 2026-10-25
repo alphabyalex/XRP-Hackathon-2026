@@ -323,6 +323,15 @@ class GpuSupervisor:
             self._persist_unlocked()
             return booking
 
+    async def cancel_booking(self, booking_id: str) -> bool:
+        async with self._lock:
+            initial = len(self._bookings)
+            self._bookings = [b for b in self._bookings if b.booking_id != booking_id]
+            if len(self._bookings) < initial:
+                self._persist_unlocked()
+                return True
+            return False
+
     async def calendar(self, start: datetime, end: datetime) -> list[dict[str, str]]:
         async with self._lock:
             events: list[dict[str, str]] = [
@@ -537,6 +546,12 @@ class Scheduler:
 
     async def create_booking(self, request: BookingRequest) -> Booking:
         return await self.worker(request.gpu_id).add_booking(request)
+
+    async def cancel_booking(self, booking_id: str) -> bool:
+        for worker in self.workers.values():
+            if await worker.cancel_booking(booking_id):
+                return True
+        return False
 
     async def revenue(
         self, gpu_id: str, start: datetime, end: datetime, bucket_duration: timedelta

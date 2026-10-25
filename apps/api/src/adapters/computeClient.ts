@@ -214,6 +214,28 @@ export async function createBooking(req: BookingRequest): Promise<BookingRespons
   return { booking_id };
 }
 
+export async function cancelBooking(bookingId: string): Promise<boolean> {
+  if (!MOCK) {
+    try {
+      const url = await resolveComputeUrl();
+      const res = await fetch(`${url}/bookings/${encodeURIComponent(bookingId)}`, {
+        method: "DELETE",
+        headers: { "X-MS-Internal-Key": process.env.INTERNAL_API_KEY ?? "" },
+        signal: AbortSignal.timeout(4000),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+  const idx = bookings.findIndex((b) => b.booking_id === bookingId);
+  if (idx >= 0) {
+    bookings.splice(idx, 1);
+    return true;
+  }
+  return false;
+}
+
 export async function chatCompletions(
   body: ChatCompletionRequest,
   buyer: string,

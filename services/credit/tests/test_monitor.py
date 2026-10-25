@@ -250,7 +250,8 @@ def test_streams_other_network_not_matched(api):
 
 
 def test_watch_list_and_unwatch(api):
-    api.delete(f"/watch/testnet/{BORROWER}")
+    for w in api.get("/watch").json()["watched"]:
+        api.delete(f"/watch/{w['network']}/{w['address']}")
     r = api.post(
         "/watch",
         json={
@@ -267,8 +268,11 @@ def test_watch_list_and_unwatch(api):
         "kvSynced": False,
     }
     assert r["feeds"][0] == {"network": "testnet", "address": BORROWER, "source": "public"}
-    assert api.get("/watch").json()["watched"][0]["openLoans"] == 1
-    api.delete(f"/watch/testnet/{BORROWER}")
+    watched = api.get("/watch").json()["watched"]
+    target = next(w for w in watched if w["network"] == "testnet" and w["address"] == BORROWER)
+    assert target["openLoans"] == 1
+    for w in api.get("/watch").json()["watched"]:
+        api.delete(f"/watch/{w['network']}/{w['address']}")
     assert api.get("/watch").json()["watched"] == []
 
 

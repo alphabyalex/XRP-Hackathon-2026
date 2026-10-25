@@ -182,6 +182,20 @@
       "owner": "rEM2sfeL9Fixco7HNeowNP2SGeP9U6GKaM",
       "escrowSequence": 6390918,
       "nonce": "C4D718F33BDB03209AE0B01C"
+    },
+    "950DC214FF2B33E3B590AA8A7319AC04EB976D057E074873C1F32FE953F8C46E": {
+      "gpuId": "gpu-a",
+      "shares": "100.000000",
+      "owner": "rDBNrgqBmMV3ebnFWhnyxZkdUQb7GZkejc",
+      "escrowSequence": 6383401,
+      "nonce": "F822C2A1269064D9DA2E8253"
+    },
+    "84AE54A4BC5D6D08DDEB54A96763A45F32C304C7E2D6A9A515F784B976434C64": {
+      "gpuId": "gpu-a",
+      "shares": "80.000000",
+      "owner": "rDBNrgqBmMV3ebnFWhnyxZkdUQb7GZkejc",
+      "escrowSequence": 6383402,
+      "nonce": "2B7804D83B024BB3D1919A4E"
     }
   }
 }

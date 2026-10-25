@@ -196,8 +196,9 @@ const PROVIDERS: Record<string, string> = {
   runpod: "RunPod",
   vast: "Vast.ai",
   coreweave: "CoreWeave",
-  akash: "Decentralized Cloud",
-  dcloud: "Decentralized Cloud",
+  akash: "Akash Network",
+  openocean: "OpenOcean",
+  dcloud: "Akash Network",
   decentralized: "Decentralized Cloud",
 };
 

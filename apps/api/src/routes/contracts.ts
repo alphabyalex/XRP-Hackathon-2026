@@ -83,6 +83,7 @@ contractsRouter.post("/contracts/redeem", asActor("body", "holder"), async (req,
 
     res.json({ redemptionId, bookingId, slotStart, slotEnd });
   } catch (err) {
+    await compute.cancelBooking(bookingId).catch(() => {});
     res.status(500).json({ error: { code: "INTERNAL", message: (err as Error).message } });
   }
 });

@@ -13,6 +13,7 @@
     "runpod": { "displayName": "RunPod", "startupSeconds": 3.0, "egressPerGbUsd": 0.0, "warningWindowSeconds": 0, "spotRatePerHour": 0.0, "secret": "runpodApiKey" },
     "vast": { "displayName": "Vast.ai", "startupSeconds": 5.0, "egressPerGbUsd": 0.02, "warningWindowSeconds": 0, "spotRatePerHour": null, "secret": "vastApiKey" },
     "coreweave": { "displayName": "CoreWeave", "startupSeconds": 4.0, "egressPerGbUsd": 0.0, "warningWindowSeconds": 0, "spotRatePerHour": 0.0, "secret": null },
-    "akash": { "displayName": "Akash Network", "startupSeconds": 3.0, "egressPerGbUsd": 0.0, "warningWindowSeconds": 30, "spotRatePerHour": 0.0002, "secret": "akashApiKey" }
+    "akash": { "displayName": "Akash Network", "startupSeconds": 3.0, "egressPerGbUsd": 0.0, "warningWindowSeconds": 30, "spotRatePerHour": 0.0002, "secret": "akashApiKey" },
+    "openocean": { "displayName": "OpenOcean", "startupSeconds": 3.0, "egressPerGbUsd": 0.01, "warningWindowSeconds": 45, "spotRatePerHour": 0.0003, "secret": null }
   }
 }

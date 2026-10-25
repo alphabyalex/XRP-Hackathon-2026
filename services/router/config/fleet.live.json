@@ -1,10 +1,10 @@
 {
-  "_note": "Live fleet (FLEET_SOURCE=live). 8 decentralized GPU worker nodes across global Akash clusters running Qwen/Qwen3-1.7B. endpoint is the compute worker that runs it (services/compute with resume.py); ${COMPUTE_URL} is filled from the environment.",
+  "_note": "Live fleet (FLEET_SOURCE=live). 8 multi-provider GPU worker nodes across AWS, Akash Network, OpenOcean, and Vast.ai running Qwen/Qwen3-1.7B. endpoint is the compute worker that runs it (services/compute with resume.py); ${COMPUTE_URL} is filled from the environment.",
   "gpus": [
     {
       "id": "gpu-a1",
       "label": "GPU-A1",
-      "moonshift": { "gpuModel": "T4", "hardware": "NVIDIA T4 16GB (Akash dCloud via akt)", "pricePerHourUsdc": "0.160000", "region": "Decentralized Cloud" },
+      "moonshift": { "gpuModel": "T4", "hardware": "NVIDIA T4 16GB (AWS EC2)", "pricePerHourUsdc": "0.526000", "region": "us-east-2" },
       "maxConcurrent": 1,
       "moonshiftGpuId": "gpu-a",
       "computeGpuId": "gpu-a",
@@ -13,7 +13,7 @@
     {
       "id": "gpu-b1",
       "label": "GPU-B1",
-      "moonshift": { "gpuModel": "V100", "hardware": "NVIDIA Tesla V100 16GB (Akash dCloud)", "pricePerHourUsdc": "0.250000", "region": "Decentralized Cloud" },
+      "moonshift": { "gpuModel": "V100", "hardware": "NVIDIA Tesla V100 16GB (Akash Network)", "pricePerHourUsdc": "0.250000", "region": "Decentralized Cloud" },
       "maxConcurrent": 2,
       "moonshiftGpuId": "gpu-b",
       "computeGpuId": "gpu-b",
@@ -22,7 +22,7 @@
     {
       "id": "gpu-c1",
       "label": "GPU-C1",
-      "moonshift": { "gpuModel": "A100", "hardware": "NVIDIA A100 80GB (Akash dCloud)", "pricePerHourUsdc": "1.490000", "region": "Decentralized Cloud" },
+      "moonshift": { "gpuModel": "A100", "hardware": "NVIDIA A100 80GB (OpenOcean)", "pricePerHourUsdc": "1.490000", "region": "OpenOcean Cloud" },
       "maxConcurrent": 4,
       "moonshiftGpuId": "gpu-c",
       "computeGpuId": "gpu-c",
@@ -31,7 +31,7 @@
     {
       "id": "gpu-d1",
       "label": "GPU-D1",
-      "moonshift": { "gpuModel": "H100", "hardware": "NVIDIA H100 80GB (Akash dCloud)", "pricePerHourUsdc": "2.580000", "region": "Decentralized Cloud" },
+      "moonshift": { "gpuModel": "H100", "hardware": "NVIDIA H100 80GB (Vast.ai)", "pricePerHourUsdc": "2.580000", "region": "Vast.ai US-Central" },
       "maxConcurrent": 4,
       "moonshiftGpuId": "gpu-d",
       "computeGpuId": "gpu-d",
@@ -40,7 +40,7 @@
     {
       "id": "gpu-e1",
       "label": "GPU-E1",
-      "moonshift": { "gpuModel": "RTX 4090", "hardware": "NVIDIA RTX 4090 24GB (Akash dCloud)", "pricePerHourUsdc": "0.340000", "region": "Decentralized Cloud" },
+      "moonshift": { "gpuModel": "RTX 4090", "hardware": "NVIDIA RTX 4090 24GB (Akash Network)", "pricePerHourUsdc": "0.340000", "region": "Decentralized Cloud" },
       "maxConcurrent": 2,
       "moonshiftGpuId": "gpu-e",
       "computeGpuId": "gpu-e",
@@ -49,7 +49,7 @@
     {
       "id": "gpu-f1",
       "label": "GPU-F1",
-      "moonshift": { "gpuModel": "RTX 3090", "hardware": "NVIDIA RTX 3090 24GB (Akash dCloud)", "pricePerHourUsdc": "0.130000", "region": "Decentralized Cloud" },
+      "moonshift": { "gpuModel": "RTX 3090", "hardware": "NVIDIA RTX 3090 24GB (Vast.ai)", "pricePerHourUsdc": "0.130000", "region": "Vast.ai EU-West" },
       "maxConcurrent": 2,
       "moonshiftGpuId": "gpu-f",
       "computeGpuId": "gpu-f",
@@ -58,7 +58,7 @@
     {
       "id": "gpu-g1",
       "label": "GPU-G1",
-      "moonshift": { "gpuModel": "RTX 4000 Ada", "hardware": "NVIDIA RTX 4000 Ada 20GB (Akash dCloud)", "pricePerHourUsdc": "0.290000", "region": "Decentralized Cloud" },
+      "moonshift": { "gpuModel": "RTX 4000 Ada", "hardware": "NVIDIA RTX 4000 Ada 20GB (OpenOcean)", "pricePerHourUsdc": "0.290000", "region": "OpenOcean Cloud" },
       "maxConcurrent": 2,
       "moonshiftGpuId": "gpu-g",
       "computeGpuId": "gpu-g",
@@ -67,7 +67,7 @@
     {
       "id": "gpu-h1",
       "label": "GPU-H1",
-      "moonshift": { "gpuModel": "P40", "hardware": "NVIDIA Tesla P40 24GB (Akash dCloud)", "pricePerHourUsdc": "0.150000", "region": "Decentralized Cloud" },
+      "moonshift": { "gpuModel": "P40", "hardware": "NVIDIA Tesla P40 24GB (Akash Network)", "pricePerHourUsdc": "0.150000", "region": "Decentralized Cloud" },
       "maxConcurrent": 1,
       "moonshiftGpuId": "gpu-h",
       "computeGpuId": "gpu-h",

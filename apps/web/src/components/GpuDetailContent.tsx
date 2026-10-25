@@ -41,9 +41,26 @@ export function GpuDetailContent({ id }: { id: string }) {
           <div className="gname">
             <DataMoon slots={v.slots} size={72} />
             <div>
-              <b style={{ fontSize: 28 }}>{v.dashLabel}</b>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+                <b style={{ fontSize: 28 }}>{v.dashLabel}</b>
+                {(gpu.resources?.provider || (gpu as any).provider) && (
+                  <span
+                    style={{
+                      fontSize: 12,
+                      padding: "2px 8px",
+                      borderRadius: 4,
+                      background: "rgba(255,255,255,0.08)",
+                      color: "var(--ink2, #a0aec0)",
+                      border: "1px solid rgba(255,255,255,0.14)",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {gpu.resources?.provider ?? (gpu as any).provider}
+                  </span>
+                )}
+              </div>
               <span>
-                {gpu.hw} &middot; {gpu.model}
+                {gpu.hw} &middot; {gpu.model} {gpu.resources?.region ? `· ${gpu.resources.region}` : ""}
               </span>
             </div>
           </div>
@@ -99,6 +116,14 @@ export function GpuDetailContent({ id }: { id: string }) {
               <div>
                 <span>State</span>
                 <b style={{ fontSize: 15 }}>{gpu.state}</b>
+              </div>
+              <div>
+                <span>Provider</span>
+                <b style={{ fontSize: 15 }}>{gpu.resources?.provider ?? (gpu as any).provider ?? "Cloud"}</b>
+              </div>
+              <div>
+                <span>Instance</span>
+                <b style={{ fontSize: 15 }}>{gpu.resources?.instanceType ?? "Dedicated"}</b>
               </div>
             </div>
           </div>

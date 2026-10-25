@@ -42,6 +42,33 @@ def test_booking_endpoint_requires_key_and_stream_includes_moonshift_metadata(tm
         )
         assert unauthenticated.status_code == 401
 
+        created = client.post(
+            "/bookings",
+            headers={"X-MS-Internal-Key": settings.internal_api_key},
+            json={
+                "gpu_id": "gpu-a",
+                "slot_start": (datetime.now(UTC) + timedelta(minutes=5)).isoformat(),
+                "slots": 1,
+                "redemption_id": "redemption-cancel",
+                "holder": "ALICE",
+            },
+        )
+        assert created.status_code == 200
+        bid = created.json()["booking_id"]
+
+        del_res = client.delete(
+            f"/bookings/{bid}",
+            headers={"X-MS-Internal-Key": settings.internal_api_key},
+        )
+        assert del_res.status_code == 200
+        assert del_res.json()["status"] == "cancelled"
+
+        del_again = client.delete(
+            f"/bookings/{bid}",
+            headers={"X-MS-Internal-Key": settings.internal_api_key},
+        )
+        assert del_again.status_code == 404
+
         stream = client.post(
             "/v1/chat/completions",
             headers={"X-MS-Buyer": "DEV"},

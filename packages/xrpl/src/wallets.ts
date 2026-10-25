@@ -174,16 +174,19 @@ export function appendOrUpdateEnvSeeds(seeds: Partial<Record<AccountName, string
   }
 }
 
-export function getAccountAddress(name: AccountName): string {
-  if (isUserAccount(name)) return name.slice(2);
-  const envKey = getSeedEnvKey(name);
+export function getAccountAddress(name: AccountName | string): string {
+  if (typeof name === "string" && name.startsWith("r") && name.length >= 25 && name.length <= 35) {
+    return name;
+  }
+  if (isUserAccount(name as AccountName)) return name.slice(2);
+  const envKey = getSeedEnvKey(name as AccountName);
   const seed = process.env[envKey];
   if (seed) {
     return loadWalletFromSeed(seed).address;
   }
   const file = loadAccountsJson();
-  if (file[name]?.address) {
-    return file[name].address;
+  if (file[name as AccountName]?.address) {
+    return file[name as AccountName].address;
   }
   throw new Error(`Account address unknown for ${name}. Must fund or set ${envKey}.`);
 }

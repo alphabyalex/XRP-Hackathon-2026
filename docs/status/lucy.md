@@ -145,6 +145,30 @@
   citation. docs/CONTRACTS.md: AWS resource list and compute hooks for
   Tharun, api/demo additions for Alexander.
 
+- Phase 9 (2026-10-25): task payments locked in XRPL escrow, settled
+  on-chain. The router signs its own devnet transactions (router/ledger.py,
+  xrpl-py 5.2.0, seeds from the repo .env with packages/xrpl's names).
+  Pay: EscrowCreate buyer -> PROTOCOL_FEES for the cap (MS_ORDER memo with
+  orderId, capUsdc, nonce), PREIMAGE-SHA-256 condition = HMAC(order treasury
+  key, nonce), CancelAfter = max(2 h, 3 x ETA + pause timeout + 10 min).
+  Cap top-ups are extra escrows. Settle: one all-or-nothing Batch from
+  PROTOCOL_FEES: EscrowFinish for every escrow, MS_SETTLE to TREASURY_GPU_A/B
+  (Moonshift work, and the margin on external work), MS_SETTLE to a
+  router-owned PROVIDER_<NAME> account for each external provider's cost
+  share, MS_REFUND of the rest. Escrow past CancelAfter: EscrowCancel returns
+  the whole cap to the buyer. Settlement math is exact Decimal; every
+  settlement checks pool + provider + refund == cap before sending. Real
+  devnet run: order ord_b75dd080, split Vast.ai then Azure after a reclaim,
+  escrow 07096DBBAD12224920DBBBAAAD297C67511DED1E360D2F992B42964F65F39369,
+  Batch 1CD8265624C8AA2E9380171E528CB88FA183BBD62CB9E8DCB7F511C4030414D2
+  (finish + 4 payouts + refund, all tesSUCCESS, 0.000276 = cap exactly).
+  Tests: tests/fake_ledger.py (in-memory XRPL that enforces escrow and
+  all-or-nothing rules) + tests/test_ledger_settlement.py (12 tests:
+  escrow before work, exact split, provider accounts, split after reclaim,
+  top-up escrow, Batch fallback, retry never pays twice, expired escrow,
+  custodial buyer, condition format, chunking, 500 random settlements).
+  Router 139 tests.
+
 ## Next
 - When AWS access is approved: deploy the SAM stack, set STATE_BACKEND,
   QUEUE_BACKEND, ORCHESTRATOR and PRICE_SOURCES=all, and rerun the benchmark
@@ -172,6 +196,14 @@
   ECR needs AWS_DEPLOY=1 approval.
 - No BRAND.md in the repo or on disk; UI follows packages/shared/src/brand.ts
   and apps/web/app/globals.css plus the prompt's rules.
+- For Alexander: custodial U_ buyers cannot escrow yet, because only apps/api
+  holds their keys. They pay MS_ORDER as a Payment through
+  /internal/router/pay; settlement is router-signed. A true escrow for them
+  needs an api endpoint that signs EscrowCreate for the buyer.
+- For Alexander: tasks can still be submitted outside the Playground
+  (ComputeCheckout on the Market and GPU pages; /inference/chat is public and
+  records revenue with no TDX moving). Lucy wants the Playground to be the only
+  entry point.
 
 ## Decisions
 - Prompt v2 (multi-provider, AWS control plane) replaced v1 before anything
@@ -203,10 +235,26 @@
   Reservation Instance Interruption Warning". AWS's samples spell the key
   detail_type there; the receiver accepts detail_type and detail-type.
 - Order treasury = PROTOCOL_FEES (no ORDER_TREASURY account exists on
-  devnet). It is also the external-capacity treasury, so the provider-cost
-  share of external work is recorded but needs no transaction (an account
-  cannot pay itself). The buyer never pays more than the quote; if moves make
-  the served work dearer, settlement is scaled down and Moonshift absorbs it.
+  devnet). Since Phase 9 it is the escrow destination and pays the
+  settlement; the provider-cost share of external work goes on-chain to a
+  router-owned PROVIDER_<NAME> account (created from the faucet, TDX
+  trustline, seed in services/router/data, gitignored) instead of staying in
+  PROTOCOL_FEES. The buyer never pays more than the cap; if moves make the
+  served work dearer, settlement is scaled down and Moonshift absorbs it.
+- Phase 9: the router signs its own XRPL transactions (Lucy's call), which
+  changes spec rule A5 ("only api submits ledger txs") for router payments,
+  because /internal/router/pay only does Payments (no escrow, no Batch) and
+  apps/api is Alexander's. LEDGER_SIGNER=api keeps the old path. With the
+  demo's SETTLEMENT=api the router path is used, and its transactions are
+  real devnet even when MOCK_XRPL=1.
+- Phase 9: a Batch's outer result is tesSUCCESS even when all-or-nothing
+  applied nothing, so inner results are read back by ParentBatchID (in the
+  transaction metadata, not the tx body). No inner found: settle one by one.
+  Some found: stop with an error, never resend a payment that may have
+  landed. Found on the first devnet run, where the lookup missed and a
+  resent EscrowFinish failed tecNO_TARGET (one fee, no money moved).
+- Phase 9: the cap is still estimate x (1 + buffer). Payment can never
+  exceed it, but a task that reaches it pauses for the buyer.
 - The pay route builds the Payment itself with packages/xrpl's exported
   client and wallets (getClient, getAccountWallet, getAccountAddress) and the
   same memo encoding as packages/xrpl, because payForInference can only pay a

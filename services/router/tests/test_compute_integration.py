@@ -21,6 +21,8 @@ from router.state import SqliteState
 
 COMPUTE = Path(__file__).resolve().parents[2] / "compute"
 PY = COMPUTE / ".venv" / "bin" / "python"
+if not PY.exists():
+    PY = Path(__file__).resolve().parents[3] / ".venv" / "bin" / "python"
 KEY = "integration-key"
 MSGS = [{"role": "user", "content": "Explain VWAP in one line please"}]
 

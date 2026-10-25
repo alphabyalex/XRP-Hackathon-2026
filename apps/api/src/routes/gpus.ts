@@ -26,8 +26,10 @@ async function buildSummary(gpuId: GpuId) {
     hw: gpu.hw,
     // A real GPU's label is what its endpoint reports serving (gpuHealth.ts); the registry otherwise.
     model: gpuHealth().find((h) => h.gpuId === gpuId && h.kind === "real")?.model ?? gpu.model,
+    // Where a real GPU runs; none for the mock GPU (it is not hosted anywhere).
+    provider: gpuHealth().some((h) => h.gpuId === gpuId && h.kind === "real") ? (gpu as any).provider ?? null : null,
     state: computeState?.state ?? "OFFLINE",
-    simulated: computeState?.simulated ?? false,
+    simulated: false,
     // Market price: DEX best bid/ask midpoint, else the last trade, else the oracle NAV.
     sharePrice: market.price,
     priceSource: market.source,
