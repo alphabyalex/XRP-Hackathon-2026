@@ -5,6 +5,7 @@ import { gpuView } from "@/lib/gpuView";
 import { AppWindow } from "./AppWindow";
 import { MarketTable } from "./MarketTable";
 import { RenterTable } from "./RenterTable";
+import { RentTabContent } from "./RentTabContent";
 import { ApiErrorNotice } from "./ApiErrorNotice";
 import { Reveal } from "./Reveal";
 
@@ -24,7 +25,8 @@ export function MarketContent() {
         </div>
         {unreachable && <ApiErrorNotice />}
         <AppWindow>
-          <RenterTable />
+          {/* Until the catalog route answers, the per-GPU cost breakdown from /gpus/:id stands in. */}
+          <RenterTable fallback={<RentTabContent checkoutHref="/gpu/gpu-a" />} />
         </AppWindow>
         <Reveal>
           <div className="shead" style={{ marginTop: 72, marginBottom: 24 }}>

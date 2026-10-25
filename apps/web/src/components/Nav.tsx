@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { MoonMark } from "./MoonMark";
 import { WalletButton } from "./WalletButton";
@@ -17,6 +18,10 @@ const LINKS = [
 export function Nav() {
   const [scrolled, setScrolled] = useState(false);
   const [onNight, setOnNight] = useState(false);
+  // Under 860px the links fold into a menu.
+  const [open, setOpen] = useState(false);
+  const path = usePathname();
+  useEffect(() => setOpen(false), [path]);
   useEffect(() => {
     const onScroll = () => {
       setScrolled(scrollY > 8);
@@ -47,7 +52,19 @@ export function Nav() {
             Portfolio
           </Link>
           <WalletButton />
+          <button type="button" className="nav-menu-btn" aria-expanded={open} aria-controls="nav-menu" onClick={() => setOpen((o) => !o)}>
+            {open ? "Close" : "Menu"}
+          </button>
         </div>
+      </div>
+      <div id="nav-menu" className={clsx("nav-menu", open && "open")} hidden={!open}>
+        <nav className="wrap" aria-label="Main, small screens">
+          {[...LINKS, { href: "/portfolio", label: "Portfolio" }].map((l) => (
+            <Link key={l.href} href={l.href}>
+              {l.label}
+            </Link>
+          ))}
+        </nav>
       </div>
     </header>
   );
