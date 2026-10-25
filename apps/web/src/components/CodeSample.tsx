@@ -1,24 +1,50 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
+import { useReveal } from "@/hooks/useReveal";
+import { API_BASE } from "@/lib/api";
 
-// Ported from .code / .copy / #copyBtn in moonshift_v2_source.html.
-const PLAIN_TEXT = `from openai import OpenAI
-
-client = OpenAI(
-    base_url="http://localhost:4000/v1",
-    api_key=os.environ["MOONSHIFT_KEY"],
-)
-
-r = client.chat.completions.create(
-    model="Qwen/Qwen3-1.7B",
-    messages=[{"role": "user",
-               "content": "Explain VWAP in one line"}],
-    extra_body={"priority": "balanced"},  # cheapest | balanced | fastest
-)
-# routed to the best GPU for that priority`;
+// The OpenAI client snippet, typed out once when it scrolls into view. Tokens keep their
+// highlight class while they type, so the colors never flash in afterwards.
+type Tok = [cls: "" | "k" | "s" | "c", text: string];
+const tokens = (base: string): Tok[] => [
+  ["k", "from"], ["", " openai "], ["k", "import"], ["", " OpenAI\n\n"],
+  ["", "client = OpenAI(\n    base_url="], ["s", `"${base}/v1"`], ["", ",\n    api_key=os.environ["], ["s", '"MOONSHIFT_KEY"'], ["", "],\n)\n\n"],
+  ["", "r = client.chat.completions.create(\n    model="], ["s", '"Qwen/Qwen2.5-1.5B-Instruct"'], ["", ",\n    messages=[{"],
+  ["s", '"role"'], ["", ": "], ["s", '"user"'], ["", ",\n               "], ["s", '"content"'], ["", ": "], ["s", '"Explain VWAP in one line"'], ["", "}],\n"],
+  ["", "    extra_body={"], ["s", '"priority"'], ["", ": "], ["s", '"balanced"'], ["", "},  "], ["c", "# cheapest | balanced | fastest"], ["", "\n)\n"],
+  ["c", "# routed to the best GPU for that priority"],
+];
+// Same address on the server and the first client render; the real one (a tunnel serves the api
+// under /api) swaps in after mount.
+const SERVER_BASE = "http://localhost:4000";
+const CHARS_PER_TICK = 3;
 
 export function CodeSample() {
   const [label, setLabel] = useState("Copy");
+  const rm = usePrefersReducedMotion();
+  const { ref, inView } = useReveal<HTMLDivElement>();
+  const [shown, setShown] = useState(0);
+  const [base, setBase] = useState(SERVER_BASE);
+  useEffect(() => setBase(API_BASE), []);
+  const TOKENS = tokens(base);
+  const PLAIN_TEXT = TOKENS.map((t) => t[1]).join("");
+  const total = PLAIN_TEXT.length;
+
+  useEffect(() => {
+    if (!inView) return;
+    if (rm) return setShown(Number.MAX_SAFE_INTEGER);
+    const t = setInterval(() => {
+      setShown((n) => {
+        if (n >= total) {
+          clearInterval(t);
+          return n;
+        }
+        return n + CHARS_PER_TICK;
+      });
+    }, 18);
+    return () => clearInterval(t);
+  }, [inView, rm, total]);
 
   async function copy() {
     try {
@@ -30,31 +56,31 @@ export function CodeSample() {
     }
   }
 
+  let left = shown;
+  const done = shown >= total;
   return (
-    <div className="code">
+    <div className="code" ref={ref}>
       <button type="button" className="copy" onClick={copy}>
         {label}
       </button>
-      <pre>
-        <span className="k">from</span> openai <span className="k">import</span> OpenAI{"\n\n"}
-        client = OpenAI({"\n"}
-        {"    "}base_url=<span className="s">&quot;http://localhost:4000/v1&quot;</span>,{"\n"}
-        {"    "}api_key=os.environ[<span className="s">&quot;MOONSHIFT_KEY&quot;</span>],{"\n"})
-        {"\n\n"}
-        r = client.chat.completions.create({"\n"}
-        {"    "}model=<span className="s">&quot;Qwen/Qwen3-1.7B&quot;</span>,{"\n"}
-        {"    "}messages=[{"{"}
-        <span className="s">&quot;role&quot;</span>: <span className="s">&quot;user&quot;</span>,{"\n"}
-        {"               "}
-        <span className="s">&quot;content&quot;</span>: <span className="s">&quot;Explain VWAP in one line&quot;</span>
-        {"}"}],{"\n"}
-        {"    "}extra_body={"{"}
-        <span className="s">&quot;priority&quot;</span>: <span className="s">&quot;balanced&quot;</span>
-        {"}"},{"  "}
-        <span className="c"># cheapest | balanced | fastest</span>
-        {"\n"})
-        {"\n"}
-        <span className="c"># routed to the best GPU for that priority</span>
+      {/* The full text sits underneath, invisible, so the panel keeps its final size while typing. */}
+      <pre aria-label={PLAIN_TEXT}>
+        <span className="code-ghost" aria-hidden="true">
+          {PLAIN_TEXT}
+        </span>
+        <span className="code-typed" aria-hidden="true">
+          {TOKENS.map(([cls, text], i) => {
+            if (left <= 0) return null;
+            const part = text.slice(0, left);
+            left -= text.length;
+            return (
+              <span key={i} className={cls || undefined}>
+                {part}
+              </span>
+            );
+          })}
+          {!done && <span className="caret" />}
+        </span>
       </pre>
     </div>
   );

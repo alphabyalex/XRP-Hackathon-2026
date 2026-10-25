@@ -127,7 +127,7 @@ export function AdminRouter() {
         </div>
 
         <h3>GPUs</h3>
-        <p className="why">Listed: an endpoint that answers its health check, or the mock worker. Hidden GPUs appear once their endpoint is set and healthy.</p>
+        <p className="why">Listed: an endpoint that answers its health check, or the built-in worker. Hidden GPUs appear once their endpoint is set and healthy.</p>
         <div className="tbl">
         <table>
           <thead>
@@ -143,7 +143,7 @@ export function AdminRouter() {
             {health.map((h) => (
               <tr key={h.gpuId}>
                 <td className="l">{h.gpuId.toUpperCase()}</td>
-                <td className="l">{h.kind === "real" ? "Real hardware" : h.kind === "mock" ? "Mock worker" : "Hidden (no healthy endpoint)"}</td>
+                <td className="l">{h.kind === "real" ? "Real hardware" : h.kind === "mock" ? "Built-in worker" : "Hidden (no healthy endpoint)"}</td>
                 <td className="l">{h.model ?? ""}</td>
                 <td>{h.latencyMs !== null ? `${h.latencyMs} ms` : ""}</td>
                 <td className="l">{h.error ?? ""}</td>

@@ -5,11 +5,13 @@ import clsx from "clsx";
 import { MoonMark } from "./MoonMark";
 import { WalletButton } from "./WalletButton";
 
+// Market first; Models (try a model, the OpenAI-compatible API) and Docs are Lucy's pages.
 const LINKS = [
+  { href: "/market", label: "Market" },
   { href: "/borrow", label: "Borrow" },
   { href: "/lend", label: "Lend" },
-  { href: "/market", label: "Market" },
-  { href: "/playground", label: "Developers" },
+  { href: "/models", label: "Models" },
+  { href: "/docs", label: "Docs" },
 ];
 
 export function Nav() {

@@ -3,24 +3,43 @@
 // per-GPU breakdown. The api sends a breakdown only for real hardware, so the mock GPU has no row;
 // a GPU appears here once its endpoint is healthy. Renting is a task: the button goes to the checkout.
 import { GPUS, type GpuResourceBreakdown } from "@moonshift/shared";
-import { useLiveGpus } from "@/lib/liveData";
+import { useLiveGpus, usePolled } from "@/lib/liveData";
 import { Button } from "./Button";
 
 interface ClusterRow {
   id: string;
   label: string;
   hw: string;
+  state: string;
   res: GpuResourceBreakdown;
-  vcpuCount: number;
   ramGb: number;
   storageGb: number;
 }
+
+// The GPU's live state from compute, in plain words.
+const STATUS: Record<string, string> = { READY: "Available", BOOKED: "Busy", DRAINING: "Busy", OFFLINE: "Not connected" };
+
+// GET /catalog/aws (contracts/compute/aws_sse.json): live AWS rates, refreshed on the aws event.
+interface AwsRate {
+  usdPerHour?: string | number;
+  instanceType?: string;
+  region?: string;
+}
+interface AwsFeed {
+  updatedAt: string | null;
+  spot: AwsRate[];
+  onDemand: AwsRate[];
+}
+const usd = (v: unknown) => (Number.isFinite(Number(v)) && v !== null ? `$${Number(v).toFixed(3)}` : null);
 
 const count = (spec: string, re: RegExp, fallback: number) => Number(re.exec(spec)?.[1] ?? fallback);
 const rate = (usd: number, per: number, unit: string) => `$${(usd / Math.max(per, 1)).toFixed(4)}/${unit}`;
 
 export function RentTabContent({ checkoutHref = "/market#run-task" }: { checkoutHref?: string }) {
   const gpus = useLiveGpus();
+  const { data: aws } = usePolled<AwsFeed>("/catalog/aws", { ms: 5000, on: ["aws"] });
+  const onDemand = usd(aws?.onDemand?.[0]?.usdPerHour);
+  const spot = usd(aws?.spot?.[0]?.usdPerHour);
   const rows: ClusterRow[] = GPUS.flatMap((g) => {
     const res = gpus[g.id]?.resources;
     if (!res) return [];
@@ -29,8 +48,8 @@ export function RentTabContent({ checkoutHref = "/market#run-task" }: { checkout
         id: g.id,
         label: g.id.toUpperCase(),
         hw: gpus[g.id].hw,
+        state: gpus[g.id].state,
         res,
-        vcpuCount: count(res.components.cpu.spec, /(\d+)\s*vCPU/, 4),
         ramGb: count(res.components.ram.spec, /(\d+)\s*GiB/, 16),
         storageGb: count(res.components.storage.spec, /(\d+)\s*GB/, 100),
       },
@@ -41,8 +60,16 @@ export function RentTabContent({ checkoutHref = "/market#run-task" }: { checkout
     <div className="rent-tab">
       <div className="rent-head">
         <div>
-          <h3>GPU rental</h3>
-          <p>What each GPU costs to run, per vCPU, GB of RAM and TB of storage.</p>
+          <h3>GPU rentals</h3>
+          <p>
+            What each GPU costs by the hour, and whether it is free right now.
+            {onDemand && (
+              <>
+                {" "}
+                The same card on AWS costs {onDemand} an hour on demand{spot ? `, ${spot} on spot` : ""}.
+              </>
+            )}
+          </p>
         </div>
         <Button size="sm" href={checkoutHref} arrow>
           Run a task
@@ -56,11 +83,10 @@ export function RentTabContent({ checkoutHref = "/market#run-task" }: { checkout
             <thead>
               <tr>
                 <th>GPU</th>
-                <th>vCPU</th>
                 <th>RAM</th>
                 <th>Storage</th>
                 <th className="r">USD / hour</th>
-                <th className="r">vs AWS</th>
+                <th className="r">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -70,13 +96,9 @@ export function RentTabContent({ checkoutHref = "/market#run-task" }: { checkout
                   <tr key={c.id}>
                     <td>
                       <b>{c.hw}</b>
-                      <span className="sub">
-                        {c.label} &middot; {c.res.provider}
+                      <span className="where">
+                        {c.label}, {c.res.provider.replace(/\s*\(.*\)$/, "")}
                       </span>
-                    </td>
-                    <td>
-                      {c.vcpuCount} vCPUs
-                      <span className="sub">{rate(Number(c.res.components.cpu.hourlyUsd), c.vcpuCount, "vCPU-hr")}</span>
                     </td>
                     <td>
                       {c.ramGb} GiB
@@ -90,7 +112,7 @@ export function RentTabContent({ checkoutHref = "/market#run-task" }: { checkout
                       ${total.toFixed(3)}
                       <span className="sub">${c.res.monthlyUsd}/mo</span>
                     </td>
-                    <td className="r num">{c.res.indexedSavingsVsAwsPct && c.res.indexedSavingsVsAwsPct !== "0.0%" ? `-${c.res.indexedSavingsVsAwsPct}` : "Benchmark"}</td>
+                    <td className="r">{STATUS[c.state] ?? "Not connected"}</td>
                   </tr>
                 );
               })}
