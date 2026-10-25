@@ -26,6 +26,9 @@ Updated 2026-10-25 04:55 ET. Branch `tharun`.
 
 ## Requests
 
+- Alex: hide InstantSwitchCard and any Monte Carlo GPU/VRAM/preemption stats in production. Existing engine is a local CPU toy that fabricates path count and adds random latency, and the UI fallback hardcodes 3.12ms. Tharun is disabling its live backend metrics/switch route; it is not verified remote GPU compute. Planned GPU risk switching belongs on Docs only.
+- Kristian: make helpers.recordUsage idempotent for revenue (INSERT OR REPLACE currently still addRevenue every call). Tharun removed duplicate API-side recording for booked inference, and unbooked /inference/chat now uses validated router settlement, not unpaid metering. Retry-safe ingestion still belongs to your helper.
+
 - Kristian: full API suite is 58/59; the existing liveIntegration GPU test assumes two READY GPUs. Duplicate/offline GPU-B is now correctly OFFLINE. Update that owned test and remove the gpuHealth mock exception; do not restore fabricated capacity to satisfy the assertion.
 - Alex: unsupported fine-tune/render/other execution returns TASK_TYPE_UNAVAILABLE. Current serving endpoint is text inference only; keep planned capabilities on Docs. Utilization series now has t/pct aliases matching your catalog client.
 - Alex: your 04:58 price-alignment request is in progress: router own-fleet will use the same GPU Economy median as tasks/catalog; AWS stays comparison only. gpuId (or gpu_id) on chat pins GPU-A. Responses report actual settled charged amount, with estimate and cap separate.

@@ -38,7 +38,11 @@ test("physical node counts never multiply router concurrency and offline fleet d
   assert.deepEqual(nodeAvailability("gpu-a", fleet, offer.asOf), { total: 1, free: 0, busy: 1, reserved: 0, updatedAt: offer.asOf });
   assert.equal(nodeAvailability("gpu-b", fleet, offer.asOf).free, null);
   assert.equal(nodeAvailability("gpu-a", null, null).busy, null);
-  assert.equal(nodeAvailability("gpu-a", [{ id: "gpu-a", endpoint: true, state: { activeJobs: 0, available: false } }], offer.asOf).reserved, 1);
+  assert.equal(nodeAvailability("gpu-a", [{ id: "gpu-a", endpoint: true, state: { activeJobs: 0, available: false, reason: "OFFLINE" } }], offer.asOf).reserved, null);
+  const reserved = nodeAvailability("gpu-a", [{ id: "gpu-a", endpoint: true, state: { activeJobs: 0, available: true,
+    bookedWindows: [{ start: "2026-10-25T08:00:00Z", end: "2026-10-25T10:00:00Z" }] } }], offer.asOf);
+  assert.equal(reserved.reserved, 1);
+  assert.equal(reserved.free, 0);
 });
 
 test("24-hour change requires an actual observation near the comparison time", () => {
