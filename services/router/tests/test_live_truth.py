@@ -96,3 +96,9 @@ def test_public_feed_failure_returns_no_fixture_fallback(monkeypatch):
 def test_collector_name_enables_its_live_child_source(monkeypatch, source, child):
     monkeypatch.setattr(C, "PRICE_SOURCES", source)
     assert C.live_source(child)
+
+
+def test_local_python_service_urls_use_ipv4_loopback():
+    assert C.service_url("http://localhost:5000/") == "http://127.0.0.1:5000"
+    assert C.service_url("https://compute.example/v1/") == "https://compute.example/v1"
+    assert C.service_url("http://localhost.example:5000/") == "http://localhost.example:5000"

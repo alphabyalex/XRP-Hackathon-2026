@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from functools import cache
 from pathlib import Path
 from typing import Any
@@ -35,12 +36,17 @@ def _flag(name: str, default: str = "0") -> bool:
     return _env(name, default).lower() in {"1", "true", "yes"}
 
 
+def service_url(value: str) -> str:
+    """Local Python workers bind IPv4; localhost can reach macOS AirPlay over IPv6 instead."""
+    return re.sub(r"^(https?://)localhost(?=[:/]|$)", r"\g<1>127.0.0.1", value.rstrip("/"))
+
+
 # ---- Runtime ---------------------------------------------------------------------------
 
 PORT = int(_env("PORT", "7200"))
 INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "")
-API_URL = _env("API_URL", "http://localhost:4000").rstrip("/")
-COMPUTE_URL = _env("COMPUTE_URL", "http://localhost:5001").rstrip("/")
+API_URL = service_url(_env("API_URL", "http://127.0.0.1:4000"))
+COMPUTE_URL = service_url(_env("COMPUTE_URL", "http://127.0.0.1:5001"))
 # XRPL network for the order escrow and settlement. devnet or testnet only; mainnet is refused.
 NETWORK = _env("NETWORK", "devnet").lower()
 EXPLORER = _env("XRPL_EXPLORER", f"https://{'testnet' if NETWORK == 'testnet' else 'devnet'}.xrpl.org").rstrip("/")

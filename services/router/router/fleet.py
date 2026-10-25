@@ -72,7 +72,12 @@ class GpuView:
 
 
 def _expand(s: str) -> str:
-    return re.sub(r"\$\{(\w+)\}", lambda m: os.getenv(m.group(1), ""), s or "")
+    expanded = re.sub(
+        r"\$\{(\w+)\}",
+        lambda m: C.COMPUTE_URL if m.group(1) == "COMPUTE_URL" else os.getenv(m.group(1), ""),
+        s or "",
+    )
+    return C.service_url(expanded)
 
 
 FLEET_FILES = {"live": "fleet.live.json", "own": "fleet.own.json"}
