@@ -12,7 +12,7 @@ import { useToast } from "./Toast";
 import { Segmented } from "./Segmented";
 import type { LinePoint } from "./charts";
 import { Markets, marketsFromApi, marketsFromVault } from "./lending/Markets";
-import { Dashboard, rowFromLoan, type BookRow, type Totals } from "./lending/Dashboard";
+import { Dashboard, owing, rowFromLoan, type BookRow, type Totals } from "./lending/Dashboard";
 import "./lending/lending.css";
 
 type Tab = "markets" | "dashboard";
@@ -144,10 +144,12 @@ export function LendContent() {
 
   const rowsApi = Array.isArray(bookRaw?.loans) ? (bookRaw.loans as any[]).map(rowFromApi) : null;
   const rows: BookRow[] | null = rowsApi ?? (loans ? loans.map(rowFromLoan) : null);
-  const openRows = (rows ?? []).filter((r) => r.state === "open" || r.state === "margin_call");
+  // Weighted by what is still owed (principal when the ledger view is missing).
+  const openRows = (rows ?? []).filter(owing);
   const weighted = (() => {
-    const p = openRows.reduce((s, r) => s + r.principal, 0);
-    return p > 0 ? (openRows.reduce((s, r) => s + r.principal * r.apr, 0) / p) * 100 : null;
+    const w = (r: BookRow) => r.outstanding ?? r.principal;
+    const p = openRows.reduce((s, r) => s + w(r), 0);
+    return p > 0 ? (openRows.reduce((s, r) => s + w(r) * r.apr, 0) / p) * 100 : null;
   })();
   const inv = vault?.investing;
   const totals: Totals = {

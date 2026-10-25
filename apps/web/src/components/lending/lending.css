@@ -429,3 +429,23 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+@media (max-width: 560px) {
+  .dash table th:nth-child(2),
+  .dash table td:nth-child(2),
+  .dash table th:nth-child(4),
+  .dash table td:nth-child(4),
+  .dash table th:nth-child(6),
+  .dash table td:nth-child(6),
+  .dash table th:nth-child(7),
+  .dash table td:nth-child(7),
+  .dash table th:nth-child(8),
+  .dash table td:nth-child(8),
+  .dash table th:nth-child(9),
+  .dash table td:nth-child(9),
+  .bw-hist table th:nth-child(2),
+  .bw-hist table td:nth-child(2),
+  .bw-hist table th:nth-child(4),
+  .bw-hist table td:nth-child(4) {
+    display: none;
+  }
+}

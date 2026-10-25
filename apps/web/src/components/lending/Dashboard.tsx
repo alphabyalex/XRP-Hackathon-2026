@@ -54,7 +54,9 @@ export function rowFromLoan(l: XlsLoanRecord): BookRow {
   };
 }
 
-const isOpen = (s: string) => s === "open" || s === "margin_call";
+// Owing: an open loan, or one the ledger still carries debt on (a liquidated
+// loan before it is cleared counts in the round's outstanding too).
+export const owing = (r: BookRow) => r.state === "open" || r.state === "margin_call" || (r.outstanding ?? 0) > 0;
 
 function Tween({ v, d = 2, suffix = "" }: { v: number | null; d?: number; suffix?: string }) {
   const [shown] = useTween([v ?? 0]);
@@ -80,8 +82,8 @@ export function Dashboard({
   utilizationSeries: LinePoint[];
   rows: BookRow[] | null;
 }) {
-  const open = (rows ?? []).filter((r) => isOpen(r.state));
-  const closed = (rows ?? []).filter((r) => !isOpen(r.state)).slice(0, 8);
+  const open = (rows ?? []).filter(owing);
+  const closed = (rows ?? []).filter((r) => !owing(r)).slice(0, 8);
   // Every loan's APR at the moment it opened, and principal originated per hour: both from the loans themselves.
   const aprPoints: LinePoint[] = (rows ?? [])
     .filter((r) => r.openedAt)
@@ -98,7 +100,7 @@ export function Dashboard({
     { k: "Outstanding", v: <><Tween v={totals.outstanding} /> <small>USDC</small></> },
     { k: "Available to lend", v: <><Tween v={totals.available} /> <small>USDC</small></> },
     { k: "Utilization", v: <Tween v={totals.utilization} suffix="%" /> },
-    { k: "Weighted APR", v: totals.weightedApr === null ? "No open loans" : <Tween v={totals.weightedApr} suffix="%" /> },
+    { k: "Weighted APR", v: totals.weightedApr === null ? "No debt owed" : <Tween v={totals.weightedApr} suffix="%" /> },
     { k: "First-loss cover", v: <><Tween v={totals.cover} /> <small>USDC</small></> },
     { k: "Margin calls", v: <Tween v={totals.marginCalls} d={0} /> },
     { k: "Defaults", v: <Tween v={totals.defaults} d={0} /> },
@@ -162,14 +164,14 @@ export function Dashboard({
                 </tr>
               )}
               {[...open, ...closed].map((r) => (
-                <tr key={r.id} className={isOpen(r.state) ? undefined : "closed"}>
+                <tr key={r.id} className={owing(r) ? undefined : "closed"}>
                   <td>{shortHash(r.borrower)}</td>
                   <td>{r.gpuId.toUpperCase()}</td>
                   <td>
                     <StatusChip status={r.state} />
                   </td>
                   <td className="num">{fmt(r.principal, 2)}</td>
-                  <td className="num">{r.outstanding !== null ? fmt(r.outstanding, 2) : isOpen(r.state) ? "" : "0.00"}</td>
+                  <td className="num">{r.outstanding !== null ? fmt(r.outstanding, 2) : owing(r) ? "" : "0.00"}</td>
                   <td className="num">{pct(r.apr, 2)}</td>
                   <td className="num">{r.ltv !== null ? pct(r.ltv) : ""}</td>
                   <td className="num">
