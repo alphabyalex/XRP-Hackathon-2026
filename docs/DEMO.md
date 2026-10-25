@@ -46,22 +46,22 @@ If something stalls:
 
 The run below was produced by `npm run demo:check` after `npm run demo:reset`, on devnet. All hashes open at devnet.xrpl.org.
 
-Run on 2026-10-24 at about 14:20 EDT. It took 86 s end to end, and every step passed. The run before it, also from a fresh reset, passed too.
+Run on 2026-10-25 at 00:39 EDT. It took 92 s end to end, and every step passed cleanly on the live XRPL devnet ledger.
 
 | # | Step | What it proves | Tx |
 |---|---|---|---|
-| 1 | Lender deposits 50 USDC (round 2) | XLS-65 VaultDeposit into a closed-ended vault | [D787F812](https://devnet.xrpl.org/transactions/D787F8129C0D7F448382194AEE441860024645918912EC04352CC3DCA276C76C) |
-| 2 | Borrower escrows 100 GPA shares | GPU shares locked as collateral (EscrowCreate, MS_COLLATERAL) | [A044F0CF](https://devnet.xrpl.org/transactions/A044F0CF0D6AFDCBECDEFF7C50F063237807585C229CE7651D5215BDDF255E75) |
-| 3 | Loan opens: 100 USDC from the vault | XLS-66 LoanSet, broker signs, borrower countersigns | [C9CE477E](https://devnet.xrpl.org/transactions/C9CE477EAE9529D25F8E6330EB607CEA0690CEC843F5BB8436CCE261ECA06638) |
-| 4 | GPU price crash 5.00 to 1.95 | On-ledger PriceOracle update (OracleSet) | [38B554C2](https://devnet.xrpl.org/transactions/38B554C2B64DC51954B2982DE42F0E74F0FF2853B0E2E0DEE218457D07B47E9C) |
-| 5 | Margin call at 51.3% LTV | MS_MARGIN_CALL memo on the borrower's ledger history | [4AE4354D](https://devnet.xrpl.org/transactions/4AE4354DCB9CF6ED02161B67B65C4BCDDBC8EE9F5F813D1DCED52892D579320F) |
-| 6 | GPU price crash to 1.57 | OracleSet | [A82FD340](https://devnet.xrpl.org/transactions/A82FD340364890BA54A7CF992707697836975741D328B62087DB6CEACE840C32) |
-| 7 | Liquidation at 63.8% LTV | Escrowed shares seized (EscrowFinish, MS_LIQUIDATION); XLS-66 default follows after grace | [D9C06D1F](https://devnet.xrpl.org/transactions/D9C06D1FE129AD486DA12FBA8302DA4E8EE069041884B2877FD623CA26607F66) |
-| 8 | Oracle restored to 5.00 | OracleSet | [DDB43D65](https://devnet.xrpl.org/transactions/DDB43D65F3C0B1DB9CB5733E82DAA225B624516BCBF57F78D3643321D109855C) |
-| 9 | Second loan: 60 USDC against 80 GPA | XLS-66 LoanSet | [3E68F509](https://devnet.xrpl.org/transactions/3E68F5097C4C939189FFDA7FB32A0E15CE6A4028E86E98A7F4E27386EC1C5BEB) |
-| 10 | Borrower pays off early | XLS-66 LoanPay with real interest (MS_REPAY) | [2180EE6A](https://devnet.xrpl.org/transactions/2180EE6A8D682448ECD207ACDF62CC6B9CF51722065EC6AB9F629F13E7F6EC9A) |
-| 11 | Collateral back in the same ledger | Batch (all or nothing): EscrowFinish + Payment back to borrower | [08C08BCB](https://devnet.xrpl.org/transactions/08C08BCB3E7D63CA580BB754F4FE2CB12272DA16890A3D0AF7A0A278EB9522FE) |
-| 12 | Loan closed | XLS-66 LoanDelete | [4890B025](https://devnet.xrpl.org/transactions/4890B025D33EE06F97C508024A146925F1D9887D291931BB5BD748ED9FFF84DC) |
+| 1 | Lender deposits 50 USDC (round 2) | XLS-65 VaultDeposit into a closed-ended vault | [85C03149](https://devnet.xrpl.org/transactions/85C03149952793E8A70D7BFF21DF01A7C7DC42DA31609D745A67AC9503EDE5E0) |
+| 2 | Borrower (DEV) escrows 100 GPU-A shares | GPU shares locked as collateral (EscrowCreate, MS_COLLATERAL) | [2765BFE3](https://devnet.xrpl.org/transactions/2765BFE377636A0011E680DA2469200191B64440C5C774512892DC862F53D4F5) |
+| 3 | Loan opens: 953 USDC from the vault | XLS-66 LoanSet, broker signs, borrower countersigns | [4ADD276D](https://devnet.xrpl.org/transactions/4ADD276D18221BEAD845CDA21F2DDE6D8C776A87CDDE8421168BE2963BCAF1DC) |
+| 4 | GPU price crash 27.65 to 16.66 | On-ledger PriceOracle update (OracleSet) | [43D54A65](https://devnet.xrpl.org/transactions/43D54A65252C2B0C8EE290C2F4F95C667BD2D7F6285CA4CFAE5C5CC71D2A4E6A) |
+| 5 | Margin call at 57.4% LTV | MS_MARGIN_CALL memo on the borrower's ledger history | [07CCD1B7](https://devnet.xrpl.org/transactions/07CCD1B7D5E88C63C1B56981CA6191A197797F14C271D5D463CA091212C9B2F1) |
+| 6 | GPU price crash to 13.68 | OracleSet | [A0A6ADF3](https://devnet.xrpl.org/transactions/A0A6ADF3FE78E4D3159A9D3FE330F15C57513AF088250FD33406BB5B6054FF7B) |
+| 7 | Liquidation at 69.9% LTV | Escrowed shares seized (EscrowFinish, MS_LIQUIDATION); XLS-66 default follows after grace | [5294EDCB](https://devnet.xrpl.org/transactions/5294EDCBBFF2445C9A168DFC29C7EF1B217FDB2BAB0B80B2E70F5ADB7F31AEE3) |
+| 8 | Oracle restored to 27.65 | OracleSet | [C36E5709](https://devnet.xrpl.org/transactions/C36E57095E30CE656EFD7D932539C94E47C4F53488062669DE971D26DE24C7B7) |
+| 9 | Second loan: 609 USDC against 80 GPA | XLS-66 LoanSet | [DE990041](https://devnet.xrpl.org/transactions/DE990041401AC324D61328D3A8B6D4F71E34076173EEE8140319C2AE8B170568) |
+| 10 | Borrower pays off early | XLS-66 LoanPay with real interest (MS_REPAY) | [0B06AF35](https://devnet.xrpl.org/transactions/0B06AF35CCF1A5C8E8F6F01807422EF591E8116C14C34FCEBC78F9A7AB5972BD) |
+| 11 | Collateral back in the same ledger | Batch (all or nothing): EscrowFinish + Payment back to borrower | [C2569DEB](https://devnet.xrpl.org/transactions/C2569DEBFC923251483D5C8425F5888587CFE8F7743D945B69B6A4103E0882AC) |
+| 12 | Loan closed | XLS-66 LoanDelete | [5766A168](https://devnet.xrpl.org/transactions/5766A168AFAFEFE5C9BD0D08F3852E522FA9BA6C2AE16E46A461A0AB28ED24C4) |
 
 Sources in this run:
 - Ledger: real devnet.
