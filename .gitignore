@@ -28,3 +28,5 @@ infra/akash/.active_deployment.json
 
 *.log
 .demo-stack.pid
+.vercel
+.env*
