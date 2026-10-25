@@ -17,3 +17,13 @@ export function liquidityLadder(reference: number, inventory: number, cash: numb
   }
   return {asks,bids};
 }
+
+export async function confirmedLiquidityUpdates(cancellations: Array<() => Promise<{ hash: string; validated: boolean; result: string }>>, placements: Array<() => Promise<{ hash: string; validated: boolean; result: string }>>) {
+  const hashes: string[] = [];
+  for (const submit of [...cancellations, ...placements]) {
+    const tx = await submit();
+    if (!tx.validated || tx.result !== "tesSUCCESS") throw new Error("The ledger did not confirm the liquidity update");
+    hashes.push(tx.hash);
+  }
+  return hashes;
+}

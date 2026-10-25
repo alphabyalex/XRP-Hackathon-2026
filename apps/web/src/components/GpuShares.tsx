@@ -89,10 +89,12 @@ export function GpuShares({ gpu, view }: { gpu: ApiGpuDetail; view: GpuView }) {
           <div className="panel">
             <h4 className="panel-h">Order book</h4>
             <OrderBook bids={visibleBids} asks={visibleAsks} />
+            <p className="note">Live funded offers. Includes protocol liquidity.</p>
           </div>
         </div>
         <div className="panel">
           <h4 className="panel-h">Trades</h4>
+          <p className="note">Ledger fills include protocol account activity.</p>
           {trades.length === 0 ? (
             <p className="note">No trades in the last 24 hours.</p>
           ) : (

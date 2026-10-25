@@ -205,8 +205,8 @@ export async function buyShares(p: BuySharesParams): Promise<TxResult> {
   return mockTx();
 }
 
-export async function sellShares(p: SellSharesParams): Promise<TxResult> {
-  if (!MOCK) return realXrpl.sellShares(p);
+export async function sellShares(p: SellSharesParams, immediateOrCancel = false): Promise<TxResult> {
+  if (!MOCK) return realXrpl.sellShares(p, immediateOrCancel);
   ensureGpuMaps(p.gpuId);
   const treasury = treasuryFor(p.gpuId);
   const qty = Number(p.qty);
