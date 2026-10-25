@@ -30,6 +30,8 @@ def public_feed(request: httpx.Request) -> httpx.Response:
 def live_service(monkeypatch):
     monkeypatch.setattr(C, "FLEET_SOURCE", "own")
     monkeypatch.setattr(C, "PRICE_SOURCES", "aws_public")
+    monkeypatch.delenv("GPU_B_LEASE_USD_PER_HOUR", raising=False)
+    monkeypatch.delenv("GPU_B_PRICE_UPDATED_AT", raising=False)
     service = Service()
     service.economy_rates = {"T4": {"pricePerGpuHourUsd": 0.55, "asOf": iso(now_utc()),
         "checkedAt": iso(now_utc()), "source": "GPU Economy", "offerKey": "gpu-economy#t4"}}
@@ -47,7 +49,8 @@ def test_public_aws_feed_needs_no_credentials_and_keeps_real_provenance(monkeypa
     on_demand = service.offers["aws#us-east-2#g4dn.xlarge#on-demand"]
     assert on_demand.pricePerHourUsd == 0.526
     assert on_demand.extra["publishedAt"] == "2026-10-25T01:00:00Z"
-    assert [entry.id for entry in service.entries] == ["gpu-a"]
+    assert [entry.id for entry in service.entries] == ["gpu-a", "gpu-b"]
+    assert not service.entries[1].offerFound, "A prepared GPU cannot inherit another lease cost"
     entry = service.entries[0]
     assert "Akash" in entry.hardware and entry.offer.region == "akash"
     assert entry.benchmark["awsComparison"]["spotPricePerGpuHourUsd"] == 0.17
@@ -170,7 +173,10 @@ async def test_order_pin_rejects_unknown_or_offline_gpu_and_never_replans_onto_a
     request = {"kind": "inference", "requests": [[{"role": "user", "content": "Hi"}]], "maxTokens": 10}
     with pytest.raises(RouterError) as error:
         await orders.create(OrderCreate(**request, gpuId="gpu-b"))
-    assert error.value.code == "UNKNOWN_GPU"
+    assert error.value.code == "GPU_OFFLINE"
+    with pytest.raises(RouterError) as unknown:
+        await orders.create(OrderCreate(**request, gpuId="gpu-z"))
+    assert unknown.value.code == "UNKNOWN_GPU"
     order = await orders.create(OrderCreate(**request, gpuId="gpu-a"))
     assert {part["gpuId"] for part in order["plan"]["parts"]} == {"gpu-a"}
     assert order["constraints"]["gpuId"] == "gpu-a"

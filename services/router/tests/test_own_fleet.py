@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+import pytest
+
 from router import config as C
 from router.catalog import Availability, iso, make_offer, now_utc
 from router.fleet import load_entries
 
+
+@pytest.fixture(autouse=True)
+def unconfigured_new_lease(monkeypatch):
+    monkeypatch.delenv("GPU_B_LEASE_USD_PER_HOUR", raising=False)
+    monkeypatch.delenv("GPU_B_PRICE_UPDATED_AT", raising=False)
 
 def offer(provider: str, instance: str, capacity: str, price: float, status: str = "likely", model: str = "T4"):
     return make_offer(
@@ -29,7 +36,7 @@ def catalog(*offers):
 def test_own_fleet_is_only_moonshift_gpus(monkeypatch):
     monkeypatch.setattr(C, "FLEET_SOURCE", "own")
     entries = load_entries(catalog(offer("aws", "g4dn.xlarge", "on-demand", 0.526)))
-    assert [(e.id, e.label, e.offer.provider) for e in entries] == [("gpu-a", "GPU-A", "moonshift")]
+    assert [(e.id, e.label, e.offer.provider) for e in entries] == [("gpu-a", "GPU-A", "moonshift"), ("gpu-b", "GPU-B", "moonshift")]
 
 
 def test_price_is_own_lease_policy_and_market_and_aws_are_comparisons(monkeypatch):
@@ -45,7 +52,8 @@ def test_price_is_own_lease_policy_and_market_and_aws_are_comparisons(monkeypatc
         {"T4": {"pricePerGpuHourUsd": 0.55, "asOf": iso(now_utc()), "checkedAt": iso(now_utc()),
                 "source": "GPU Economy", "offerKey": "gpu-economy#t4"}},
     )
-    for e in entries:
+    assert not entries[1].offerFound
+    for e in entries[:1]:
         assert e.offer.pricePerHourUsd == C.OWN_RATE_USD_PER_HOUR
         assert e.offer.price_per_hour_usdc() == C.OWN_RATE_USD_PER_HOUR
         assert e.benchmark and e.benchmark["source"] == "Akash lease plus margin"
@@ -56,7 +64,8 @@ def test_price_is_own_lease_policy_and_market_and_aws_are_comparisons(monkeypatc
 def test_configured_own_price_does_not_depend_on_an_external_comparison(monkeypatch):
     monkeypatch.setattr(C, "FLEET_SOURCE", "own")
     entries = load_entries(catalog())
-    assert all(e.offer.pricePerHourUsd == C.OWN_RATE_USD_PER_HOUR and e.benchmark["marketComparison"] is None and e.offerFound for e in entries)
+    assert all(e.offer.pricePerHourUsd == C.OWN_RATE_USD_PER_HOUR and e.benchmark["marketComparison"] is None and e.offerFound for e in entries[:1])
+    assert not entries[1].offerFound
 
 
 def test_gpus_apps_api_does_not_list_are_not_offered(monkeypatch):

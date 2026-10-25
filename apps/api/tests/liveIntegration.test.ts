@@ -30,21 +30,34 @@ test("Vault overview returns live XRPL devnet XLS-65 data", async () => {
   assert.equal(data.subscribing.phase, "subscription");
 });
 
-test("GPU nodes cataloged with multi-provider attributes and live state", async () => {
-  const res = await fetch(`${API_URL}/gpus`);
+test("GPU catalog follows healthy unique endpoints and reports actual state and models", async () => {
+  const [res, healthResponse, catalogResponse] = await Promise.all([fetch(`${API_URL}/gpus`), fetch(`${API_URL}/gpus-health`), fetch(`${API_URL}/catalog/gpus`)]);
   assert.equal(res.status, 200);
+  assert.equal(healthResponse.status, 200);
+  assert.equal(catalogResponse.status, 200);
   const gpus = await res.json();
-  assert.ok(gpus.length >= 2);
-
-  const ids = gpus.map((g: any) => g.id);
-  for (const expectedId of ["gpu-a", "gpu-b"]) {
-    assert.ok(ids.includes(expectedId), `Missing ${expectedId}`);
-  }
-
+  const health = (await healthResponse.json()).filter((gpu: any) => gpu.kind === "real" && gpu.ok);
+  const catalog = (await catalogResponse.json()).gpus;
+  const ids = gpus.map((gpu: any) => gpu.id).sort();
+  assert.equal(new Set(ids).size, ids.length, "Physical GPUs must not be listed twice");
+  assert.deepEqual(ids, health.map((gpu: any) => gpu.gpuId).sort());
   for (const gpu of gpus) {
-    assert.equal(gpu.state, "READY");
+    const observed = health.find((entry: any) => entry.gpuId === gpu.id);
+    assert.equal(gpu.model, observed.model);
     assert.equal(gpu.simulated, false);
-    assert.ok(gpu.monteCarlo);
+    assert(["READY", "SERVING", "BOOKED", "DRAINING", "OFFLINE"].includes(gpu.state), `Unknown state ${gpu.state}`);
+    assert.equal(typeof gpu.provider, "string");
+    assert(gpu.model && gpu.model !== "Qwen/Qwen3-1.7B", "Public identity must describe the real model, not a private wire alias");
+    const physical = catalog.find((entry: any) => entry.id === gpu.id);
+    if (physical) {
+      assert.equal(gpu.hw, `${physical.card} ${physical.vramGb}GB`);
+      assert.equal(gpu.provider, physical.provider);
+      assert.deepEqual(gpu.location, physical.location);
+      assert.equal(gpu.resources.components.cpu.spec, `${physical.vcpu} vCPUs`);
+      assert.equal(gpu.resources.components.ram.spec, `${physical.ramGb} GiB System RAM`);
+      assert.equal(gpu.resources.components.storage.spec, `${physical.storageGb} GB storage`);
+      assert(Object.values(gpu.resources.components).every((component: any) => component.hourlyUsd === null), "Bundled lease costs must not invent a per-component allocation");
+    }
   }
 });
 

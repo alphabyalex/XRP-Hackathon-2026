@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { GPUS, RESOURCE_BREAKDOWN, type GpuId } from "@moonshift/shared";
+import { GPUS, type GpuId } from "@moonshift/shared";
 import * as xrpl from "../adapters/xrplAdapter.js";
 import * as compute from "../adapters/computeClient.js";
 import * as pricing from "../adapters/pricingClient.js";
@@ -8,6 +8,7 @@ import { historyCalendar } from "../marketHistory.js";
 import { change24hPct, priceHistory, sharePrice } from "../sharePrice.js";
 import { gpuHealth, isListed, listedGpus } from "../gpuHealth.js";
 import { gpuStats, payoutYield } from "../gpuStats.js";
+import { verifiedGpuResources, verifiedGpuSpec } from "../marketData/rentalCatalog.js";
 
 export const gpusRouter = Router();
 
@@ -20,15 +21,17 @@ async function buildSummary(gpuId: GpuId) {
     sharePrice(gpuId),
   ]);
   const computeState = computeGpus.find((c) => c.id === gpuId);
+  const verified = verifiedGpuSpec(gpuId);
 
   return {
     id: gpu.id,
     label: gpu.label,
-    hw: gpu.hw,
+    hw: verified ? `${verified.card} ${verified.vramGb}GB` : "Hardware verification pending",
     // A real GPU's label is what its endpoint reports serving (gpuHealth.ts); the registry otherwise.
-    model: gpuHealth().find((h) => h.gpuId === gpuId && h.kind === "real")?.model ?? gpu.model,
+    model: gpuHealth().find((h) => h.gpuId === gpuId && h.kind === "real")?.model ?? verified?.modelId ?? "Model verification pending",
     // Where a real GPU runs; none for the mock GPU (it is not hosted anywhere).
-    provider: gpuHealth().some((h) => h.gpuId === gpuId && h.kind === "real") ? (gpu as any).provider ?? null : null,
+    provider: verified?.provider ?? "Provider verification pending",
+    location: verified ? { city: verified.city, region: verified.region } : { city: null, region: null },
     state: computeState?.state ?? "OFFLINE",
     simulated: false,
     // The one share price (sharePrice.ts reference).
@@ -45,12 +48,15 @@ async function buildSummary(gpuId: GpuId) {
     holdersCount: holders.length,
     monteCarlo: (computeState as any)?.monte_carlo,
     // Hosting and its cost breakdown: real hardware only.
-    resources: gpuHealth().some((h) => h.gpuId === gpuId && h.kind === "real") ? RESOURCE_BREAKDOWN[gpuId] : undefined,
+    resources: verifiedGpuResources(gpuId),
   };
 }
 
 gpusRouter.get("/pricing/resources", async (_req, res) => {
-  res.json(RESOURCE_BREAKDOWN);
+  res.json(Object.fromEntries(listedGpus().flatMap(gpu => {
+    const resources = verifiedGpuResources(gpu.id);
+    return resources ? [[gpu.id, resources]] : [];
+  })));
 });
 
 gpusRouter.get("/monte-carlo/status", async (_req, res) => {

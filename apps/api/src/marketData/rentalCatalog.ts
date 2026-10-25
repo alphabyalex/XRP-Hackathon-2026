@@ -28,7 +28,7 @@ let timer: ReturnType<typeof setInterval> | null = null;
 let lastAws = "";
 let awsSnapshot: { updatedAt: string | null; spot: LiveRate[]; onDemand: LiveRate[] } = { updatedAt: null, spot: [], onDemand: [] };
 
-function verifiedSpec(gpuId: string) {
+export function verifiedGpuSpec(gpuId: string) {
   const prefix = gpuId.toUpperCase().replace(/-/g, "_");
   if (gpuId === "gpu-a") return { card: "NVIDIA T4", vramGb: 16, vcpu: 4, ramGb: 16, storageGb: 100,
     modelId: process.env.GPU_A_MODEL_ID ?? "Qwen/Qwen2.5-1.5B-Instruct", provider: "Akash Network",
@@ -41,6 +41,20 @@ function verifiedSpec(gpuId: string) {
     city: process.env[`${prefix}_CITY`]?.trim() || null, region: process.env[`${prefix}_REGION`]?.trim() || null,
     rental: configuredRentalRate(process.env[`${prefix}_LEASE_USD_PER_HOUR`], process.env[`${prefix}_OWN_MARGIN`] ?? process.env.OWN_MARGIN ?? "0.25",
       process.env[`${prefix}_PRICE_UPDATED_AT`] ?? "") };
+}
+
+export function verifiedGpuResources(gpuId: string) {
+  const spec = verifiedGpuSpec(gpuId);
+  if (!spec) return null;
+  return { provider: spec.provider, instanceType: spec.card, region: spec.region,
+    components: {
+      gpu: { label: "GPU Compute", spec: `1x ${spec.card} ${spec.vramGb}GB VRAM`, hourlyUsd: null },
+      cpu: { label: "vCPU Compute", spec: `${spec.vcpu} vCPUs`, hourlyUsd: null },
+      ram: { label: "System Memory", spec: `${spec.ramGb} GiB System RAM`, hourlyUsd: null },
+      storage: { label: "Storage", spec: `${spec.storageGb} GB storage`, hourlyUsd: null },
+    },
+    totalHourlyUsd: spec.rental?.costUsdPerHour ?? null, rentalHourlyUsd: spec.rental?.usdPerHour ?? null,
+    monthlyUsd: null, priceBasis: "Bundled Akash lease. Component prices are not separately published." };
 }
 
 export function cachedRentalCatalog(): RentalCatalog | null {
@@ -80,7 +94,7 @@ export function refreshRentalCatalog(): Promise<RentalCatalog> {
     const online = gpuHealth().filter(h => h.kind === "real" && h.ok && h.checkedAt && Date.now() - Date.parse(h.checkedAt) < 120_000);
     const gpus: RentalGpu[] = [];
     for (const health of online) {
-      const spec = verifiedSpec(health.gpuId);
+      const spec = verifiedGpuSpec(health.gpuId);
       if (!spec || health.model !== spec.modelId) continue;
       const rate = market?.gpus.find(g => g.name.toLowerCase() === spec.card.toLowerCase() ||
         (spec.card === "NVIDIA T4" && (g.id === "t4" || /\bt4\b/i.test(g.name))));

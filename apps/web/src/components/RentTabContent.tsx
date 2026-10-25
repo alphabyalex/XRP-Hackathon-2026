@@ -35,7 +35,8 @@ interface AwsFeed {
 const usd = (v: unknown) => (Number.isFinite(Number(v)) && v !== null ? `$${Number(v).toFixed(3)}` : null);
 
 const count = (spec: string, re: RegExp, fallback: number) => Number(re.exec(spec)?.[1] ?? fallback);
-const rate = (usd: number, per: number, unit: string) => `$${(usd / Math.max(per, 1)).toFixed(4)}/${unit}`;
+const rate = (usd: unknown, per: number, unit: string) => usd === null || usd === undefined || !Number.isFinite(Number(usd))
+  ? "Included in node rate" : `$${(Number(usd) / Math.max(per, 1)).toFixed(4)}/${unit}`;
 
 export function RentTabContent({ checkoutHref = "/market" }: { checkoutHref?: string }) {
   const gpus = useLiveGpus();
@@ -108,11 +109,11 @@ export function RentTabContent({ checkoutHref = "/market" }: { checkoutHref?: st
                     </td>
                     <td>
                       {c.ramGb} GiB
-                      <span className="sub">{rate(Number(c.res.components.ram.hourlyUsd), c.ramGb, "GB-hr")}</span>
+                      <span className="sub">{rate(c.res.components.ram.hourlyUsd, c.ramGb, "GB-hr")}</span>
                     </td>
                     <td>
-                      {c.storageGb} GB NVMe
-                      <span className="sub">{rate(Number(c.res.components.storage.hourlyUsd), c.storageGb / 1000, "TB-hr")}</span>
+                      {c.storageGb} GB storage
+                      <span className="sub">{rate(c.res.components.storage.hourlyUsd, c.storageGb / 1000, "TB-hr")}</span>
                     </td>
                     <td className="r num">
                       {hourly !== null ? `$${hourly.toFixed(3)}` : "–"}

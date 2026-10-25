@@ -1,5 +1,5 @@
 {
-  "_note": "Only the existing Akash Network T4 is configured, running Qwen2.5-1.5B-Instruct. The own-fleet hourly rate is the cached live GPU Economy median shared by catalog and task quotes. AWS spot and on-demand feeds are comparison metadata only. Missing or stale market medians disable pricing. One physical card has no invented tier premium or speed difference.",
+  "_note": "Prepared Akash GPU-A (T4, Qwen2.5-1.5B-Instruct) and distinct GPU-B (V100, Qwen2.5-3B-Instruct). Each card requires a configured, healthy distinct endpoint and verified per-lease cost before it is executable. Rental rates are each configured lease cost plus margin. GPU Economy and AWS are comparisons; only fresh same-card AWS pairs discount service modes.",
   "gpus": [
     {
       "id": "gpu-a",
@@ -16,6 +16,19 @@
       "maxConcurrent": 2,
       "moonshiftGpuId": "gpu-a",
       "computeGpuId": "gpu-a",
+      "endpoint": "${COMPUTE_URL}"
+    },
+    {
+      "id": "gpu-b",
+      "label": "GPU-B",
+      "moonshift": {
+        "gpuModel": "V100",
+        "hardware": "NVIDIA V100 32GB (Akash Network)",
+        "region": "akash"
+      },
+      "maxConcurrent": 2,
+      "moonshiftGpuId": "gpu-b",
+      "computeGpuId": "gpu-b",
       "endpoint": "${COMPUTE_URL}"
     }
   ]

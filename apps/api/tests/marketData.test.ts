@@ -22,8 +22,12 @@ test("returns use received cash, zero-fill UTC dates, and separate GPUs", () => 
 
 test("empty returns are zero, including the leap-day boundary", () => {
   const result = buildReturns("ALICE", 7, [], new Date("2024-03-02T00:00:00.000Z"));
-  assert.equal(result.series[0].days[4].date, "2024-02-29");
+  assert.deepEqual(result.series, []);
   assert.equal(result.totalEarned, "0.000000");
+  const received = buildReturns("ALICE", 7, [{ gpuId: "gpu-a", amount: "1.000000", time: "2024-02-29T12:00:00.000Z" }], new Date("2024-03-02T00:00:00.000Z"));
+  assert.equal(received.series[0].days[4].date, "2024-02-29");
+  assert.equal(received.series[0].days[4].earned, "1.000000");
+  assert.equal(received.totalEarned, "1.000000");
 });
 
 test("prices with missing or invalid data never become zero-dollar offers", () => {

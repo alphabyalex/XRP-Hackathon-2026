@@ -11,6 +11,7 @@ import { buildReturns } from "../marketData/returns.js";
 import { change24hPct, sharePrice } from "../sharePrice.js";
 import { historyCalendar } from "../marketHistory.js";
 import { listedGpus } from "../gpuHealth.js";
+import { verifiedGpuSpec } from "../marketData/rentalCatalog.js";
 
 import { asActor } from "../middleware/session.js";
 export const accountRouter = Router();
@@ -69,10 +70,11 @@ export async function buildAccount(input: string): Promise<AccountResponse> {
   const earned = (days: number, gpuId?: string) => payouts.filter(p => p.created_at >= since(days) && (!gpuId || p.gpu_id === gpuId)).reduce((sum, p) => sum + n(p.amount), 0);
   const open = records.filter(l => l.status === "open" || l.status === "margin_call");
   const holdings = gpuData.map(({gpu, nav, oracle, slots}) => {
+    const physical = verifiedGpuSpec(gpu.id);
     const free = n(balances.tokens[gpu.shareCode]);
     const locked = open.filter(l => l.gpuId === gpu.id && l.ledger?.collateral?.locked).reduce((s,l) => s + n(l.collateralShares),0);
     const shares = free + locked;
-    return { gpuId: gpu.id, label: gpu.label, hardware: gpu.hw.replace(/\s*\(simulated[^)]*\)/gi, ""), slots, free: fix6(free), locked: fix6(locked), shares: fix6(shares), sharePrice: oracle.price, value: fix6(shares * n(oracle.price)), change24h: change24hPct(gpu.id, oracle.price), yield: payoutYield(gpu.id, oracle.price).yieldPct ?? "0.00", earned7d: fix6(earned(7,gpu.id)), ownershipPct: fix6(shares/1000) };
+    return { gpuId: gpu.id, label: gpu.label, hardware: physical ? `${physical.card} ${physical.vramGb}GB` : "Hardware verification pending", slots, free: fix6(free), locked: fix6(locked), shares: fix6(shares), sharePrice: oracle.price, value: fix6(shares * n(oracle.price)), change24h: change24hPct(gpu.id, oracle.price), yield: payoutYield(gpu.id, oracle.price).yieldPct ?? "0.00", earned7d: fix6(earned(7,gpu.id)), ownershipPct: fix6(shares/1000) };
   }).filter(h => n(h.shares)>0);
   const gpuPerformance = gpuData.filter(d => holdings.some(h => h.gpuId===d.gpu.id)).map(({gpu, history}) => {
     const dayMap = new Map<string, {booked:number; inference:number; active:number; minutes:number}>();

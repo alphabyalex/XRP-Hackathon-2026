@@ -50,6 +50,9 @@ test("Vault overview SWR cache returns immediately on subsequent calls", async (
 });
 
 test("Concurrent misses to /gpus catalog safely deduplicate without corruption", async () => {
+  const healthResponse = await fetch(`${API_URL}/gpus-health`);
+  assert.equal(healthResponse.status, 200);
+  const expectedIds = (await healthResponse.json()).filter((gpu: any) => gpu.kind === "real" && gpu.ok).map((gpu: any) => gpu.gpuId).sort();
   const calls = Array.from({ length: 6 }, () =>
     fetch(`${API_URL}/gpus`).then(async (r) => {
       assert.equal(r.status, 200);
@@ -62,10 +65,10 @@ test("Concurrent misses to /gpus catalog safely deduplicate without corruption",
 
   for (const list of results) {
     assert.equal(list.length, results[0].length);
-    assert.ok(list.length >= 2);
-    const ids = list.map((g: any) => g.id);
-    assert.ok(ids.includes("gpu-a"));
-    assert.ok(ids.includes("gpu-b"));
+    const ids = list.map((gpu: any) => gpu.id).sort();
+    assert.equal(new Set(ids).size, ids.length);
+    assert.deepEqual(ids, expectedIds);
+    assert(list.every((gpu: any) => gpu.simulated === false));
   }
 });
 

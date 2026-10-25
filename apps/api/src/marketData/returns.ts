@@ -1,5 +1,6 @@
 import { GPUS, fix6, type AccountReturnsResponse } from "@moonshift/shared";
 import { listedGpus } from "../gpuHealth.js";
+import { verifiedGpuSpec } from "./rentalCatalog.js";
 
 export interface DividendReceipt { gpuId: string; amount: string; time: string }
 
@@ -13,6 +14,7 @@ export function buildReturns(account: string, days: number, receipts: DividendRe
   const receiptGpuIds = new Set(receipts.map((r) => r.gpuId));
   const activeGpus = GPUS.filter((g) => listedGpus().some((l) => l.id === g.id) || receiptGpuIds.has(g.id));
   const series = activeGpus.map(gpu => {
+    const physical = verifiedGpuSpec(gpu.id);
     const byDay = new Map<string, number>();
     for (const receipt of receipts) {
       if (receipt.gpuId !== gpu.id || receipt.time < from || receipt.time > to) continue;
@@ -27,7 +29,7 @@ export function buildReturns(account: string, days: number, receipts: DividendRe
       return { date, earned: fix6(earned), cumulative: fix6(cumulative) };
     });
     return {
-      gpuId: gpu.id, label: gpu.label, hardware: gpu.hw.replace(/\s*\(simulated[^)]*\)/gi, ""),
+      gpuId: gpu.id, label: gpu.label, hardware: physical ? `${physical.card} ${physical.vramGb}GB` : "Hardware verification pending",
       totalEarned: fix6(cumulative), days: points,
     };
   });
