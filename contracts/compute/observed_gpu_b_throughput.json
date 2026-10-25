@@ -1,0 +1,32 @@
+{
+  "gpuId": "gpu-b",
+  "modelId": "Qwen/Qwen2.5-3B-Instruct",
+  "hardware": "NVIDIA Tesla V100 32GB",
+  "observedAt": "2026-10-25T14:06:30.992Z",
+  "source": "Two direct endpoint observations; minimum output tokens divided by full HTTP wall time",
+  "scope": "Conservative planning observation including prefill and network time. This is not a pure decoder benchmark or a guaranteed future throughput.",
+  "maxOutputTokens": 128,
+  "planningTokensPerSec": 61.756527,
+  "samples": [
+    {
+      "startedAt": "2026-10-25T14:06:27.109Z",
+      "finishedAt": "2026-10-25T14:06:29.183Z",
+      "modelId": "Qwen/Qwen2.5-3B-Instruct",
+      "promptTokens": 51,
+      "completionTokens": 128,
+      "wallSeconds": 2.072655,
+      "observedOutputTokensPerWallSecond": 61.756527,
+      "finishReason": "length"
+    },
+    {
+      "startedAt": "2026-10-25T14:06:29.183Z",
+      "finishedAt": "2026-10-25T14:06:30.992Z",
+      "modelId": "Qwen/Qwen2.5-3B-Instruct",
+      "promptTokens": 51,
+      "completionTokens": 128,
+      "wallSeconds": 1.808969,
+      "observedOutputTokensPerWallSecond": 70.758532,
+      "finishReason": "length"
+    }
+  ]
+}

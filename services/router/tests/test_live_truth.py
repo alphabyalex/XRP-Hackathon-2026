@@ -54,7 +54,7 @@ def test_public_aws_feed_needs_no_credentials_and_keeps_real_provenance(monkeypa
     entry = service.entries[0]
     assert "Akash" in entry.hardware and entry.offer.region == "akash"
     assert entry.benchmark["awsComparison"]["spotPricePerGpuHourUsd"] == 0.17
-    assert entry.offer.priceSource == "live" and entry.offer.pricePerHourUsd == C.OWN_RATE_USD_PER_HOUR
+    assert entry.offer.priceSource == "live" and entry.offer.pricePerHourUsd == C.own_rental_policy("gpu-a")["pricePerGpuHourUsd"]
 
 
 def test_stored_fixture_prices_cannot_become_live_benchmarks(monkeypatch):
@@ -66,7 +66,7 @@ def test_stored_fixture_prices_cannot_become_live_benchmarks(monkeypatch):
     service.load_catalog(saved)
     assert service.offers == {}
     assert service.entries[0].offerFound
-    assert service.entries[0].offer.pricePerHourUsd == C.OWN_RATE_USD_PER_HOUR
+    assert service.entries[0].offer.pricePerHourUsd == C.own_rental_policy("gpu-a")["pricePerGpuHourUsd"]
     assert service.entries[0].benchmark["marketComparison"] is None
     assert not service.views()[0].available
 
@@ -128,15 +128,15 @@ async def test_shared_gpu_economy_snapshot_is_cached_and_aws_does_not_set_rental
     monkeypatch.setattr(O, "aws_spot_ratio", lambda: None)
     for _ in range(50):
         choices, _ = O.choose_for(O.OrderSpec("rental", minutes=60), service.views())
-        assert {round(choice.plan.cost, 6) for choice in choices.values()} == {C.OWN_RATE_USD_PER_HOUR}
-        assert {choice.level["rateUsdcPerGpuHour"] for choice in choices.values()} == {C.OWN_RATE_USD_PER_HOUR}
+        assert {round(choice.plan.cost, 6) for choice in choices.values()} == {C.own_rental_policy("gpu-a")["pricePerGpuHourUsd"]}
+        assert {choice.level["rateUsdcPerGpuHour"] for choice in choices.values()} == {C.own_rental_policy("gpu-a")["pricePerGpuHourUsd"]}
         # Pausable runs longer end to end.
         assert choices["cheapest"].plan.eta_s > choices["balanced"].plan.eta_s
     # With a live AWS spot / on-demand pair the three modes differ.
     monkeypatch.setattr(O, "aws_spot_ratio", lambda: 0.5)
     choices, _ = O.choose_for(O.OrderSpec("rental", minutes=60), service.views())
     rates = {m: c.level["rateUsdcPerGpuHour"] for m, c in choices.items()}
-    full = C.OWN_RATE_USD_PER_HOUR
+    full = C.own_rental_policy("gpu-a")["pricePerGpuHourUsd"]
     assert rates == {"cheapest": round(full * 0.5, 6), "balanced": round(full * 0.75, 6), "fastest": full}
     await service.refresh_economy(httpx.MockTransport(feed))
     assert requests == ["/gpu-prices"]
@@ -150,7 +150,7 @@ async def test_stale_market_comparison_does_not_expire_the_configured_rental_pol
         json={"source": {"name": "GPU Economy"}, "sourceUpdatedAt": iso(now_utc()),
               "checkedAt": iso(now_utc()), "stale": True, "gpus": []})))
     assert service.economy_rates == {}
-    assert service.entries[0].offerFound and service.entries[0].offer.pricePerHourUsd == C.OWN_RATE_USD_PER_HOUR
+    assert service.entries[0].offerFound and service.entries[0].offer.pricePerHourUsd == C.own_rental_policy("gpu-a")["pricePerGpuHourUsd"]
     assert service.entries[0].benchmark["marketComparison"] is None
 
 

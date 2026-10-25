@@ -24,7 +24,16 @@
       "moonshift": {
         "gpuModel": "V100",
         "hardware": "NVIDIA V100 32GB (Akash Network)",
-        "region": "akash"
+        "region": "akash",
+        "planningTokensPerSec": 61.756527,
+        "planningObservation": {
+          "modelId": "Qwen/Qwen2.5-3B-Instruct",
+          "observedAt": "2026-10-25T14:06:30.992Z",
+          "source": "minimum_observed_end_to_end",
+          "sampleCount": 2,
+          "receipt": "contracts/compute/observed_gpu_b_throughput.json",
+          "scope": "Conservative planning observation including prefill and network time. This is not a pure decoder benchmark or a guaranteed future throughput."
+        }
       },
       "maxConcurrent": 2,
       "moonshiftGpuId": "gpu-b",

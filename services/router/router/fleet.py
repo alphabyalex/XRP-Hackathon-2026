@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import re
 from dataclasses import dataclass, field
@@ -37,6 +38,7 @@ class FleetEntry:
     instanceId: str | None = None  # noqa: N815 (EC2 instance, for interruption events)
     capacityReservationId: str | None = None  # noqa: N815 (EC2 Capacity Block / reservation)
     benchmark: dict[str, Any] | None = None  # the market offer that sets this GPU's price
+    planningObservation: dict[str, Any] | None = None  # measured end-to-end planning sample, not decoder throughput
 
 
 @dataclass(frozen=True)
@@ -112,6 +114,7 @@ def load_entries(catalog: dict[str, Offer], economy_rates: dict[str, dict] | Non
     out: list[FleetEntry] = []
     for g in raw:
         bench: dict[str, Any] | None = None
+        observation: dict[str, Any] | None = None
         if "moonshift" in g:
             m = g["moonshift"]
             price = float(m.get("pricePerHourUsdc", 0)) if C.FLEET_SOURCE == "mock" else 0.0
@@ -154,6 +157,25 @@ def load_entries(catalog: dict[str, Offer], economy_rates: dict[str, dict] | Non
             )
             hardware = m.get("hardware", m["gpuModel"])
             found = C.FLEET_SOURCE == "mock" or bench is not None
+            if C.FLEET_SOURCE != "mock" and m.get("planningTokensPerSec") is not None:
+                # A newly deployed model can lack a hardware-wide planning
+                # estimate. Use its own actual observed sample, never another
+                # card or another model's throughput.
+                try:
+                    measured = float(m["planningTokensPerSec"])
+                    record = m["planningObservation"]
+                    canonical = os.getenv(f"{g['id'].upper().replace('-', '_')}_MODEL_ID", "")
+                    valid_sample = (math.isfinite(measured) and measured > 0
+                                    and record["modelId"] == canonical and bool(canonical)
+                                    and record["source"] == "minimum_observed_end_to_end"
+                                    and (now_utc() - parse_time(record["observedAt"])).total_seconds() >= -300)
+                    if not valid_sample:
+                        raise ValueError("Planning sample does not describe the deployed model")
+                    observation = record
+                    offer = offer.with_(tokensPerSec=measured)
+                except (ValueError, TypeError, KeyError):
+                    found = False
+                    offer = offer.with_(tokensPerSec=0, availability=Availability("none"))
         else:
             offer = catalog.get(g["offer"])  # type: ignore[assignment]
             found = offer is not None
@@ -186,6 +208,7 @@ def load_entries(catalog: dict[str, Offer], economy_rates: dict[str, dict] | Non
                 instanceId=g.get("instanceId"),
                 capacityReservationId=g.get("capacityReservationId"),
                 benchmark=bench,
+                planningObservation=observation,
             )
         )
     return out
@@ -387,6 +410,8 @@ class FleetState:
             "pricingSource": (e.benchmark or {}).get("source"),
             "priceUpdatedAt": (e.benchmark or {}).get("asOf"),
             "tokensPerSec": v.tokensPerSec,
+            "tokensPerSecSource": "observed_end_to_end_planning_sample" if e.planningObservation else "hardware_planning_estimate",
+            "planningObservation": e.planningObservation,
             "interruptible": v.interruptionRatePerHour > 0,
             "interruptionRatePerHour": v.interruptionRatePerHour,
             "warningWindowSeconds": v.warningWindowSeconds,

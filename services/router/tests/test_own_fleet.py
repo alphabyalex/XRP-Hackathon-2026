@@ -54,8 +54,8 @@ def test_price_is_own_lease_policy_and_market_and_aws_are_comparisons(monkeypatc
     )
     assert not entries[1].offerFound
     for e in entries[:1]:
-        assert e.offer.pricePerHourUsd == C.OWN_RATE_USD_PER_HOUR
-        assert e.offer.price_per_hour_usdc() == C.OWN_RATE_USD_PER_HOUR
+        assert e.offer.pricePerHourUsd == C.own_rental_policy("gpu-a")["pricePerGpuHourUsd"]
+        assert e.offer.price_per_hour_usdc() == C.own_rental_policy("gpu-a")["pricePerGpuHourUsd"]
         assert e.benchmark and e.benchmark["source"] == "Akash lease plus margin"
         assert e.benchmark["marketComparison"]["offerKey"] == "gpu-economy#t4"
         assert e.benchmark["awsComparison"]["offerKey"] == "aws#us-east-1#g4dn.xlarge#on-demand"
@@ -64,7 +64,7 @@ def test_price_is_own_lease_policy_and_market_and_aws_are_comparisons(monkeypatc
 def test_configured_own_price_does_not_depend_on_an_external_comparison(monkeypatch):
     monkeypatch.setattr(C, "FLEET_SOURCE", "own")
     entries = load_entries(catalog())
-    assert all(e.offer.pricePerHourUsd == C.OWN_RATE_USD_PER_HOUR and e.benchmark["marketComparison"] is None and e.offerFound for e in entries[:1])
+    assert all(e.offer.pricePerHourUsd == C.own_rental_policy("gpu-a")["pricePerGpuHourUsd"] and e.benchmark["marketComparison"] is None and e.offerFound for e in entries[:1])
     assert not entries[1].offerFound
 
 
@@ -97,3 +97,24 @@ def test_invalid_lease_cost_never_becomes_a_zero_dollar_offer(monkeypatch):
     entries = load_entries(catalog())
     assert not entries[0].offerFound
     assert entries[0].offer.pricePerHourUsd == 0
+
+
+def test_v100_uses_its_own_observed_model_rate_and_can_plan(monkeypatch):
+    from router import optimizer as O
+    from router.fleet import FleetState
+    monkeypatch.setattr(C, "FLEET_SOURCE", "own")
+    monkeypatch.setenv("GPU_B_LEASE_USD_PER_HOUR", "0.2303460498")
+    monkeypatch.setenv("GPU_B_PRICE_UPDATED_AT", iso(now_utc()))
+    monkeypatch.setenv("GPU_B_MODEL_ID", "Qwen/Qwen2.5-3B-Instruct")
+    entries = load_entries(catalog())
+    entry = next(row for row in entries if row.id == "gpu-b")
+    assert entry.offer.tokensPerSec > 0
+    assert entry.planningObservation["modelId"] == "Qwen/Qwen2.5-3B-Instruct"
+    assert entry.planningObservation["source"] == "minimum_observed_end_to_end"
+    state = FleetState(healthy_pools={"gpu-b"})
+    choices, _ = O.choose_for(O.OrderSpec("inference", tokens=16, constraints=O.Constraints(gpuId="gpu-b")), [state.view(entry, now_utc())])
+    assert all(choice.plan is not None for choice in choices.values())
+    assert {part.gpu.id for choice in choices.values() for part in choice.plan.parts} == {"gpu-b"}
+    monkeypatch.setenv("GPU_B_MODEL_ID", "Qwen/Qwen2.5-0.5B-Instruct")
+    mismatch = next(row for row in load_entries(catalog()) if row.id == "gpu-b")
+    assert not mismatch.offerFound and mismatch.offer.tokensPerSec == 0
