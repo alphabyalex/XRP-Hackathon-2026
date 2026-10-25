@@ -1,3 +1,25 @@
+DONE (09:18 ET, 2026-10-25, morning web fixes, Terminal B). Final push on `lucy`, merged with origin/alex; web typecheck clean. `/`, `/market`, `/gpu/gpu-a`, `/gpu/gpu-a?view=shares`, `/borrow`, `/lend`, `/models`, `/docs` and `/portfolio` load on 3001 at 1280 and 400 wide, signed in and out: no console errors, no horizontal scroll, the main thread answering in under 2 s.
+
+## Morning fixes
+
+1. **Freezes.** Not reproducible in headless Chrome: both pages stayed responsive for 60 s with scrolling (main thread 2 to 11 ms, flat heap, constant DOM), with and without reduced motion. The one animation loop in the app, `useTween` (`components/charts/theme.ts`), is now bounded: no frames when values did not move, no animation for series over 120 values, hidden tabs or reduced motion, and it ends on the exact target.
+2. **Home.** Live numbers drop tabular figures (Schibsted proportional digits); Lock, Payment, Batch labels in the sans; code sample base_url `https://moonshift-protocol.vercel.app/api/v1`; tighter gap under the 80¢ section; GPU rentals price per hour from `GET /catalog/gpus`.
+3. **One price.** `STATS_LIVE = true`. Market, the GPU page, Home (payouts, revenue, borrow card) and Borrow (collateral value, LTV chart from real ticks) read `GET /gpus/:id/stats`. The 24h change shows "–" without an opening price. Portfolio values come from the api's account route (same `sharePriceOf`).
+4. **Lending.** `LENDING_ROUTES_LIVE = true`: collateral options, markets with history, dashboard series (Outstanding 0.00 matches the loan book), loan book, base APR on the Home card, applications. An over-limit amount shows the api's 409 message and Borrow stays disabled.
+5. **Run a task.** All four types; three priority prices side by side from `/tasks/quote`; the quote refreshes every 5 s and on rate events.
+6. **Market.** Our price with GPU market, AWS spot and AWS on-demand under it, from `/catalog/gpus`; Own a share uses the stats route.
+7. **Models.** Per-1M price from the api, in its currency.
+- Also, asked by Alexander: the Docs "Coming soon" section is removed; the nav shows the current page in bold (none on Home; GPU pages count as Market).
+
+## Degraded
+
+- The task estimate (Bedrock) does not return a task type, so describing a task sets the sliders and run time but not the type. The UI picks up `type` as soon as the estimate sends it.
+- `/tasks/quote` returns the same price for cheapest, balanced and fastest right now (0.55 USD), and its rates are stamped 12:41 UTC, so "Rates as of" shows 8:41 AM.
+- `POST /market/:id/order` is not on the api; trades use `/shares/buy` and `/shares/sell` (`ORDER_ROUTE_LIVE = false` in `lib/gpuMarket.ts`).
+- Over-limit: the browser itself logs the 409 response as a console line when someone types an amount above the limit (the message on the page is the api's).
+
+---
+
 DONE (07:27 ET, 2026-10-25). Final push on `lucy`; typecheck clean in all four workspaces after merging origin/alex at 471613a; 96 credit tests pass.
 
 # Lucy (UI: Lend, Borrow, Models, Docs, Footer; Quicknode credit)
