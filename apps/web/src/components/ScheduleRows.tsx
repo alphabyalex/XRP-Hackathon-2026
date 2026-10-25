@@ -4,13 +4,10 @@ import clsx from "clsx";
 import type { SlotState } from "@/lib/mark";
 import { rowSegments } from "@/lib/mark";
 import { hm, timeAt, SLOT_LABEL } from "@/lib/schedule";
-import { fmt } from "@/lib/format";
 import { useReveal } from "@/hooks/useReveal";
 
 // Ported from the "sched" block (rowSVG + sched() + the tooltip listeners)
 // in moonshift_v2_source.html. See BRAND.md section 5.
-
-const EARN: Record<SlotState, number> = { b: 0.035, l: 0.035, i: 0, o: 0 };
 
 export function ScheduleRows({
   slots,
@@ -49,17 +46,17 @@ export function ScheduleRows({
       return;
     }
     const label = SLOT_LABEL[st];
-    const earn = EARN[st];
     const pr = ref.current.getBoundingClientRect();
     setTip({
       x: e.clientX - pr.left,
       y: r.top - pr.top,
-      label: `${hm(timeAt(windowStart, i))} to ${hm(timeAt(windowStart, i + 1))} · ${label}${earn ? ` +${fmt(earn, 3)} USDC` : ""}`,
+      label: `${hm(timeAt(windowStart, i))} to ${hm(timeAt(windowStart, i + 1))} UTC · ${label}`,
     });
   }
 
   return (
     <div className={clsx("sched", in_ && "in")} ref={ref} onMouseMove={onMove} onMouseLeave={() => setTip(null)}>
+      {showTimes && <div className="note" style={{ marginBottom: 8, textAlign: "right" }}>Times in UTC</div>}
       {Array.from({ length: rows }).map((_, k) => {
         const rowSlots = slots.slice(k * cols, (k + 1) * cols);
         const segs = rowSegments(rowSlots, 0.09);

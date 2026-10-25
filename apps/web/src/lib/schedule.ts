@@ -68,7 +68,8 @@ export function timeAt(windowStart: Date, index: number): Date {
 }
 
 export function hm(d: Date): string {
-  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  // The same timestamp must render identically on the server and in every browser timezone.
+  return String(d.getUTCHours()).padStart(2, "0") + ":" + String(d.getUTCMinutes()).padStart(2, "0");
 }
 
 export const SLOT_LABEL: Record<SlotState, string> = {
