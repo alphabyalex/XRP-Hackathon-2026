@@ -92,8 +92,10 @@ export function StressControls({
   loanId,
   onDone,
   compact,
+  label = "Stress test",
 }: {
   gpuId: string;
+  label?: string;
   loanId?: string;
   onDone?: (r: StressResult | null) => void;
   compact?: boolean;
@@ -137,7 +139,7 @@ export function StressControls({
 
   return (
     <div className={clsx("stress", compact && "compact")}>
-      <span className="lbl">Stress test</span>
+      <span className="lbl">{label}</span>
       <div className="stress-btns">
         <Button size="sm" variant="ghost" disabled={!!busy} onClick={() => run("margin_call")}>
           {busy === "margin_call" ? "Crashing..." : "Crash price to margin call"}

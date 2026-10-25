@@ -8,7 +8,7 @@ import { fmt, shortHash, typedAmount, usdc } from "@/lib/format";
 import { borrowerProfile, listLoans, maxPrincipal, openFromQuote, walletGet, type ConnectedWallet, payNext, payOff, pct, quoteLoan, quoteMemo, txUrl, useApiEvents } from "@/lib/lendingApi";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
-import { HealthMeter, LoanTxs, StatusChip, StressControls, TxLink } from "./LendingBits";
+import { HealthMeter, LoanTxs, StatusChip, TxLink } from "./LendingBits";
 import { WalletConnect } from "./WalletConnect";
 import { useWallet } from "@/lib/wallet";
 import { ConnectPrompt } from "./ConnectPrompt";
@@ -613,7 +613,6 @@ export function BorrowContent({
                         {busy === l.id + "full" ? "Paying off..." : "Pay off, release shares"}
                       </Button>
                     </div>
-                    <StressControls gpuId={l.gpuId} loanId={l.id} compact onDone={() => void refresh()} />
                   </div>
                 );
               })}

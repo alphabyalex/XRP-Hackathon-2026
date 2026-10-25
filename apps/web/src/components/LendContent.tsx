@@ -9,7 +9,7 @@ import { useWallet } from "@/lib/wallet";
 import { ConnectPrompt } from "./ConnectPrompt";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
-import { StatusChip, StressControls, TxLink } from "./LendingBits";
+import { StatusChip, TxLink } from "./LendingBits";
 
 function dateStr(iso: string) {
   return iso ? new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
@@ -243,10 +243,7 @@ export function LendContent() {
           <p className="note">No loans yet. Open one on the Borrow page.</p>
         )}
 
-        <div className="lend-grid" style={{ marginTop: 48 }}>
-          <div className="trade card">
-            <StressControls gpuId="gpu-a" onDone={() => void refresh()} />
-          </div>
+        <div style={{ marginTop: 48 }}>
           <div className="trade card">
             <span className="lbl">Loan book by credit grade, 30 days (model estimate)</span>
             {stats ? (

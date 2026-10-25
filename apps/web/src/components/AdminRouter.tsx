@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
+import { StressControls } from "./LendingBits";
+import { GPUS } from "@moonshift/shared";
 import { fmt } from "@/lib/format";
 import {
   catalog,
@@ -159,6 +161,14 @@ export function AdminRouter() {
             <p className="why">{why}</p>
           </>
         )}
+
+        <h3>Loan stress test</h3>
+        <p className="why">Moves a GPU&apos;s collateral price so open loans hit a margin call or liquidation. Restore puts the market price back.</p>
+        {GPUS.map((g) => (
+          <div key={g.id} className="trade card" style={{ marginBottom: 16 }}>
+            <StressControls gpuId={g.id} label={g.id.toUpperCase()} />
+          </div>
+        ))}
 
         <h3>Prices</h3>
         <table>
