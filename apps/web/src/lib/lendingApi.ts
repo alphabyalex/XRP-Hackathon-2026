@@ -113,6 +113,9 @@ export const bookStats = (grade?: string) =>
 // Explorer link for a hash on the loan's network; mock hashes have none.
 export function txUrl(network: string, hash?: string | null): string | null {
   if (!hash || hash.startsWith("MOCK") || network === "mock") return null;
+  // Some routes send the explorer link itself.
+  if (/^https:\/\/[a-z]+\.xrpl\.org\/transactions\/[0-9A-F]{64}$/i.test(hash)) return hash;
+  if (!/^[0-9A-F]{64}$/i.test(hash)) return null;
   const base = network === "mainnet" ? "https://livenet.xrpl.org" : network === "testnet" ? "https://testnet.xrpl.org" : "https://devnet.xrpl.org";
   return `${base}/transactions/${hash}`;
 }
@@ -151,10 +154,9 @@ export function useApiEvents(types: string[], onEvent: (type: string, data: any)
 // are deployed, each returns null and the page reads /vault and /loans instead.
 // ---------------------------------------------------------------------------
 
-// Kristian's lending routes (collateral-options, /lending/*). Off until they are
-// deployed: a call to a missing route is a console 404 on every page view.
-// While off, the pages read /vault, /loans and /portfolio/me instead.
-export const LENDING_ROUTES_LIVE = false;
+// The lending routes (collateral-options, /lending/*, /applications) answer on the api.
+// Set to false only if they go away: the pages then read /vault, /loans and /portfolio/me.
+export const LENDING_ROUTES_LIVE = true;
 
 // A route that is not deployed yet answers 404 once; it is asked again a minute later.
 const missing = new Map<string, number>();

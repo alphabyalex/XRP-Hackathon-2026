@@ -5,6 +5,8 @@
 import { GPUS, type GpuResourceBreakdown } from "@moonshift/shared";
 import { useLiveGpus, usePolled } from "@/lib/liveData";
 import { Button } from "./Button";
+import { num, useCatalog } from "@/lib/catalog";
+import { fmt } from "@/lib/format";
 
 interface ClusterRow {
   id: string;
@@ -37,6 +39,9 @@ const rate = (usd: number, per: number, unit: string) => `$${(usd / Math.max(per
 
 export function RentTabContent({ checkoutHref = "/market" }: { checkoutHref?: string }) {
   const gpus = useLiveGpus();
+  // One price everywhere: the rental rate per hour from GET /catalog/gpus, as on Market and the GPU page.
+  const { data: catalog } = useCatalog();
+  const rental = (id: string) => num(catalog?.gpus.find((c) => c.id === id)?.prices.rentalUsdPerHour);
   const { data: aws } = usePolled<AwsFeed>("/catalog/aws", { ms: 5000, on: ["aws"] });
   const onDemand = usd(aws?.onDemand?.[0]?.usdPerHour);
   const spot = usd(aws?.spot?.[0]?.usdPerHour);
@@ -92,7 +97,7 @@ export function RentTabContent({ checkoutHref = "/market" }: { checkoutHref?: st
             </thead>
             <tbody>
               {rows.map((c) => {
-                const total = Number(c.res.totalHourlyUsd);
+                const hourly = rental(c.id);
                 return (
                   <tr key={c.id}>
                     <td>
@@ -110,8 +115,8 @@ export function RentTabContent({ checkoutHref = "/market" }: { checkoutHref?: st
                       <span className="sub">{rate(Number(c.res.components.storage.hourlyUsd), c.storageGb / 1000, "TB-hr")}</span>
                     </td>
                     <td className="r num">
-                      ${total.toFixed(3)}
-                      <span className="sub">${c.res.monthlyUsd}/mo</span>
+                      {hourly !== null ? `$${hourly.toFixed(3)}` : "–"}
+                      {hourly !== null && <span className="sub">${fmt(hourly * 730, 0)}/mo</span>}
                     </td>
                     <td className="r">{STATUS[c.state] ?? "Not connected"}</td>
                   </tr>

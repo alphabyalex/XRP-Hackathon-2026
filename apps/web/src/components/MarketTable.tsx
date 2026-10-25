@@ -1,3 +1,4 @@
+"use client";
 import Link from "next/link";
 import clsx from "clsx";
 import type { GpuView } from "@/lib/gpuView";
@@ -5,9 +6,11 @@ import { DataMoon } from "./DataMoon";
 import { MiniSchedule } from "./MiniSchedule";
 import { PriceFlash } from "./PriceFlash";
 import { fmt } from "@/lib/format";
+import { changeOf, fmtChange, priceOf, useStatsMap, yieldOf } from "@/lib/gpuMarket";
 
 // Ported from the market() function's table rows in moonshift_v2_source.html.
 export function MarketTable({ views }: { views: GpuView[] }) {
+  const stats = useStatsMap(views.map((v) => v.gpu.id));
   return (
     <table>
       <thead>
@@ -23,9 +26,11 @@ export function MarketTable({ views }: { views: GpuView[] }) {
       </thead>
       <tbody>
         {views.map((v) => {
-          const price = Number(v.gpu.sharePrice) || 0;
-          // Real 24 h change of the market price (DEX midpoint, last trade or oracle).
-          const ch = Number(v.gpu.change24hPct ?? 0);
+          // One price everywhere: GET /gpus/:id/stats.
+          const st = stats[v.gpu.id];
+          const price = priceOf(st, v.gpu.sharePrice);
+          const ch = changeOf(st);
+          const yld = yieldOf(st, v.gpu.impliedYieldPct);
           return (
             <tr key={v.gpu.id}>
               <td>
@@ -44,13 +49,10 @@ export function MarketTable({ views }: { views: GpuView[] }) {
                 <PriceFlash value={price} decimals={3} />
               </td>
               <td className="r">
-                <span className={clsx("chg", ch >= 0 ? "up" : "dn")}>
-                  {ch >= 0 ? "+" : ""}
-                  {fmt(ch, 2)}%
-                </span>
+                <span className={clsx("chg", ch === null ? undefined : ch >= 0 ? "up" : "dn")}>{fmtChange(ch)}</span>
               </td>
-              <td className="r num">{fmt(Number(v.gpu.impliedYieldPct) || 0, 1)}%</td>
-              <td className="r num">{v.gpu.holdersCount}</td>
+              <td className="r num">{yld === null ? "–" : `${fmt(yld, 1)}%`}</td>
+              <td className="r num">{st?.holders ?? v.gpu.holdersCount}</td>
               <td className="r">
                 <Link className="btn ghost sm" href={`/gpu/${v.gpu.id}?view=shares`}>
                   Trade

@@ -1,5 +1,7 @@
 "use client";
 import { utilizationOf } from "@/lib/schedule";
+import { num } from "@/lib/catalog";
+import { priceOf, useStatsMap } from "@/lib/gpuMarket";
 import dynamic from "next/dynamic";
 import { GPUS } from "@moonshift/shared";
 import { useLiveGpus, useApiUnreachable, useNow } from "@/lib/liveData";
@@ -33,7 +35,10 @@ export function HomeContent() {
 
   // Counted only while compute reports the GPU connected (an offline GPU's shares still trade).
   const live = views.filter((v) => v.gpu.state !== "OFFLINE");
-  const paidLastNight = views.reduce((s, v) => s + v.split.holders, 0);
+  // Payouts and prices from GET /gpus/:id/stats (the dividend ledger), the numbers Market and the GPU page show.
+  const stats = useStatsMap(views.map((v) => v.gpu.id));
+  const paidOf = (v: (typeof views)[number]) => num(stats[v.gpu.id]?.paidToHoldersLastNight) ?? v.split.holders;
+  const paidLastNight = views.reduce((s, v) => s + paidOf(v), 0);
   // From the same slots the schedules draw, so the number and the bars agree.
   const avgUtil = live.length ? live.reduce((s, v) => s + utilizationOf(v.slots, v.nowIndex), 0) / live.length : 0;
 
@@ -147,13 +152,13 @@ export function HomeContent() {
                     <div>
                       <span>Revenue, last 24h</span>
                       <b>
-                        <LiveNumber value={featured.revenue24h} digits={2} /> USDC
+                        <LiveNumber value={num(stats[featured.gpu.id]?.revenue24h) ?? featured.revenue24h} digits={2} /> USDC
                       </b>
                     </div>
                     <div>
                       <span>Paid per share, last 24h</span>
                       <b>
-                        <LiveNumber value={featured.split.holders / 1000} digits={6} /> USDC
+                        <LiveNumber value={num(stats[featured.gpu.id]?.paidPerShare24h) ?? featured.split.holders / 1000} digits={6} /> USDC
                       </b>
                     </div>
                   </div>
@@ -165,7 +170,7 @@ export function HomeContent() {
       )}
 
       {featured && (
-        <section className="s tinted close">
+        <section className="s tinted close close-bottom">
           <div className="wrap">
             <MoneyStack revenue24h={featured.revenue24h} />
           </div>
@@ -173,7 +178,7 @@ export function HomeContent() {
       )}
 
       {featured && (
-        <section className="s close-bottom" id="borrow">
+        <section className="s close close-bottom" id="borrow">
           <div className="wrap">
             <div className="borrow">
               <Reveal>
@@ -197,7 +202,7 @@ export function HomeContent() {
                 </div>
               </Reveal>
               <Reveal>
-                <BorrowPanel gpuId={featured.gpu.id} gpuLabel={featured.dashLabel} sharePrice={Number(featured.gpu.sharePrice) || 0} />
+                <BorrowPanel gpuId={featured.gpu.id} gpuLabel={featured.dashLabel} sharePrice={priceOf(stats[featured.gpu.id], featured.gpu.sharePrice)} />
               </Reveal>
             </div>
           </div>

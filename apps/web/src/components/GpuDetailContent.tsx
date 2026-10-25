@@ -18,6 +18,7 @@ import { TaskDescribe, type TaskSize } from "./TaskDescribe";
 import { ComputeCheckout } from "./ComputeCheckout";
 import { BookingCalendar } from "./BookingCalendar";
 import { GpuShares } from "./GpuShares";
+import { changeOf, fmtChange, priceOf, useGpuStats } from "@/lib/gpuMarket";
 
 type View = "task" | "shares";
 
@@ -32,6 +33,7 @@ export function GpuDetailContent({ id }: { id: string }) {
   }, []);
   const { data: catalog } = useCatalog();
   const cat = catalog?.gpus.find((g) => g.id === id);
+  const { data: stats } = useGpuStats(id);
   const [type, setType] = useState<TaskType>("inference");
   const [mode, setMode] = useState<Mode>("balanced");
   const [size, setSize] = useState<TaskSize | null>(null);
@@ -47,8 +49,8 @@ export function GpuDetailContent({ id }: { id: string }) {
   if (!gpu) return null;
 
   const v = gpuView(gpu, now);
-  const price = Number(gpu.sharePrice) || 0;
-  const ch = Number(gpu.change24hPct ?? 0);
+  const price = priceOf(stats, gpu.sharePrice);
+  const ch = changeOf(stats);
   // Until the catalog answers, use the api's own cost breakdown for this GPU (real hardware only).
   const res = gpu.resources;
   const spec = (s: string | undefined, re: RegExp) => num(re.exec(s ?? "")?.[1]);
@@ -92,9 +94,8 @@ export function GpuDetailContent({ id }: { id: string }) {
                 <div className="px" style={{ fontSize: 32 }}>
                   <PriceFlash value={price} decimals={3} /> <span style={{ fontSize: 16, color: "var(--ink2)" }}>USDC / share</span>
                 </div>
-                <span className={clsx("chg", ch >= 0 ? "up" : "dn")}>
-                  {ch >= 0 ? "+" : ""}
-                  {fmt(ch, 2)}% &middot; 24h
+                <span className={clsx("chg", ch === null ? undefined : ch >= 0 ? "up" : "dn")}>
+                  {fmtChange(ch)} &middot; 24h
                 </span>
               </>
             )}

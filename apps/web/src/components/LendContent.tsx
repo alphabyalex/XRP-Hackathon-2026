@@ -28,6 +28,11 @@ const asPct = (v: unknown) => {
   return x === null ? null : x > 0 && x <= 1 ? x * 100 : x;
 };
 
+const frac = (v: unknown) => {
+  const p = asPct(v);
+  return p === null ? null : p / 100;
+};
+
 function seriesFrom(raw: any, key: string, percent = false): LinePoint[] | null {
   const s = raw?.series;
   if (!Array.isArray(s) || s.length === 0) return null;
@@ -44,9 +49,10 @@ function rowFromApi(r: any): BookRow {
     principal: Number(r.principal ?? 0),
     outstanding: n(r.outstanding),
     apr: (asPct(r.apr) ?? 0) / 100,
-    ltv: n(r.ltv),
-    marginCallLtv: n(r.marginCallLtv),
-    liquidationLtv: n(r.liquidationLtv),
+    // The loan book sends LTVs as percents ("23.6"); the table works in fractions.
+    ltv: frac(r.ltv),
+    marginCallLtv: frac(r.marginCallLtv),
+    liquidationLtv: frac(r.liquidationLtv),
     state: String(r.state ?? r.status ?? ""),
     network: String(r.network ?? "devnet"),
     tx: r.txs?.loanSet ?? r.tx ?? null,
