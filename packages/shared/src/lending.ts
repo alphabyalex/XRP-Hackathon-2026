@@ -36,6 +36,7 @@ export interface VaultState {
   phase: VaultPhase;
   asset: "TDX";
   assetsTotal: DecimalString;
+  assetsMaximum?: DecimalString | null; // null or absent means no ledger deposit limit
   assetsAvailable: DecimalString;
   lossUnrealized: DecimalString;
   debtTotal: DecimalString; // owed to the vault by open loans

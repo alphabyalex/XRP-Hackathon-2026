@@ -105,10 +105,11 @@ lendingViewsRouter.get(
           round: r.round,
           title: `Round ${r.round}: loans to ${gpus.join(" and ")} shareholders`,
           phase: r.phase,
-          acceptsDeposits: r.phase === "subscription",
+          acceptsDeposits: r.phase === "subscription" &&
+            (r.assetsMaximum == null || Number(r.assetsTotal) < Number(r.assetsMaximum)),
           targetApr: apr > 0 ? apr.toFixed(2) : null,
-          // assetsTotal is what lenders put in; no cap is set on a round, so size is what it holds.
-          size: fix6(r.assetsTotal),
+          // Deposits are not a limit. Preserve an unlimited ledger vault as null.
+          size: r.assetsMaximum ?? null,
           filled: fix6(r.assetsTotal),
           lentOut: fix6(r.debtTotal),
           useOfFunds: "Loans to GPU shareholders, secured by their shares",

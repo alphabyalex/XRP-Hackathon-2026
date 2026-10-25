@@ -216,6 +216,7 @@ export async function getVault(vaultId: string, opts: VaultStateOptions = {}): P
     phase: sub && red ? vaultPhase(sub, red) : "investment",
     asset: "TDX",
     assetsTotal: fix6(assetsTotal),
+    assetsMaximum: Number(v.AssetsMaximum ?? 0) > 0 ? fix6(v.AssetsMaximum) : null,
     assetsAvailable: fix6(v.AssetsAvailable),
     lossUnrealized: fix6(v.LossUnrealized),
     debtTotal: fix6(debtTotal),
