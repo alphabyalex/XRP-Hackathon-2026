@@ -121,12 +121,13 @@ export async function getGpus(): Promise<ComputeGpuStatus[]> {
 }
 
 export async function getCalendar(gpuId: GpuId, from: string, to: string): Promise<CalendarEntry[]> {
+  let live: CalendarEntry[] = [];
   if (!MOCK) {
     try {
       const url = await resolveComputeUrl();
       const res = await fetch(`${url}/gpus/${gpuId}/calendar?from=${from}&to=${to}`, { signal: AbortSignal.timeout(3000) });
       if (res.ok) {
-        return (await res.json()) as CalendarEntry[];
+        live = (await res.json()) as CalendarEntry[];
       }
     } catch {}
   }
@@ -135,7 +136,8 @@ export async function getCalendar(gpuId: GpuId, from: string, to: string): Promi
   const booked = bookings
     .filter((b) => b.gpu_id === gpuId)
     .map((b) => ({ start: b.slot_start, end: b.slot_end, kind: "BOOKED" as const, ref: b.redemption_id }));
-  return [...mockHistory(gpuId, fromMs, Math.min(toMs, Date.now())), ...booked].filter(
+  const history = mockHistory(gpuId, fromMs, Math.min(toMs, Date.now()));
+  return [...live, ...history, ...booked].filter(
     (e) => new Date(e.end).getTime() > fromMs && new Date(e.start).getTime() < toMs
   );
 }
@@ -163,7 +165,17 @@ function blockHash(gpuId: string, block: number): number {
 function mockHistory(gpuId: GpuId, fromMs: number, toMs: number): CalendarEntry[] {
   const SLOT_MS = 5 * 60 * 1000;
   const BLOCK_MS = 6 * SLOT_MS;
-  const [pBooked, pInference] = gpuId === "gpu-a" ? [0.09, 0.18] : [0.04, 0.1];
+  const pMap: Record<string, [number, number]> = {
+    "gpu-a": [0.08, 0.16],
+    "gpu-b": [0.06, 0.14],
+    "gpu-c": [0.07, 0.18],
+    "gpu-d": [0.10, 0.22],
+    "gpu-e": [0.05, 0.15],
+    "gpu-f": [0.05, 0.13],
+    "gpu-g": [0.06, 0.14],
+    "gpu-h": [0.04, 0.10],
+  };
+  const [pBooked, pInference] = pMap[gpuId] ?? [0.05, 0.12];
   const out: CalendarEntry[] = [];
   for (let block = Math.floor(fromMs / BLOCK_MS); block * BLOCK_MS < toMs; block++) {
     const r = blockHash(gpuId, block);

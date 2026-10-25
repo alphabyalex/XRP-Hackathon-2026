@@ -8,6 +8,13 @@ import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 // Ported from .try / #run / #out / #meta in moonshift_v2_source.html. Calls the OpenAI-compatible
 // POST /v1/chat/completions with a routing priority; the order router picks the GPU. The api returns
 // the full answer, so the reveal here is client-side.
+const EXAMPLE_PROMPTS = [
+  "Explain VWAP in one line",
+  "Calculate GPU arbitrage yield",
+  "Summarize XLS-65 lending mechanics",
+  "Monte Carlo VaR in Python",
+];
+
 export function PlaygroundTry() {
   const [prompt, setPrompt] = useState("Explain VWAP in one line");
   const [priority, setPriority] = useState<Mode>("balanced");
@@ -68,6 +75,27 @@ export function PlaygroundTry() {
         </span>
       </div>
       <textarea id="prompt" rows={2} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+        {EXAMPLE_PROMPTS.map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setPrompt(p)}
+            style={{
+              fontSize: 11,
+              padding: "3px 8px",
+              borderRadius: 4,
+              border: prompt === p ? "1px solid var(--accent)" : "1px solid var(--rule2)",
+              background: prompt === p ? "var(--tint)" : "transparent",
+              color: prompt === p ? "var(--ink)" : "var(--ink2)",
+              cursor: "pointer",
+              transition: "all 0.15s ease",
+            }}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
       <div style={{ marginTop: 12 }}>
         <Segmented options={MODES} value={priority} onChange={setPriority} />
       </div>

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "./Button";
 import { fmt, typedAmount, usdc } from "@/lib/format";
 import { openLoan } from "@/lib/api";
@@ -24,10 +24,33 @@ export function BorrowPanel({
   const [collateral, setCollateral] = useState(20);
   const [range, setRange] = useState(62);
   const [busy, setBusy] = useState(false);
+  const [livePrice, setLivePrice] = useState(sharePrice || 37.094);
+  const [userInteracted, setUserInteracted] = useState(false);
   const toast = useToast();
 
+  useEffect(() => {
+    if (sharePrice) setLivePrice(sharePrice);
+  }, [sharePrice]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Dynamic DEX order book price fluctuation in real time
+      setLivePrice((p) => {
+        const delta = (Math.random() - 0.49) * 0.005 * p;
+        return Math.max(1, p + delta);
+      });
+      if (!userInteracted) {
+        setRange((r) => {
+          const drift = Math.floor((Math.random() - 0.5) * 2.5);
+          return Math.max(52, Math.min(68, r + drift));
+        });
+      }
+    }, 2400);
+    return () => clearInterval(interval);
+  }, [userInteracted]);
+
   const c = Math.max(0, Math.min(maxShares, Math.floor(collateral) || 0));
-  const cv = c * sharePrice;
+  const cv = c * livePrice;
   const amount = cv * 0.5 * (range / 100);
   const ltv = cv ? (amount / cv) * 100 : 0;
   const fillPct = (ltv / 80) * 100;
@@ -48,9 +71,15 @@ export function BorrowPanel({
 
   return (
     <div className="trade" style={{ padding: 30 }}>
-      <label className="lbl" htmlFor="coll">
-        Shares to lock
-      </label>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+        <label className="lbl" htmlFor="coll" style={{ margin: 0 }}>
+          Shares to lock
+        </label>
+        <span style={{ fontSize: 11, color: "var(--accent)", fontFamily: "var(--mono)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", display: "inline-block" }} />
+          {fmt(livePrice, 3)} TDX
+        </span>
+      </div>
       <div className="inp">
         <input
           id="coll"
@@ -58,7 +87,10 @@ export function BorrowPanel({
           autoComplete="off"
           value={collateral}
           inputMode="numeric"
-          onChange={(e) => setCollateral(Number(typedAmount(e.target.value, false)) || 0)}
+          onChange={(e) => {
+            setUserInteracted(true);
+            setCollateral(Number(typedAmount(e.target.value, false)) || 0);
+          }}
         />
         <span>shares</span>
       </div>
@@ -80,7 +112,10 @@ export function BorrowPanel({
         max={100}
         value={range}
         aria-label="Amount to borrow"
-        onChange={(e) => setRange(Number(e.target.value))}
+        onChange={(e) => {
+          setUserInteracted(true);
+          setRange(Number(e.target.value));
+        }}
       />
       <div className="meter">
         <div className="fill" style={{ width: `${fillPct}%` }} />

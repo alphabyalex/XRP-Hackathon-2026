@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { utilizationOf } from "@/lib/schedule";
 import { AccountBalance } from "./AccountBalance";
 import dynamic from "next/dynamic";
@@ -9,6 +10,8 @@ import { fmt } from "@/lib/format";
 import { Button } from "./Button";
 import { AppWindow } from "./AppWindow";
 import { MarketTable } from "./MarketTable";
+import { RentTabContent } from "./RentTabContent";
+import { AccountPortfolio } from "./AccountPortfolio";
 import { ScheduleRows } from "./ScheduleRows";
 import { TradePanel } from "./TradePanel";
 import { MoneyStack } from "./MoneyStack";
@@ -34,6 +37,7 @@ export function HomeContent() {
   const gpus = useLiveGpus();
   const now = useNow();
   const unreachable = useApiUnreachable();
+  const [activeAppTab, setActiveAppTab] = useState<string>("Rent");
   const views = GPUS.map((g) => gpus[g.id]).filter(Boolean).map((g) => gpuView(g, now));
   const featured = views.find((v) => v.gpu.id === "gpu-a") ?? views[0];
 
@@ -86,15 +90,42 @@ export function HomeContent() {
         <div className="wrap">
           <Reveal>
             <div className="shead">
-              <h2>{gpuCount(views.length)}</h2>
-              <p>Prices come from the order book on the XRP Ledger DEX. Yield is the last 24 hours of payouts, annualized.</p>
+              <h2>{activeAppTab === "Rent" ? "GPU Rental & Fleet Economy" : gpuCount(views.length)}</h2>
+              <p>
+                {activeAppTab === "Rent"
+                  ? "On-demand rates across decentralized cloud and enterprise providers. Place workloads with instant priority routing."
+                  : "Prices come from the order book on the XRP Ledger DEX. Yield is the last 24 hours of payouts, annualized."}
+              </p>
             </div>
           </Reveal>
           <Reveal>
-            <AppWindow tabs={["Market", "Portfolio", "Borrow", "Playground"]} activeTab="Market" acct={<AccountBalance />}>
-              <div className="tbl">
-                <MarketTable views={views} />
-              </div>
+            <AppWindow
+              tabs={["Rent", "Market", "Portfolio", "Borrow", "Playground"]}
+              activeTab={activeAppTab}
+              onTabChange={setActiveAppTab}
+              acct={<AccountBalance />}
+            >
+              {activeAppTab === "Rent" && <RentTabContent />}
+              {activeAppTab === "Market" && (
+                <div className="tbl">
+                  <MarketTable views={views} />
+                </div>
+              )}
+              {activeAppTab === "Portfolio" && (
+                <div style={{ padding: "20px 24px" }}>
+                  <AccountPortfolio />
+                </div>
+              )}
+              {activeAppTab === "Borrow" && featured && (
+                <div style={{ padding: "24px 28px", maxWidth: 640, margin: "0 auto" }}>
+                  <BorrowPanel gpuId={featured.gpu.id} gpuLabel={featured.dashLabel} sharePrice={Number(featured.gpu.sharePrice) || 0} />
+                </div>
+              )}
+              {activeAppTab === "Playground" && (
+                <div style={{ padding: "24px 28px", maxWidth: 640, margin: "0 auto" }}>
+                  <PlaygroundTry />
+                </div>
+              )}
             </AppWindow>
           </Reveal>
         </div>
