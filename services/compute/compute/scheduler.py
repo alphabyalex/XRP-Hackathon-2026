@@ -149,6 +149,10 @@ class GpuSupervisor:
             target_paths_per_sec=500_000.0 if "b" in gpu_id.lower() else 250_000.0,
         )
 
+    def set_offline(self, offline: bool) -> None:
+        """Order router hook (compute/resume.py): stop admitting work while a provider reclaims the GPU."""
+        self._offline = offline
+
     async def load_snapshot(self) -> None:
         """Restore future bookings after a service restart.
 

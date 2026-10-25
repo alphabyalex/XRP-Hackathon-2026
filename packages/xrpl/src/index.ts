@@ -10,6 +10,10 @@ export {
   sellShares,
   listContractOffers,
   buyContracts,
+  getShareBook,
+  requoteShareOffer,
+  shareFill,
+  type ShareBook,
 } from "./dex.js";
 export { redeemContracts } from "./contracts.js";
 export { payForInference } from "./inference.js";

@@ -62,7 +62,7 @@ export async function getContractPrice(gpuId: GpuId, slotStart: string): Promise
 export async function getNav(gpuId: GpuId): Promise<NavResponse> {
   if (!MOCK) {
     // Trailing revenue and dividends from the api's own records drive yield.
-    const q = new URLSearchParams({ gpu_id: gpuId, ...navInputs(gpuId) });
+    const q = new URLSearchParams({ gpu_id: gpuId, ...(await navInputs(gpuId)) });
     const res = await fetch(`${PRICING_URL}/nav?${q}`, { headers: AUTH });
     return (await res.json()) as NavResponse;
   }

@@ -308,7 +308,12 @@ export interface ApiGpuSummary {
   model: string;
   state: GpuState;
   simulated: boolean;
+  // Market price: DEX best bid/ask midpoint, else the last trade, else the oracle NAV.
   sharePrice: DecimalString;
+  priceSource?: "midpoint" | "last trade" | "oracle";
+  bestBid?: DecimalString | null;
+  bestAsk?: DecimalString | null;
+  change24hPct?: DecimalString;
   navPerShare: DecimalString;
   revenue24h: DecimalString;
   utilizationPct: DecimalString;
@@ -322,6 +327,8 @@ export interface ApiGpuDetail extends ApiGpuSummary {
   calendar: CalendarEntry[];
   recentRequests: UsageEvent[];
   holders: Holder[];
+  // Hourly market price closes, last 7 days, oldest first.
+  priceHistory?: { t: number; price: number }[];
   oracle: {
     navPerShare: DecimalString;
     gpuHourPrice: DecimalString;

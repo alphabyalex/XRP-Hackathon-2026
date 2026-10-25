@@ -159,6 +159,22 @@ export async function listShareOffers(gpuId: GpuId): Promise<Offer[]> {
   ];
 }
 
+// Share prices from the DEX order book (the mock ledger has a flat price and no bids).
+export async function getShareBook(gpuId: GpuId): Promise<realXrpl.ShareBook> {
+  if (!MOCK) return realXrpl.getShareBook(gpuId);
+  return { bestBid: null, bestAsk: Number(SHARE_PRICE).toFixed(6) };
+}
+
+export async function shareFill(hash: string, address: string, gpuId: GpuId) {
+  if (!MOCK) return realXrpl.shareFill(hash, address, gpuId);
+  return null;
+}
+
+export async function requoteShareOffer(p: Parameters<typeof realXrpl.requoteShareOffer>[0]) {
+  if (!MOCK) return realXrpl.requoteShareOffer(p);
+  return { action: "skipped" as const, price: p.price, hashes: [] as string[] };
+}
+
 export async function buyShares(p: BuySharesParams): Promise<TxResult> {
   if (!MOCK) return realXrpl.buyShares(p);
   ensureGpuMaps(p.gpuId);

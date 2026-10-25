@@ -1,0 +1,45 @@
+{
+  "Comment": "Moonshift order: pay, dispatch to the tier queue and wait for the worker (task token with heartbeats), settle. Inputs are pointers only: {orderId, queueUrl}.",
+  "StartAt": "Pay",
+  "States": {
+    "Pay": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": { "FunctionName": "${OrderStepFunctionArn}", "Payload": { "step": "pay", "orderId.$": "$.orderId" } },
+      "ResultSelector": { "ok.$": "$.Payload.ok" },
+      "ResultPath": "$.pay",
+      "Retry": [{ "ErrorEquals": ["Lambda.ServiceException", "Lambda.TooManyRequestsException"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2 }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "Release" }],
+      "Next": "Dispatch"
+    },
+    "Dispatch": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+      "Parameters": {
+        "QueueUrl.$": "$.queueUrl",
+        "MessageBody": { "orderId.$": "$.orderId", "taskToken.$": "$$.Task.Token" }
+      },
+      "HeartbeatSeconds": 300,
+      "TimeoutSeconds": 86400,
+      "ResultPath": "$.run",
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "Settle" }],
+      "Next": "Settle"
+    },
+    "Settle": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": { "FunctionName": "${OrderStepFunctionArn}", "Payload": { "step": "settle", "orderId.$": "$.orderId" } },
+      "ResultSelector": { "ok.$": "$.Payload.ok" },
+      "ResultPath": "$.settle",
+      "Retry": [{ "ErrorEquals": ["States.ALL"], "IntervalSeconds": 5, "MaxAttempts": 5, "BackoffRate": 2 }],
+      "End": true
+    },
+    "Release": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": { "FunctionName": "${OrderStepFunctionArn}", "Payload": { "step": "release", "orderId.$": "$.orderId" } },
+      "Next": "PaymentFailed"
+    },
+    "PaymentFailed": { "Type": "Fail", "Error": "PAYMENT_FAILED", "Cause": "The devnet payment did not validate; leases released." }
+  }
+}

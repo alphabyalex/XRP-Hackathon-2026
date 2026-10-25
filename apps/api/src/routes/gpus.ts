@@ -5,15 +5,17 @@ import * as compute from "../adapters/computeClient.js";
 import * as pricing from "../adapters/pricingClient.js";
 import { db } from "../db/db.js";
 import { historyCalendar } from "../marketHistory.js";
+import { change24hPct, priceHistory, sharePrice } from "../sharePrice.js";
 
 export const gpusRouter = Router();
 
 async function buildSummary(gpuId: GpuId) {
   const gpu = GPUS.find((g) => g.id === gpuId)!;
-  const [computeGpus, nav, holders] = await Promise.all([
+  const [computeGpus, nav, holders, market] = await Promise.all([
     compute.getGpus(),
     pricing.getNav(gpuId),
     xrpl.getHolders(gpuId),
+    sharePrice(gpuId),
   ]);
   const computeState = computeGpus.find((c) => c.id === gpuId);
 
@@ -24,7 +26,12 @@ async function buildSummary(gpuId: GpuId) {
     model: gpu.model,
     state: computeState?.state ?? "OFFLINE",
     simulated: computeState?.simulated ?? false,
-    sharePrice: "1.050000",
+    // Market price: DEX best bid/ask midpoint, else the last trade, else the oracle NAV.
+    sharePrice: market.price,
+    priceSource: market.source,
+    bestBid: market.bestBid,
+    bestAsk: market.bestAsk,
+    change24hPct: change24hPct(gpuId, market.price),
     navPerShare: nav.nav_per_share,
     revenue24h: nav.trailing_revenue_24h,
     utilizationPct: String(computeState?.utilization_pct_1h ?? 0),
@@ -90,7 +97,7 @@ gpusRouter.get("/gpus/:id", async (req, res) => {
       .all(gpuId);
     const oracle = xrpl.getOracle(gpuId);
 
-    res.json({ ...summary, calendar, recentRequests, holders, oracle });
+    res.json({ ...summary, calendar, recentRequests, holders, oracle, priceHistory: priceHistory(gpuId) });
   } catch (err) {
     res.status(500).json({ error: { code: "INTERNAL", message: (err as Error).message } });
   }

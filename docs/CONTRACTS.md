@@ -405,3 +405,41 @@ Rental prices are USD per GPU-hour, using the source's live provider rate-card m
 Weekly history uses only the publisher's own `gpueconomy` series; reconstructed `skypilot-catalog` history is excluded. It remains separate from locally observed source snapshots, because weekly medians and an instantaneous current quote are different statistics. The Weekly history and Tracked 7D views make that distinction visible. Local history begins at integration time, with one dot until another published snapshot arrives. Missing prices are null, not zero; no price history is invented. Recorded snapshots use the source publication timestamp, so repeated requests or unchanged 304s do not create observations. SQLite market tables retain 366 days of observations and survive API restarts and application reset flows. The API returns only the last seven days of local observations, keeping periodic response sizes bounded.
 
 One refresh is shared across concurrent requests. Failures retain the last good snapshot; the endpoint returns 503 only without any usable catalogue. `stale` marks source data older than 48 hours or an unsuccessful check for more than two refresh intervals; `historyStale` separately marks missing or old history. The UI shows delay or update failure states. Source and historical data fetch independently, so historical-feed failure does not remove current prices.
+
+---
+
+## Requests from services/router (Lucy, port 7200)
+
+Contracts: `contracts/router/*.json`. Design: `docs/ROUTER.md`. Price sources:
+`docs/ROUTER_PROVIDERS.md`. The api reads `ROUTER_URL` (default
+`http://localhost:7200`).
+
+- **For Tharun (AWS): resources the router needs.** All are defined in
+  `services/router/infra/template.yaml` (SAM, cfn-lint clean); nothing is in
+  `infra/`. Deploy with `sam build -t services/router/infra/template.yaml && sam deploy --stack-name ms-router --region us-east-2 --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --resolve-s3 --parameter-overrides RouterUrl=<public router URL>`
+  once someone approves AWS_DEPLOY=1. It creates:
+  - DynamoDB `ms-router-catalog`, `ms-router-orders` (TTL `expiresAt`, PITR), `ms-router-checkpoints` (TTL 24 h)
+  - S3 `ms-router-prices-<account>-<region>` (price history, large checkpoints under `checkpoints/`)
+  - Lambda `ms-router-collector` on three EventBridge Scheduler schedules (5 min, 15 min, daily), `ms-router-order-step`, `ms-router-aws-events-forwarder`
+  - SQS `ms-router-fastest`, `ms-router-balanced`, `ms-router-cheapest`, DLQ `ms-router-dispatch-dlq`, `ms-router-aws-events`
+  - Step Functions Standard `ms-router-order`
+  - EventBridge rule `ms-router-interruptions` (Spot Interruption Warning, Rebalance Recommendation, Capacity Block Expiration Warning, Capacity Reservation Instance Interruption Warning)
+  - Secrets Manager `moonshift/router/providers` (empty JSON; a human adds gcpApiKey, lambdaApiKey, runpodApiKey, vastApiKey)
+  - IAM role and instance profile `ms-router-worker` (SQS, Step Functions task tokens, checkpoints, PutMetricData), optional IAM Roles Anywhere trust anchor and profile
+  Read-only IAM for the router itself (pricing:GetProducts, ec2:DescribeSpotPriceHistory, ec2:GetSpotPlacementScores, ec2:DescribeInstanceTypeOfferings, ec2:DescribeCapacityBlockOfferings) is on the collector role. Please also: run the CloudWatch agent with `services/router/infra/cloudwatch-agent.json` on GPU workers, activate the `moonshift:orderId` cost allocation tag, and create a CUR 2.0 Data Export (steps in docs/ROUTER.md).
+- **For Tharun (services/compute): resume hooks.** `compute/resume.py` is new
+  (owner Lucy). Two small hooks in your files: one `install_resume(...)` line at
+  the end of `create_app` in `main.py`, and `GpuSupervisor.set_offline()` in
+  `scheduler.py` (nothing called it before; `_offline` existed but was never set).
+  For rented GPUs, set `RESUME_EC2_IMDS=1` (EC2 spot), `RESUME_AZURE_EVENTS=1` or
+  `RESUME_GCP_METADATA=1` on the worker, create GCP spot VMs with a 120 s
+  preemption notice, and add each worker to `services/router/config/fleet.live.json`.
+- **For Tharun (web): the playground's Monte Carlo card says "Simulated Paths",**
+  which breaks the no-"simulated" UI rule.
+- **For Alexander (apps/api and scripts): FYI, small additions.** New file
+  `apps/api/src/routes/router.ts` (public `/router/*` proxy incl. SSE, OpenAI-style
+  `POST /v1/chat/completions` with `priority`, internal `POST /internal/router/pay`
+  for MS_ORDER / MS_SETTLE / MS_REFUND) and three mount lines in `src/index.ts`.
+  `scripts/demo.mjs` starts services/router on 7200 and passes `ROUTER_URL`.
+  apps/api needs Node 22.13+ for `node:sqlite` (Node 22.12 works with
+  `NODE_OPTIONS=--experimental-sqlite`).

@@ -184,3 +184,22 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at TEXT NOT NULL,
   expires_at TEXT NOT NULL
 );
+
+-- GPU share prices: trades the api executed (fill price from the ledger) and
+-- the price shown over time (DEX midpoint, last trade or oracle NAV).
+CREATE TABLE IF NOT EXISTS share_trades (
+  hash TEXT PRIMARY KEY,
+  gpu_id TEXT NOT NULL,
+  price TEXT NOT NULL,
+  qty TEXT NOT NULL,
+  side TEXT NOT NULL,
+  at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS share_prices (
+  gpu_id TEXT NOT NULL,
+  ts TEXT NOT NULL,
+  price TEXT NOT NULL,
+  source TEXT NOT NULL,
+  PRIMARY KEY (gpu_id, ts)
+);

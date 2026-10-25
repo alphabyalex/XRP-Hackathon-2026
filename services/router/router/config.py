@@ -79,6 +79,7 @@ AWS_EVENTS_QUEUE_URL = _env("AWS_EVENTS_QUEUE_URL", "")
 # ---- Catalog ----------------------------------------------------------------------------
 
 CATALOG_MAX_AGE_SECONDS = int(_env("CATALOG_MAX_AGE", "1800"))
+LAST_GOOD_FACTOR = 4  # stale offers stay usable (degraded) up to 4x CATALOG_MAX_AGE
 COLLECT_INTERVALS = {"spot": 300, "providers": 900, "on_demand": 86400}
 HTTP_TIMEOUT_SECONDS = float(_env("HTTP_TIMEOUT_SECONDS", "10"))
 
@@ -92,6 +93,8 @@ CHECKPOINT_EVERY_TOKENS = int(_env("CHECKPOINT_EVERY_TOKENS", "16"))
 CHECKPOINT_FLUSH_SECONDS = 1.0
 RENTAL_CHECKPOINT_SECONDS = 60.0
 BOOKING_GUARD_SECONDS = 30.0
+BOOKING_DRAIN_SECONDS = 20.0  # matches services/compute DRAIN_LEAD_SECONDS
+DRAIN_CHECK_SECONDS = 2.0
 QUOTE_VALID_SECONDS = 60
 
 # ---- Execution --------------------------------------------------------------------------
@@ -101,8 +104,11 @@ LEASE_SECONDS = 120.0
 CALENDAR_CACHE_SECONDS = 10.0
 DEFAULT_RECLAIM_DURATION_SECONDS = 300.0
 PROGRESS_EVERY_TOKENS = 20
+RENTAL_TICK_SECONDS = float(_env("RENTAL_TICK_SECONDS", "1.0"))
 SSE_PING_SECONDS = 15.0
 RENTAL_TIME_SCALE = float(_env("RENTAL_TIME_SCALE", "60"))  # in-process rentals: 1 rented minute per second
+# In-process generation speed multiplier (1 = the GPU's real tokensPerSec; tests speed it up).
+ENGINE_TIME_SCALE = float(_env("ENGINE_TIME_SCALE", "1"))
 
 
 @cache

@@ -1,10 +1,15 @@
 {
-  "_note": "Mock fleet (FLEET_SOURCE=mock, the default): what the router can actually run on. Moonshift GPUs are defined inline at their own listed price (USDC per hour, no margin). External entries point at a catalog offer by key (provider#region#instanceType#capacityType), so price, speed and interruption risk always come from the latest collected catalog; their USDC price adds MOONSHIFT_MARGIN. endpoint empty = the worker runs in-process. computeGpuId set = booked windows are read from services/compute too. Live fleet: config/fleet.live.json with FLEET_SOURCE=live.",
+  "_note": "Mock fleet (FLEET_SOURCE=mock, the default): what the router can actually run on. Moonshift GPUs are defined inline at their own listed price (USDC per hour, no margin). External entries point at a catalog offer by key (provider#region#instanceType#capacityType), so price, speed and interruption risk always come from the latest collected catalog; their USDC price adds MOONSHIFT_MARGIN. endpoint empty = the worker runs in-process. computeGpuId set = booked windows are read from services/compute too. Live fleet: config/fleet.live.json with FLEET_SOURCE=live. instanceId / capacityReservationId map EC2 interruption events (POST /internal/aws-events) onto a fleet GPU.",
   "gpus": [
     {
       "id": "gpu-a1",
       "label": "GPU-A1",
-      "moonshift": { "gpuModel": "T4", "hardware": "NVIDIA T4 16GB", "pricePerHourUsdc": "0.250000", "region": "us-east-2" },
+      "moonshift": {
+        "gpuModel": "T4",
+        "hardware": "NVIDIA T4 16GB",
+        "pricePerHourUsdc": "0.250000",
+        "region": "us-east-2"
+      },
       "maxConcurrent": 2,
       "moonshiftGpuId": "gpu-a",
       "computeGpuId": "gpu-a",
@@ -13,7 +18,12 @@
     {
       "id": "gpu-b1",
       "label": "GPU-B1",
-      "moonshift": { "gpuModel": "T4", "hardware": "NVIDIA T4 16GB", "pricePerHourUsdc": "0.250000", "region": "us-east-2" },
+      "moonshift": {
+        "gpuModel": "T4",
+        "hardware": "NVIDIA T4 16GB",
+        "pricePerHourUsdc": "0.250000",
+        "region": "us-east-2"
+      },
       "maxConcurrent": 2,
       "moonshiftGpuId": "gpu-b",
       "computeGpuId": "gpu-b",
@@ -26,7 +36,8 @@
       "maxConcurrent": 2,
       "moonshiftGpuId": "gpu-a",
       "computeGpuId": null,
-      "endpoint": ""
+      "endpoint": "",
+      "instanceId": "i-0a2c4e6f8a0b2c4d6"
     },
     {
       "id": "gpu-a3",
@@ -44,7 +55,9 @@
       "maxConcurrent": 2,
       "moonshiftGpuId": "gpu-b",
       "computeGpuId": null,
-      "endpoint": ""
+      "endpoint": "",
+      "instanceId": "i-0b2d4f6a8c0e2a4b6",
+      "capacityReservationId": "cr-0b2d4f6a8c0e2a4b6"
     },
     {
       "id": "gpu-b3",

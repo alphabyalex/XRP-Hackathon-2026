@@ -11,6 +11,10 @@ import { db } from "./db/db.js";
 import { addRevenue } from "./db/helpers.js";
 import { approveDividendRun, proposeDividendRun } from "./dividends.js";
 import { startSim } from "./sim.js";
+import * as xrpl from "./adapters/xrplAdapter.js";
+import { swr } from "./lending/swr.js";
+import { sharePrice } from "./sharePrice.js";
+import { quoteMarket } from "./marketMaker.js";
 
 const HOUR = 3600e3;
 // Charges like the simulator's own pings and a GPU-hour contract slot, sized so
@@ -98,8 +102,30 @@ export function historyCalendar(gpuId: GpuId, from: string, to: string) {
   ];
 }
 
-// Inputs pricing needs for NAV and yield: trailing revenue and dividends paid.
-export function navInputs(gpuId: GpuId): Record<string, string> {
+// The GPU's treasury cash (its USDC balance on the ledger), refreshed at most once a minute.
+const treasuryCash = swr<string>("treasury cash", 60_000, 30 * 60_000);
+const TREASURY: Record<GpuId, "TREASURY_GPU_A" | "TREASURY_GPU_B"> = { "gpu-a": "TREASURY_GPU_A", "gpu-b": "TREASURY_GPU_B" };
+
+// Share of the last 24 hours the GPU was booked or serving inference (overlaps counted once).
+export function utilization24hPct(gpuId: GpuId, now = Date.now()): number {
+  const from = now - 24 * HOUR;
+  const spans = historyCalendar(gpuId, new Date(from).toISOString(), new Date(now).toISOString())
+    .map((e) => [Math.max(from, new Date(e.start).getTime()), Math.min(now, new Date(e.end).getTime())] as [number, number])
+    .filter(([a, b]) => b > a)
+    .sort((x, y) => x[0] - y[0]);
+  let busy = 0;
+  let end = -Infinity;
+  for (const [a, b] of spans) {
+    if (b <= end) continue;
+    busy += b - Math.max(a, end);
+    end = b;
+  }
+  return Math.min(100, (busy / (24 * HOUR)) * 100);
+}
+
+// Inputs pricing needs for NAV and yield: the treasury's cash, real
+// utilization, trailing revenue, dividends paid and the market share price.
+export async function navInputs(gpuId: GpuId): Promise<Record<string, string>> {
   const since = new Date(Date.now() - 24 * HOUR).toISOString();
   const rev = db
     .prepare(`SELECT COALESCE(SUM(CAST(amount AS REAL)), 0) AS t FROM revenue_ledger WHERE gpu_id = ? AND created_at >= ?`)
@@ -111,10 +137,20 @@ export function navInputs(gpuId: GpuId): Record<string, string> {
     )
     .get(gpuId, weekAgo) as { t: number; first: string | null };
   const days = paid.first ? Math.max(1, (Date.now() - new Date(paid.first).getTime()) / (24 * HOUR)) : 1;
+  const [cash, market] = await Promise.all([
+    treasuryCash
+      .get(gpuId, async () => (await xrpl.getBalances(TREASURY[gpuId])).tokens.TDX ?? "0")
+      .catch(() => null),
+    sharePrice(gpuId).catch(() => null),
+  ]);
   return {
     trailing_revenue_24h: rev.t.toFixed(6),
     trailing_dividends_per_share: paid.t.toFixed(6),
     trailing_period_days: days.toFixed(4),
+    utilization_pct: utilization24hPct(gpuId).toFixed(2),
+    ...(cash !== null ? { treasury_cash: Number(cash).toFixed(6) } : {}),
+    // Yield against what a share costs on the market, not against NAV.
+    ...(market ? { share_price: market.price } : {}),
   };
 }
 
@@ -139,6 +175,8 @@ export async function seedHistory(): Promise<Record<string, unknown>> {
     }
     out[g.id] = { ...filled, dividend };
   }
+  // Two-sided share books around each GPU's NAV (marketMaker.ts).
+  out.market = await quoteMarket();
   startSim();
   return out;
 }

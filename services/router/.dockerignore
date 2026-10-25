@@ -1,0 +1,7 @@
+.venv
+data
+tests
+scripts
+infra
+.env
+**/__pycache__

@@ -36,7 +36,7 @@ def test_reclaim_makes_gpu_unavailable_until_it_returns(svc):
 
 
 def test_stale_offer_is_not_available(svc):
-    later = NOW + timedelta(hours=2)
+    later = NOW + timedelta(hours=3)
     v = svc.state.view(svc.entry("gpu-a2"), later)
     assert v.reason == "STALE_PRICE" and not v.available
     assert svc.state.view(svc.entry("gpu-a1"), later).available  # Moonshift's listed price never goes stale

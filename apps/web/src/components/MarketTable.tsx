@@ -5,7 +5,6 @@ import { DataMoon } from "./DataMoon";
 import { MiniSchedule } from "./MiniSchedule";
 import { PriceFlash } from "./PriceFlash";
 import { fmt } from "@/lib/format";
-import { mockPriceHistory, change24h } from "@/lib/mockPriceHistory";
 
 // Ported from the market() function's table rows in moonshift_v2_source.html.
 export function MarketTable({ views }: { views: GpuView[] }) {
@@ -25,8 +24,8 @@ export function MarketTable({ views }: { views: GpuView[] }) {
       <tbody>
         {views.map((v) => {
           const price = Number(v.gpu.sharePrice) || 0;
-          const history = mockPriceHistory(v.gpu.id, price);
-          const ch = change24h(history);
+          // Real 24 h change of the market price (DEX midpoint, last trade or oracle).
+          const ch = Number(v.gpu.change24hPct ?? 0);
           return (
             <tr key={v.gpu.id}>
               <td>
