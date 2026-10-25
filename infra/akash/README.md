@@ -12,18 +12,18 @@ specifications and verification results. GPU endpoint addresses stay private.
 | C | Tesla V100 PCIe, 32 GB | Qwen2.5-3B-Instruct | 1792939554118 | Hardware, inference, two throughput samples and physical identity verified |
 | D | NVIDIA T4, 16 GB nominal, 15360 MiB usable | Qwen2.5-3B-Instruct | 1792938865934 | Hardware, inference, two throughput samples and physical identity verified |
 | E | RTX 3090 requested, not yet verified | Qwen2.5-3B-Instruct requested | 1792940820777 | Image download pending; unavailable |
-| F | V100 requested, not yet verified | Qwen2.5-3B-Instruct requested | 1792940870902 | Image download pending; unavailable |
-| G | V100 requested, not yet verified | Qwen2.5-3B-Instruct requested | 1792941075797 | Image download pending; unavailable |
-| H | Replacement being screened | Unavailable | No replacement lease accepted | Unavailable |
+| F | Tesla V100 SXM2, 16 GB | Qwen2.5-3B-Instruct | 1792940870902 | Hardware, inference, two throughput samples and physical identity verified |
+| G | Tesla PG500-216, 32 GB | Qwen2.5-3B-Instruct | 1792941075797 | Hardware, inference, two throughput samples and physical identity verified |
+| H | RTX 3060 Ti requested, not yet verified | Qwen2.5-1.5B-Instruct requested | 1792941267497 | Image download pending; unavailable |
 
-The four verified physical GPU UUID hashes are distinct. Do not describe this
+The six verified physical GPU UUID hashes are distinct. Do not describe this
 as eight physical GPUs until all eight UUID hashes, health checks and inference
 results have been verified. Offline or unmeasured nodes remain hidden from the
 serving catalog. `GPU_NODES` enables only verified, measured workers.
 
 GPU-A loads canonical `Qwen/Qwen2.5-1.5B-Instruct` weights. Its historical vLLM
 0.6.2 wire alias is `Qwen/Qwen3-1.7B`; the alias does not identify the weights.
-GPU-B through GPU-D use canonical `Qwen/Qwen2.5-3B-Instruct` for both weights
+GPU-B through GPU-D, GPU-F and GPU-G use canonical `Qwen/Qwen2.5-3B-Instruct` for both weights
 and served model name. Their context limit is 4096 tokens with two concurrent
 model sequences.
 

@@ -1,0 +1,82 @@
+{
+  "reason": "Assigned GPU memory already occupied by incumbent inference process; nodes never served or accepted application tasks",
+  "newLeasesOnly": [
+    {
+      "gpuId": "gpu-e",
+      "dseq": "1792939937173",
+      "checkedAt": "2026-10-25T15:04:54.656276+00:00",
+      "ephemeralInferenceOnly": true,
+      "enabledForTasks": false,
+      "readyReplicas": 0,
+      "identityUnavailableWhileCrashLooping": true,
+      "cudaOutOfMemory": true,
+      "incumbent28GiB": true,
+      "gpuTotal31GiB": true,
+      "incumbentProcessIds": [
+        "1944695"
+      ],
+      "closedNoActiveLeaseVerified": false,
+      "closedAt": "2026-10-25T15:06:26.785257Z",
+      "absentFromActiveInventory": true,
+      "status": "closed_failed_capacity"
+    },
+    {
+      "gpuId": "gpu-f",
+      "dseq": "1792940113866",
+      "checkedAt": "2026-10-25T15:04:54.657577+00:00",
+      "ephemeralInferenceOnly": true,
+      "enabledForTasks": false,
+      "readyReplicas": 0,
+      "identityUnavailableWhileCrashLooping": true,
+      "cudaOutOfMemory": true,
+      "incumbent28GiB": true,
+      "gpuTotal31GiB": true,
+      "incumbentProcessIds": [
+        "1784205"
+      ],
+      "closeRequestedAt": "2026-10-25T15:06:41.287161Z",
+      "closeCliConfirmed": true,
+      "absentFromActiveInventory": true,
+      "status": "closed_failed_capacity"
+    },
+    {
+      "gpuId": "gpu-g",
+      "dseq": "1792940176827",
+      "checkedAt": "2026-10-25T15:04:54.659171+00:00",
+      "ephemeralInferenceOnly": true,
+      "enabledForTasks": false,
+      "readyReplicas": 0,
+      "identityUnavailableWhileCrashLooping": true,
+      "cudaOutOfMemory": true,
+      "incumbent28GiB": true,
+      "gpuTotal31GiB": true,
+      "incumbentProcessIds": [
+        "1784205"
+      ],
+      "closeRequestedAt": "2026-10-25T15:06:57.966297Z",
+      "closeCliConfirmed": false,
+      "absentFromActiveInventory": true,
+      "status": "closed_failed_capacity"
+    },
+    {
+      "gpuId": "gpu-h",
+      "dseq": "1792940208275",
+      "checkedAt": "2026-10-25T15:04:54.660335+00:00",
+      "ephemeralInferenceOnly": true,
+      "enabledForTasks": false,
+      "readyReplicas": 0,
+      "identityUnavailableWhileCrashLooping": true,
+      "cudaOutOfMemory": true,
+      "incumbent28GiB": true,
+      "gpuTotal31GiB": true,
+      "incumbentProcessIds": [
+        "1944695"
+      ],
+      "closeRequestedAt": "2026-10-25T15:07:21.303124Z",
+      "closeCliConfirmed": true,
+      "absentFromActiveInventory": true,
+      "status": "closed_failed_capacity"
+    }
+  ],
+  "inventoryVerifiedAt": "2026-10-25T15:10:14.672363Z"
+}

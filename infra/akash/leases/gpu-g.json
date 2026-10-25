@@ -1,0 +1,73 @@
+{
+  "gpuId": "gpu-g",
+  "network": "akash-mainnet",
+  "dseq": "1792941075797",
+  "provider": "akash1hgulk6aekakqzc0v6wukrd3dy9n90f5gkl4ezk",
+  "providerName": "digital frontier",
+  "providerLocation": {
+    "cityCode": "LIS",
+    "country": "PT",
+    "region": "eu-southwest"
+  },
+  "resources": {
+    "vCpu": 4,
+    "ramGiB": 16,
+    "ephemeralStorageGiB": 50,
+    "gpuCount": 1
+  },
+  "hardware": {
+    "name": "Tesla PG500-216",
+    "usableVramMiB": 32768,
+    "physicalGpuUuidSha256": "34eb858fe28a58106b275f09910971313dc572a5f630fc3bda87a61f8f23cf64",
+    "visibleGpuCount": 1,
+    "runtimeFlags": [
+      {
+        "--model": "Qwen/Qwen2.5-3B-Instruct",
+        "--served-model-name": "Qwen/Qwen2.5-3B-Instruct",
+        "--max-model-len": "4096",
+        "--max-num-seqs": "2"
+      }
+    ],
+    "pciDeviceId": "0x1DF010DE",
+    "computeCapability": "7.0",
+    "driverVersion": "580.159.03",
+    "nvidiaProductReference": "https://download.nvidia.com/XFree86/Linux-x86_64/595.84/README/supportedchips.html"
+  },
+  "nominalVramGB": 32,
+  "modelRequested": "Qwen/Qwen2.5-3B-Instruct",
+  "servedModelName": "Qwen/Qwen2.5-3B-Instruct",
+  "contextTokens": 4096,
+  "maxConcurrentSequences": 2,
+  "pricing": {
+    "denom": "uact",
+    "amountPerBlock": "442.000000000000000000",
+    "bidCeilingPerBlock": "500",
+    "estimatedUsdPerHour": "0.2652000000000000000000",
+    "conversionAssumption": "600 six-second blocks per hour; 1000000 uact per USD",
+    "source": "akt accepted lease"
+  },
+  "status": "serving",
+  "verification": {
+    "verifiedAt": "2026-10-25T15:18:31.982953Z",
+    "leaseAccepted": true,
+    "hardwareVerified": true,
+    "modelProcessVerified": true,
+    "healthStatus": 200,
+    "healthLatencySeconds": 0.287741,
+    "freshInferenceVerified": true,
+    "freshInferenceLatencySeconds": 1.555158,
+    "freshInferenceExpectedResultMatched": true,
+    "usage": {
+      "prompt_tokens": 44,
+      "total_tokens": 47,
+      "completion_tokens": 3
+    }
+  },
+  "planningObservation": {
+    "receipt": "contracts/compute/observed_gpu_g_throughput.json",
+    "source": "minimum_observed_end_to_end",
+    "sampleCount": 2,
+    "planningTokensPerSec": 79.690597,
+    "observedAt": "2026-10-25T15:18:35.443803Z"
+  }
+}

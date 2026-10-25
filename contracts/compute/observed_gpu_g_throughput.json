@@ -1,0 +1,21 @@
+{
+  "gpuId": "gpu-g",
+  "modelId": "Qwen/Qwen2.5-3B-Instruct",
+  "observedAt": "2026-10-25T15:18:35.443803Z",
+  "source": "minimum_observed_end_to_end",
+  "sampleCount": 2,
+  "planningTokensPerSec": 79.690597,
+  "samples": [
+    {
+      "observedAt": "2026-10-25T15:18:33.837343Z",
+      "completionTokens": 128,
+      "wallSeconds": 1.532977625
+    },
+    {
+      "observedAt": "2026-10-25T15:18:35.443803Z",
+      "completionTokens": 128,
+      "wallSeconds": 1.606212083
+    }
+  ],
+  "scope": "Completed output tokens divided by full HTTP wall time, including prefill and network time. A conservative planning observation, not pure decoder throughput or a future guarantee."
+}

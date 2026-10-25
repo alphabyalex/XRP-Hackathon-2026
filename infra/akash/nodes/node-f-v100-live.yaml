@@ -1,0 +1,51 @@
+version: '2.0'
+
+# Authorized economical expansion. Maximum bid is 500 uact per block,
+# approximately USD 0.30/hour at six-second blocks. Inspect bids before leasing.
+services:
+  moonshift-gpu-f:
+    image: vllm/vllm-openai:v0.6.2
+    expose:
+      - port: 8000
+        as: 8000
+        to:
+          - global: true
+    args:
+      - --model
+      - Qwen/Qwen2.5-3B-Instruct
+      - --served-model-name
+      - Qwen/Qwen2.5-3B-Instruct
+      - --dtype
+      - float16
+      - --max-model-len
+      - '4096'
+      - --max-num-seqs
+      - '2'
+profiles:
+  compute:
+    moonshift-gpu-f:
+      resources:
+        cpu:
+          units: 4
+        memory:
+          size: 16Gi
+        storage:
+          - size: 50Gi
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              nvidia:
+                - model: v100
+  placement:
+    dcloud:
+      pricing:
+        moonshift-gpu-f:
+          denom: uact
+          amount: 500
+deployment:
+  moonshift-gpu-f:
+    dcloud:
+      profile: moonshift-gpu-f
+      count: 1
+
