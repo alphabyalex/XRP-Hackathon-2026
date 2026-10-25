@@ -128,3 +128,12 @@ export const triggerSwitchDemo = (gpuId: string = "gpu-a", prompt?: string) =>
 export function eventsUrl(): string {
   return `${API_BASE}/events`;
 }
+
+// Compute catalog writes (contracts/compute). Shapes live in ./catalog.
+import type { Booking, Sizing, TaskEstimate, TaskQuote } from "./catalog";
+export const estimateTask = (description: string, type: string) =>
+  apiFetch<TaskEstimate>("/tasks/estimate", { method: "POST", body: JSON.stringify({ description, type }) });
+export const quoteTask = (q: Omit<Sizing, "model"> & { gpuId: string; mode: string }) =>
+  apiFetch<TaskQuote>("/tasks/quote", { method: "POST", body: JSON.stringify(q) });
+export const bookHour = (gpuId: string, slotStart: string, priceCap: string) =>
+  apiFetch<Booking>("/bookings", { method: "POST", body: JSON.stringify({ gpuId, slotStart, durationSeconds: 3600, priceCap }) });

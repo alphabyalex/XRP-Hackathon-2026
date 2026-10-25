@@ -35,7 +35,7 @@ const usd = (v: unknown) => (Number.isFinite(Number(v)) && v !== null ? `$${Numb
 const count = (spec: string, re: RegExp, fallback: number) => Number(re.exec(spec)?.[1] ?? fallback);
 const rate = (usd: number, per: number, unit: string) => `$${(usd / Math.max(per, 1)).toFixed(4)}/${unit}`;
 
-export function RentTabContent({ checkoutHref = "/market#run-task" }: { checkoutHref?: string }) {
+export function RentTabContent({ checkoutHref = "/market" }: { checkoutHref?: string }) {
   const gpus = useLiveGpus();
   const { data: aws } = usePolled<AwsFeed>("/catalog/aws", { ms: 5000, on: ["aws"] });
   const onDemand = usd(aws?.onDemand?.[0]?.usdPerHour);
