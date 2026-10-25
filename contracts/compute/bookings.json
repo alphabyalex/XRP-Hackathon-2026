@@ -1,12 +1,8 @@
 {
-  "endpoint": "POST /bookings (internal, called by apps/api)",
-  "request": {
-    "gpu_id": "gpu-a",
-    "slot_start": "2026-10-24T18:05:00Z",
-    "slots": 1,
-    "redemption_id": "redemption_abc123",
-    "holder": "ALICE"
-  },
-  "response": { "booking_id": "booking_abc123" },
-  "error_example": { "status": 409, "body": { "error": { "code": "SLOT_TAKEN", "message": "gpu-a 18:05 is already booked" } } }
+  "endpoint": "POST /bookings",
+  "authentication": "Signed-in session. A buyer or holder supplied by the browser is ignored.",
+  "request": {"gpuId": "gpu-a", "slotStart": "2026-10-25T14:00:00Z", "durationSeconds": 3600, "priceCap": "maximum amount the account authorizes, as a decimal string"},
+  "success_shape": {"bookingId": "compute booking id", "redemptionId": "reservation reference passed as bookingId to /inference/chat", "gpuId": "gpu-a", "slotStart": "ISO timestamp", "slotEnd": "ISO timestamp", "amount": "decimal string", "currency": "TDX", "priceSource": "GPU Economy", "priceUpdatedAt": "ISO timestamp", "payment": {"hash": "validated real ledger payment hash", "validated": true, "result": "tesSUCCESS", "explorerUrl": "ledger explorer link"}},
+  "error_example": {"status": 409, "body": {"error": {"code": "SLOT_TAKEN", "message": "The requested GPU slot is already booked."}}},
+  "notes": ["Start must be in the future and within seven days. Duration must be an exact multiple of the configured slot length, no longer than 288 slots.", "The compute scheduler atomically rejects overlapping bookings and running requests.", "A reservation is held before charging. Failed payment cancels that hold. Success requires a validated tesSUCCESS ledger payment.", "Payments use the same ledger currency and GPU treasury as task settlement. The rental is prepaid and inference within its active reservation has no additional token charge.", "Mock compute or ledger mode returns 503 rather than a successful reservation.", "An interrupted payment is retained as payment_pending for reconciliation; it is never claimed as a confirmed booking.", "Internal compute contract remains POST /bookings with {gpu_id,slot_start,slots,redemption_id,holder}, returning {booking_id}."]
 }

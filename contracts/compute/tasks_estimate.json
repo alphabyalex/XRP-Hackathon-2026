@@ -1,0 +1,15 @@
+{
+  "endpoint": "POST /tasks/estimate",
+  "request": {"description": "Summarize a short document", "type": "inference"},
+  "response": {
+    "source": "fallback",
+    "modelId": null,
+    "region": "us-east-2",
+    "latencyMs": 0,
+    "sizing": {"gpus": 1, "vcpu": 2, "ramGb": 4, "storageGb": 10, "durationSeconds": 60, "model": "Qwen/Qwen2.5-1.5B-Instruct"},
+    "suggestedGpus": [],
+    "pricing": null,
+    "availability": "offline"
+  },
+  "notes": ["Sizing is an estimate, never a measured runtime.", "source is bedrock only after validated Bedrock output. Credentials, timeout, invalid output, or pricing service failure use deterministic fallback.", "Only healthy serving GPU IDs are suggested. Empty suggestions mean no compatible GPU is available.", "Prices come only from the cached live rental feed. Missing rates return pricing null."]
+}
