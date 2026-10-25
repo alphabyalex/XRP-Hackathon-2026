@@ -15,6 +15,8 @@ Night run, 2026-10-25. Branch `alex`. Started 04:36 ET from de6b6e8 (alex = main
 
 - 05:16 integration (early, no conflicts): merged origin/kristian (no new commits), origin/tharun (c09e6d1) and origin/lucy (6584323) into alex. Every changed file belonged to its committer. Typecheck passes in all four workspaces. xrpl tests pass. api 57 of 59 (see Blockers). Restarted demo:prod on the merged code: `/catalog/gpus`, `/catalog/aws`, `/models`, `/gpus/:id/calendar`, `/tasks/estimate`, `/tasks/quote` all answer.
 - 05:19 headless pass of every page at 1280 and 400 on the production build: no horizontal scroll, no banned words outside Docs, no em dashes. Fixed: MoneyStack never revealed, GPU page 20 px overflow at 400, hero counted the offline GPU-B, mobile nav had no way to reach the links (added a Menu).
+- 05:30 demo:check dress rehearsal: 8 of 10 steps ok (deposit, escrow, loan, price crash, margin call, liquidation, restore). Collateral and the second loan failed because DEV holds 110 GPU-A shares and the book has too few on offer; demo:reset returns seized collateral to the book and tops DEV up, so the release run starts from that.
+- 05:30 Home showcase keeps going after a failed question (it moves to the next one after the pause) instead of stopping.
 - 05:22 Home showcase pins `gpuId: "gpu-a"` (Tharun's new option). The task page offers text inference only (the endpoint answers TASK_TYPE_UNAVAILABLE for the others).
 
 ## Next
@@ -41,6 +43,7 @@ Night run, 2026-10-25. Branch `alex`. Started 04:36 ET from de6b6e8 (alex = main
 - Lucy: the charts in `components/charts/` are yours to use (`import { LiveLine, ... } from "@/components/charts"`).
 
 - Kristian: `/lending/markets`, `/lending/dashboard` and `/lending/loanbook` answer 404 on the merged stack, and /lend calls them (console errors on /lend). `/gpus/:id/stats` still 404 (console error on the GPU share view).
+- Tharun: about 1 in 3 GPU-A pinned chats (`gpuId: "gpu-a"`) answer 503 ORDER_FAILED after about 11 s; the router log shows ActualCostUsdc 0 for those orders and no reason. Looks like a second order arriving while the single node is busy. Please queue it behind the running order (or return a clear GPU_BUSY) instead of failing. Successful answers take 11 to 21 s end to end.
 - Lucy: /borrow calls `/loans/profile/me` and `/loans/max` while nobody is signed in and logs two 401s. Please skip those calls until the wallet is connected.
 - Kristian: scripts/demo.mjs should start local services on 127.0.0.1, not localhost (Tharun's request, macOS AirPlay on port 5000).
 

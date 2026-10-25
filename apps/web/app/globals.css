@@ -2241,3 +2241,6 @@ button.cal7-cell.free {
     display: none;
   }
 }
+.dev .code pre {
+  font-size: 12.5px;
+}

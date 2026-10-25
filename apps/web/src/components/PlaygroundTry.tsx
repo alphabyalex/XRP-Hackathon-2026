@@ -94,7 +94,6 @@ export function PlaygroundTry({ autoplay = false }: { autoplay?: boolean }) {
         if (!servedByGpuA(a.meta.gpus) || !a.text) {
           setOut("");
           setRunning(false);
-          setAuto(false);
           return;
         }
         writeCache(q, p, a);
@@ -102,9 +101,9 @@ export function PlaygroundTry({ autoplay = false }: { autoplay?: boolean }) {
       reveal(my, a);
     } catch (err) {
       if (my !== runId.current) return;
-      setOut(fromAuto ? "GPU-A is not answering right now. Type a question to try again." : (err as Error).message);
+      // The showcase moves on to the next question after the usual pause.
+      setOut(fromAuto ? "" : (err as Error).message);
       setRunning(false);
-      if (fromAuto) setAuto(false);
     }
   }
 
