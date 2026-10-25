@@ -16,7 +16,7 @@ import { useToast } from "./Toast";
 import { PortfolioReturns } from "./PortfolioReturns";
 
 const short = (s: string) => { const value=s.replace(/^MOCK(?:_ADDR_)?/, ""); return value.length>14 ? `${value.slice(0,6)}…${value.slice(-4)}` : value; };
-const money = (s: string | number) => fmt(Number(s),2);
+const money = (s: string | number | null) => s === null ? "Unavailable" : fmt(Number(s),2);
 const date = (s: string) => new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",timeZone:"America/New_York"}).format(new Date(s));
 
 export function AccountPortfolio() {
@@ -55,10 +55,13 @@ export function AccountPortfolio() {
   const held=data?.holdings??[];
   const active=selection==="All" ? held : held.filter(h=>h.gpuId===selection);
   const performance=(data?.gpuPerformance??[]).filter(p=>active.some(h=>h.gpuId===p.gpuId));
-  const days=[...new Set(performance.flatMap(p=>p.days.map(d=>d.date)))].sort().slice(-7).map(day=>({date:day,booked:performance.reduce((sum,p)=>sum+Number(p.days.find(d=>d.date===day)?.booked??0),0),inference:performance.reduce((sum,p)=>sum+Number(p.days.find(d=>d.date===day)?.inference??0),0)}));
-  const max=Math.max(1,...days.map(d=>d.booked+d.inference));
-  const revenue=performance.reduce((s,p)=>s+Number(p.revenue24h),0);
-  const utilization=performance.length ? performance.reduce((s,p)=>s+Number(p.utilization24h),0)/performance.length : 0;
+  const days=[...new Set(performance.flatMap(p=>p.days.map(d=>d.date)))].sort().slice(-7).map(day=>({date:day,revenue:performance.reduce((sum,p)=>{
+    const row=p.days.find(d=>d.date===day);
+    return sum+(row?.revenue!==undefined ? Number(row.revenue) : row?.booked!==null && row?.booked!==undefined && row?.inference!==null && row?.inference!==undefined ? Number(row.booked)+Number(row.inference) : 0);
+  },0)}));
+  const max=Math.max(1,...days.map(d=>d.revenue));
+  const revenue=performance.length && performance.every(p=>p.revenue24h!==null) ? performance.reduce((s,p)=>s+Number(p.revenue24h),0) : null;
+  const utilization=performance.length && performance.every(p=>p.utilization24h!==null) ? performance.reduce((s,p)=>s+Number(p.utilization24h),0)/performance.length : null;
   const ownership=active.reduce((s,h)=>s+Number(h.ownershipPct),0);
   const earned=active.reduce((s,h)=>s+Number(h.earned7d),0);
   const options=[...(held.length>1?[{value:"All",label:"All"}]:[]),...held.map(h=>({value:h.gpuId,label:h.label}))];
@@ -79,27 +82,28 @@ export function AccountPortfolio() {
     {error && <div role="status" className="account-error">Account updates are unavailable. <Button size="sm" variant="ghost" onClick={()=>void refresh()}>Try again</Button></div>}
     <section aria-labelledby="holdings-heading"><h2 id="holdings-heading">Holdings</h2>
       {!data?<div className="account-skeleton account-table-skeleton"/>:held.length ? <div className="account-table-scroll" tabIndex={0} aria-label="GPU holdings"><table className="account-table"><thead><tr>{["GPU","Shares","Locked","Value","24h","Yield","Earned 7d"].map(t=><th key={t} scope="col">{t}</th>)}</tr></thead><tbody>{held.map(h=><tr key={h.gpuId}>
-        <td><Link className="account-gpu" href={`/gpu/${h.gpuId}`}><DataMoon slots={h.slots??[]} size={28}/><span>{h.label}<small>{h.hardware}</small></span></Link></td>
-        <td>{money(h.shares)}</td><td>{money(h.locked)}</td><td><Link href={`/gpu/${h.gpuId}`}><PriceFlash value={Number(h.value)} decimals={2}/><small>USDC</small></Link></td>
+        <td><Link className="account-gpu" href={`/gpu/${h.gpuId}`}>{h.telemetry?.calendarAvailable===false?<span aria-label="Activity unavailable" style={{width:28,textAlign:"center"}}>·</span>:<DataMoon slots={h.slots??[]} size={28}/>}<span>{h.label}<small>{h.hardware}</small></span></Link></td>
+        <td>{money(h.shares)}</td><td>{money(h.locked)}</td><td><Link href={`/gpu/${h.gpuId}`}>{h.value===null?<span>Unavailable</span>:<PriceFlash value={Number(h.value)} decimals={2}/>}<small>USDC</small></Link></td>
         <td>{h.change24h===null?<span aria-label="Price history unavailable">·</span>:<span style={{color:Number(h.change24h)>0?"var(--up)":Number(h.change24h)<0?"var(--down)":"var(--ink2)"}}>{Number(h.change24h)>0?"+":""}<PriceFlash value={Number(h.change24h)} decimals={2}/>%</span>}</td>
-        <td>{money(h.yield)}%</td><td className="account-income">+{money(h.earned7d)}</td>
+        <td>{money(h.yield)}{h.yield===null?"":"%"}</td><td className="account-income">+{money(h.earned7d)}</td>
       </tr>)}</tbody></table></div>:<div className="account-empty"><span>No GPU shares yet</span><Button href="/market" size="sm">Browse GPUs</Button></div>}
     </section>
     <PortfolioReturns/>
     <section aria-labelledby="earnings-heading"><div className="account-section-head"><h2 id="earnings-heading">GPU revenue</h2>{!!options.length && <Segmented options={options} value={selected} onChange={setSelection}/>}</div>
       {!deferred?<div className="account-skeleton account-chart-skeleton"/>:!held.length?<p className="account-muted">No GPU earnings yet</p>:<div className="account-earnings" ref={chart}>
-        <div className="account-chart"><div className="account-chart-legend"><span><i/>Earned</span></div>
+        <div className="account-chart"><div className="account-chart-legend"><span><i/>Recorded revenue</span></div>
+          {!days.length && <p className="account-muted">No recorded GPU revenue in this range.</p>}
           <svg viewBox="0 0 700 245" role="img" aria-label="GPU revenue over seven days" className={inView?"account-bars-visible":""}>
             <line x1="12" y1="207" x2="688" y2="207" stroke="var(--rule)"/>
-            {days.map((d,i)=>{const x=30+i*96,booked=d.booked/max*170,inference=d.inference/max*170;return <g key={d.date} tabIndex={0} role="graphics-symbol" aria-label={`${date(d.date+"T12:00:00Z")} Earned ${money(d.booked+d.inference)} USDC`} onMouseEnter={()=>setHover(i)} onMouseLeave={()=>setHover(null)} onFocus={()=>setHover(i)} onBlur={()=>setHover(null)}>
+            {days.map((d,i)=>{const x=30+i*96,height=d.revenue/max*170;return <g key={d.date} tabIndex={0} role="graphics-symbol" aria-label={`${date(d.date+"T12:00:00Z")} Earned ${money(d.revenue)} USDC`} onMouseEnter={()=>setHover(i)} onMouseLeave={()=>setHover(null)} onFocus={()=>setHover(i)} onBlur={()=>setHover(null)}>
               <rect x={x-8} y="12" width="72" height="198" fill="transparent"/>
-              <g className="account-bar"><rect x={x} y={207-booked-inference} width="48" height={booked+inference} fill="var(--accent)"/></g>
+              <g className="account-bar"><rect x={x} y={207-height} width="48" height={height} fill="var(--accent)"/></g>
               <text x={x+24} y="235" textAnchor="middle" fill="var(--ink3)" fontSize="13">{new Intl.DateTimeFormat("en-US",{weekday:"short",timeZone:"UTC"}).format(new Date(d.date+"T12:00:00Z"))}</text>
             </g>;})}
           </svg>
-          <div className="account-tooltip" role="status">{hover!==null && days[hover] ? `${new Intl.DateTimeFormat("en-US",{weekday:"short",day:"numeric",timeZone:"UTC"}).format(new Date(days[hover].date+"T12:00:00Z"))} · Earned ${money(days[hover].booked+days[hover].inference)} USDC`:"\u00a0"}</div>
+          <div className="account-tooltip" role="status">{hover!==null && days[hover] ? `${new Intl.DateTimeFormat("en-US",{weekday:"short",day:"numeric",timeZone:"UTC"}).format(new Date(days[hover].date+"T12:00:00Z"))} · Earned ${money(days[hover].revenue)} USDC`:"\u00a0"}</div>
         </div>
-        <dl className="account-stats"><div><dt>Revenue 24h</dt><dd>{money(revenue)} <span>USDC</span></dd></div><div><dt>Utilization 24h</dt><dd>{money(utilization)}%</dd></div><div><dt>Your share</dt><dd>{money(ownership*100)}% <span>· <span className="account-income">+{money(earned)} USDC</span></span></dd></div></dl>
+        <dl className="account-stats"><div><dt>Revenue 24h</dt><dd>{money(revenue)} {revenue!==null && <span>USDC</span>}</dd></div><div><dt>Utilization 24h</dt><dd>{money(utilization)}{utilization===null?"":"%"}</dd></div><div><dt>Your share</dt><dd>{money(ownership*100)}% <span>· <span className="account-income">+{money(earned)} USDC</span></span></dd></div></dl>
       </div>}
     </section>
     <section aria-labelledby="loans-heading"><h2 id="loans-heading">Loans</h2>

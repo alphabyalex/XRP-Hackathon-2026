@@ -1,13 +1,15 @@
 export interface AccountHolding {
   slots?: ("b" | "l" | "i" | "o")[];
+  telemetry?: { calendarAvailable: boolean; revenueAvailable: boolean };
   gpuId: string; label: string; hardware: string; free: string; locked: string;
-  shares: string; sharePrice: string; value: string; change24h: string | null;
-  yield: string; earned7d: string; ownershipPct: string;
+  shares: string; sharePrice: string | null; value: string | null; change24h: string | null;
+  yield: string | null; earned7d: string; ownershipPct: string;
 }
 export interface AccountPerformance {
   gpuId: string;
-  days: { date: string; booked: string; inference: string; utilization: string }[];
-  revenue24h: string; utilization24h: string;
+  days: { date: string; revenue?: string; booked: string | null; inference: string | null; utilization: string | null }[];
+  revenue24h: string | null; utilization24h: string | null;
+  revenueAvailable?: boolean; source?: "usage_meter" | "unavailable";
 }
 export interface AccountLoan {
   id: string; gpuId: string; outstanding: string; collateralShares: string;
@@ -23,5 +25,5 @@ export interface AccountResponse {
   account: string; address: string; explorerUrl: string | null; updatedAt: string;
   balances: { usdc: string; xrp: string; shares: { gpuId: string; free: string; locked: string }[] };
   holdings: AccountHolding[]; gpuPerformance: AccountPerformance[]; loans: AccountLoan[];
-  activity: AccountActivity[]; totals: { totalValue: string; earned7d: string; earned30d: string };
+  activity: AccountActivity[]; totals: { totalValue: string | null; earned7d: string; earned30d: string };
 }
