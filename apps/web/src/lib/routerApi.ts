@@ -146,6 +146,7 @@ export interface FleetGpu {
   pricePerHourUsdc: string;
   interruptible: boolean;
   warningWindowSeconds: number;
+  benchmark?: { offerKey: string; pricePerGpuHourUsd: number; asOf: string } | null; // market offer that sets the price
   state: { available: boolean; reason: string | null; activeJobs: number; returnsAt: string | null };
 }
 

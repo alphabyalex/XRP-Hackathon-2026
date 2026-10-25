@@ -30,6 +30,13 @@ function storedKey(): string {
   }
 }
 
+function benchmarkLabel(g: FleetGpu): string {
+  const b = g.benchmark;
+  if (!b) return "Listed price";
+  const [prov, region, instance, capacity] = b.offerKey.split("#");
+  return `${providerName(prov)} ${instance} ${capacity}, ${region}`;
+}
+
 // Operator view: live prices across providers, the fleet with a reclaim control, recent orders.
 export function AdminRouter() {
   const [offers, setOffers] = useState<CatalogOffer[]>([]);
@@ -116,6 +123,7 @@ export function AdminRouter() {
               <th>Hardware</th>
               <th>Capacity</th>
               <th>USDC / h</th>
+              <th>Priced from</th>
               <th>Jobs</th>
               <th>State</th>
               <th />
@@ -129,6 +137,7 @@ export function AdminRouter() {
                 <td className="l">{g.hardware}</td>
                 <td className="l">{g.capacityType}</td>
                 <td>{fmt(Number(g.pricePerHourUsdc), 4)}</td>
+                <td className="l">{benchmarkLabel(g)}</td>
                 <td>{g.state.activeJobs}</td>
                 <td className="l">{g.state.available ? "Available" : g.state.reason === "RECLAIMED" ? "Reclaimed" : "Unavailable"}</td>
                 <td>
@@ -203,7 +212,11 @@ export function AdminRouter() {
           </div>
         ))}
 
-        <h3>Prices</h3>
+        <h3>Market benchmark</h3>
+        <p className="why">
+          Tasks run only on GPU-A and GPU-B. These offers are the market: each GPU is priced at the cheapest on-demand offer for the same GPU, so a
+          customer never pays more than renting it elsewhere. Not shown to customers.
+        </p>
         <table>
           <thead>
             <tr>

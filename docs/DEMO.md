@@ -68,22 +68,21 @@ Sources in this run:
 - Oracle: read live from the ledger.
 - Credit, risk and memo: the api's built-in models, labeled simulated, because Python 3.11+ is not installed on the demo machine yet.
 
-## Router: rent compute across providers (2 minutes)
+## Router: run a task on our GPUs (2 minutes)
 
-`npm run demo` also starts the order router on :7200 (mock fleet across Moonshift, AWS, Azure and Vast.ai, local state, devnet settlement through the api). Open http://localhost:3000/admin/router in a second tab (not linked from the nav; enter the ADMIN_KEY if one is set).
+`npm run demo` also starts the order router on :7200. Tasks run only on Moonshift's own GPU-A and GPU-B (config/fleet.own.json), the GPUs whose shareholders the task pays. The external catalog (AWS, Azure, Google Cloud, Oracle, Lambda, RunPod, Vast.ai, CoreWeave) is the market benchmark: each GPU is priced at the cheapest on-demand offer for the same GPU. Open http://localhost:3000/admin/router in a second tab (not linked from the nav; enter the ADMIN_KEY if one is set).
 
-**The one line to say:** Pick Cheapest, Balanced or Fastest. The router prices every GPU it can see across clouds, places the job, and if a GPU is taken back mid-job, the job resumes on another GPU instead of restarting.
+**The one line to say:** Send a task with a price cap. The router places it on our GPUs at the market price, and if a GPU is taken back mid-task, the task resumes on the other GPU instead of restarting, and never costs more than the cap.
 
 | Time | Where | Click | Say | What it proves |
 |---|---|---|---|---|
-| 0:00 | /admin/router | Scroll the Prices table | "Live prices across AWS, Azure, Google Cloud, Oracle, Lambda, RunPod, Vast.ai and CoreWeave, with availability and how fresh each price is." | Multi-provider catalog; AWS spot blends the Spot Advisor band with placement scores |
-| 0:15 | /market | Rent compute, 30 min. Point at the three rows | "Same order, three plans: Cheapest waits for one cheap spot GPU, Fastest splits across three, Balanced is the knee of the price/time curve." | Optimizer output from /quote, real price and ETA |
-| 0:35 | /market | **Rent** with Balanced | "One USDC payment to the order treasury on the ledger." Open the payment link. | MS_ORDER Payment on devnet |
-| 0:45 | /market | Point at the GPUs line and the progress bar | "It is running on three GPUs from three providers." | Parallel split, live progress over SSE |
-| 0:55 | /admin/router | **Reclaim** on the GPU the order runs on (or AWS_LAUNCH=1 with a real EC2 spot warning) | "The provider just took that GPU back with a warning window." | One reclaim path for manual, booking and EC2/Azure/GCP notices |
-| 1:05 | /market | The line "Moved to GPU-B1, resumed" | "It checkpointed inside the warning window and continued elsewhere. Nothing restarted." | Resume, don't restart (SpotServe idea) |
-| 1:25 | /admin/router | Orders table: the order is settled | "Each GPU got paid for exactly the work it served, and the unused amount went back." | MS_SETTLE per GPU + MS_REFUND on devnet |
-| 1:40 | /playground | Switch between Cheapest and Fastest, Run | "Same prompt, different GPU, different price." | priority in the OpenAI-compatible API |
+| 0:00 | /admin/router | Market benchmark table and the fleet's "Priced from" column | "We price against the live market for the same GPU across eight clouds. A customer never pays more than renting a T4 elsewhere." | Multi-provider catalog as a pricing benchmark |
+| 0:15 | /market | Run a task: the default inference batch. Point at the estimate and the cap | "Estimate, plus a 25% cap. That cap is set aside on the ledger." | Quote from the router, cap set aside |
+| 0:35 | /market | **Submit task** | "It is running on GPU-A and GPU-B." Open the set-aside link. | MS_ORDER Payment on devnet, live progress over SSE |
+| 0:50 | /admin/router | **Reclaim** on GPU-A while the task runs | "GPU-A was just taken back with a warning window." | One reclaim path for manual, booking and cloud notices |
+| 1:00 | /market | The line "Moved to GPU-B, resumed" | "It checkpointed inside the warning window and continued on GPU-B. Nothing restarted." | Resume, don't restart |
+| 1:30 | /market | "Charged X USDC · Refunded Y USDC" | "Each GPU was paid for exactly the work it served, and the rest of the cap came back." | MS_SETTLE per GPU + MS_REFUND on devnet |
+| 1:45 | /playground | Run a prompt | "The same GPUs answer the OpenAI-compatible API." | /v1/chat/completions through the router |
 
 ### Last router run (devnet)
 
