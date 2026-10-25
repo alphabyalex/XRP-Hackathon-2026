@@ -4,6 +4,51 @@ Updated after each phase. Newest phase first in Done.
 
 ## Done
 
+### 8-GPU Fleet UI Integration & Full-Stack Expansion (2026-10-25)
+- **Market Table & Frontend UI Reflection**:
+  - Expanded `GPUS` array in `packages/shared/src/constants.ts` to include all 8 heterogeneous decentralized GPU nodes: GPU-A (NVIDIA T4 16GB), GPU-B (NVIDIA Tesla V100 16GB), GPU-C (NVIDIA A100 80GB), GPU-D (NVIDIA H100 80GB), GPU-E (NVIDIA RTX 4090 24GB), GPU-F (NVIDIA RTX 3090 24GB), GPU-G (NVIDIA RTX 4000 Ada 20GB), GPU-H (NVIDIA Tesla P40 24GB).
+  - Configured transparent component-level `RESOURCE_BREAKDOWN` for all 8 GPU architectures across GPU compute, vCPU processing, system RAM, and NVMe SSD storage.
+  - Verified live rendering of all 8 GPU cards in the Market table on `/` and `/market`, showing live MiniSchedules, DataMoon pills, prices, 24h deltas, yields, and Trade buttons.
+  - Subtitle on `/` and `/market` dynamically displays "Eight GPUs, earning now." matching Alex's word count copy.
+  - Verified static pre-generation for all 8 GPU detail routes (`/gpu/gpu-a` through `/gpu/gpu-h`), compiling 22/22 pages in Next.js.
+- **Pricing & Backend API Integration**:
+  - Expanded `GPUS` and `RESOURCE_BREAKDOWN` in `services/pricing/app/config.py` and `app/pricing.py`.
+  - Added reference prices in `services/pricing/data/reference_prices.json` for V100, RTX 4090, RTX 3090, RTX 4000 Ada, and P40.
+  - Restarted pricing daemon on port 6100; verified real-time NAV calculations for all 8 GPU assets.
+  - Updated `apps/api/src/marketHistory.ts` and `apps/api/src/marketMaker.ts` treasury mappings.
+  - Verified `GET /gpus` in `apps/api` returning all 8 GPUs with full hardware telemetry.
+- **Verification & Quality Assurance**:
+  - All 15 web routes verified returning HTTP 200 OK.
+  - Monorepo test suites passing: 93 credit tests, 39 risk tests, 18 compute tests, 11 pricing tests, 126 router tests, 10 XRPL tests.
+  - 100% clean TypeScript typecheck across all 4 packages.
+  - Zero em dashes, zero secrets.
+
+### 8-GPU Decentralized Akash Fleet & Unified Qwen Serving (2026-10-24)
+- **Akash Live Deployment Verification & Optimization**:
+  - Successfully debugged and stabilized active deployment `dseq: 1792883508772` on provider `akash1hgulk6aekakqzc0v6wukrd3dy9n90f5gkl4ezk` (`provider.h4i-dedicated.eu-sw-2.digitalfrontier.so:30151`).
+  - Resolved container boot error by updating model invocation flags: removed unsupported `--chat-template-kwargs` and configured `--model Qwen/Qwen2.5-1.5B-Instruct --served-model-name Qwen/Qwen3-1.7B --dtype float16 --max-model-len 4096`.
+  - Executed live vLLM inference test directly against the Akash endpoint: verified fast 0.76s response latency for 30 tokens with valid completions under `Qwen/Qwen3-1.7B`.
+- **8-GPU Multi-Node Heterogeneous Architecture**:
+  - Authored 8 distinct RFC-1123 compliant Akash SDL manifests in `infra/akash/nodes/` spanning multiple GPU architectures and global clusters:
+    1. `node-a-t4.yaml`: NVIDIA T4 16GB (Europe / DigitalFrontier) [Active `dseq: 1792883508772`]
+    2. `node-b-rtx4090.yaml`: NVIDIA GeForce RTX 4090 24GB (Eastern Europe / ProxyUA)
+    3. `node-c-a100.yaml`: NVIDIA A100 Tensor Core 80GB (US Houston / DD)
+    4. `node-d-rtx3090.yaml`: NVIDIA GeForce RTX 3090 24GB (North America / Ahn3)
+    5. `node-e-v100.yaml`: NVIDIA Tesla V100 16GB (Europe / Zencloud)
+    6. `node-f-rtx4000ada.yaml`: NVIDIA RTX 4000 Ada 20GB (Europe / DigitalFrontier)
+    7. `node-g-h100.yaml`: NVIDIA H100 SXM5 80GB (Europe Amsterdam / Val)
+    8. `node-h-p40.yaml`: NVIDIA Tesla P40 24GB (Europe / DigitalFrontier)
+  - All nodes run `vllm/vllm-openai:v0.6.2` serving the unified `Qwen/Qwen3-1.7B` model identity.
+  - Expanded `services/router/config/fleet.live.json` with all 8 GPU worker nodes (`gpu-a1` through `gpu-h1`) with transparent pricing, max concurrency, and Decentralized Cloud tags.
+  - Updated `scripts/demo.mjs` and running compute daemon (`task-4023` on port 5001) to support all 8 GPU worker supervisors with Monte Carlo risk paths and instant workload migration.
+- **Akash Fleet Manager (`infra/akash/akash_manager.py`)**:
+  - Implemented multi-node commands: `status` (inspect active deployments), `test` (execute live inference against running nodes), `deploy` (deploy specific target node), `kill-all` (close all leases to stop spend and recover escrow balance), and `pricing` (transparent 8-tier pricing comparison vs AWS EC2).
+- **Comprehensive Quality Verification**:
+  - All 18 compute tests, 93 credit tests, 39 risk tests, 11 pricing tests, 126 router tests, and 10 XRPL tests passing.
+  - TypeScript typecheck passed cleanly across all packages.
+  - Next.js production build succeeded (`16/16` static and dynamic routes).
+  - Verified 0 em dashes, zero secrets or keys committed.
+
 ### UI Polish, Dynamic GPU Count & Branch Synchronization (2026-10-24)
 - **UI Clean-up & Cohesive Layout**:
   - Replaced hardcoded "Two GPUs, earning now." copy in `apps/web/src/components/HomeContent.tsx` and `MarketContent.tsx` with dynamic fleet count (`{views.length ? `${views.length} GPUs, earning now.` : "Live GPUs, earning now."}`).

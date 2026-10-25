@@ -1,0 +1,49 @@
+version: '2.0'
+services:
+  node-g-h100:
+    image: vllm/vllm-openai:v0.6.2
+    expose:
+    - port: 8000
+      as: 8000
+      to:
+      - global: true
+    args:
+    - --model
+    - Qwen/Qwen2.5-1.5B-Instruct
+    - --served-model-name
+    - Qwen/Qwen3-1.7B
+    - --dtype
+    - float16
+    - --max-model-len
+    - '4096'
+    env:
+    - HUGGING_FACE_HUB_TOKEN=
+profiles:
+  compute:
+    node-g-h100:
+      resources:
+        cpu:
+          units: 8
+        memory:
+          size: 32Gi
+        storage:
+        - size: 100Gi
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              nvidia:
+              - model: h100
+  placement:
+    dcloud:
+      attributes:
+        host: akash
+      pricing:
+        node-g-h100:
+          denom: uact
+          amount: 3500000
+deployment:
+  node-g-h100:
+    dcloud:
+      profile: node-g-h100
+      count: 1

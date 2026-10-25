@@ -250,6 +250,7 @@ def test_streams_other_network_not_matched(api):
 
 
 def test_watch_list_and_unwatch(api):
+    api.delete(f"/watch/testnet/{BORROWER}")
     r = api.post(
         "/watch",
         json={

@@ -1,0 +1,49 @@
+version: '2.0'
+services:
+  node-f-rtx4000ada:
+    image: vllm/vllm-openai:v0.6.2
+    expose:
+    - port: 8000
+      as: 8000
+      to:
+      - global: true
+    args:
+    - --model
+    - Qwen/Qwen2.5-1.5B-Instruct
+    - --served-model-name
+    - Qwen/Qwen3-1.7B
+    - --dtype
+    - float16
+    - --max-model-len
+    - '4096'
+    env:
+    - HUGGING_FACE_HUB_TOKEN=
+profiles:
+  compute:
+    node-f-rtx4000ada:
+      resources:
+        cpu:
+          units: 4
+        memory:
+          size: 16Gi
+        storage:
+        - size: 50Gi
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              nvidia:
+              - model: rtx4000ada
+  placement:
+    dcloud:
+      attributes:
+        host: akash
+      pricing:
+        node-f-rtx4000ada:
+          denom: uact
+          amount: 450000
+deployment:
+  node-f-rtx4000ada:
+    dcloud:
+      profile: node-f-rtx4000ada
+      count: 1

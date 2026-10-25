@@ -10,13 +10,13 @@ services:
           - global: true
     args:
       - "--model"
+      - "Qwen/Qwen2.5-1.5B-Instruct"
+      - "--served-model-name"
       - "Qwen/Qwen3-1.7B"
       - "--dtype"
       - "float16"
       - "--max-model-len"
       - "4096"
-      - "--chat-template-kwargs"
-      - '{"enable_thinking": false}'
     env:
       - "HUGGING_FACE_HUB_TOKEN="
 

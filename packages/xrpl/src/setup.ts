@@ -6,7 +6,7 @@ import {
   type Payment,
   type OfferCreate,
 } from "xrpl";
-import type { AccountName, AccountsFile } from "@moonshift/shared";
+import type { AccountName, AccountsFile, GpuId } from "@moonshift/shared";
 import { GPUS, networkInfo, networkName, vaultPhase } from "@moonshift/shared";
 import { getClient, submitTx } from "./client.js";
 import {
@@ -453,7 +453,7 @@ export async function rotateAccount(name: AccountName): Promise<{ address: strin
 // Demo resets: seized collateral piles up with the broker and the treasury's
 // sell offer runs dry. Send the broker's shares back to the GPU treasury and
 // list whatever the treasury holds but does not have on offer, at `price`.
-export async function restockShares(gpuId: "gpu-a" | "gpu-b", price = "5.000000"): Promise<{ returned: string; listed: string }> {
+export async function restockShares(gpuId: GpuId, price = "5.000000"): Promise<{ returned: string; listed: string }> {
   const gpu = GPUS.find((g) => g.id === gpuId)!;
   const client = await getClient();
   const shareIssuer = getAccountAddress("SHARE_ISSUER");

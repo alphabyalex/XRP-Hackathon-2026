@@ -64,6 +64,51 @@
       "usd_per_gpu_hour": "14.241600",
       "source_url": "https://instances.vantage.sh/aws/ec2/p6-b200.48xlarge",
       "retrieved": "2026-10-24"
+    },
+    {
+      "gpu": "V100",
+      "instance": "p3.2xlarge",
+      "gpus_per_instance": 1,
+      "instance_usd_per_hour": "3.06",
+      "usd_per_gpu_hour": "3.060000",
+      "source_url": "https://instances.vantage.sh/aws/ec2/p3.2xlarge",
+      "retrieved": "2026-10-24"
+    },
+    {
+      "gpu": "RTX 4090",
+      "instance": "g5.2xlarge",
+      "gpus_per_instance": 1,
+      "instance_usd_per_hour": "1.212",
+      "usd_per_gpu_hour": "1.212000",
+      "source_url": "https://instances.vantage.sh/aws/ec2/g5.2xlarge",
+      "retrieved": "2026-10-24"
+    },
+    {
+      "gpu": "RTX 3090",
+      "instance": "g5.xlarge",
+      "gpus_per_instance": 1,
+      "instance_usd_per_hour": "1.006",
+      "usd_per_gpu_hour": "1.006000",
+      "source_url": "https://instances.vantage.sh/aws/ec2/g5.xlarge",
+      "retrieved": "2026-10-24"
+    },
+    {
+      "gpu": "RTX 4000 Ada",
+      "instance": "g5.xlarge",
+      "gpus_per_instance": 1,
+      "instance_usd_per_hour": "1.006",
+      "usd_per_gpu_hour": "1.006000",
+      "source_url": "https://instances.vantage.sh/aws/ec2/g5.xlarge",
+      "retrieved": "2026-10-24"
+    },
+    {
+      "gpu": "P40",
+      "instance": "g4dn.2xlarge",
+      "gpus_per_instance": 1,
+      "instance_usd_per_hour": "0.752",
+      "usd_per_gpu_hour": "0.752000",
+      "source_url": "https://instances.vantage.sh/aws/ec2/g4dn.2xlarge",
+      "retrieved": "2026-10-24"
     }
   ]
 }
