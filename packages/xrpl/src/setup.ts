@@ -7,7 +7,7 @@ import {
   type OfferCreate,
 } from "xrpl";
 import type { AccountName, AccountsFile, GpuId } from "@moonshift/shared";
-import { GPUS, networkInfo, networkName, vaultPhase } from "@moonshift/shared";
+import { GPUS, networkInfo, networkName, treasuryOf, vaultPhase } from "@moonshift/shared";
 import { getClient, submitTx } from "./client.js";
 import {
   ALL_ACCOUNT_NAMES,
@@ -101,11 +101,13 @@ export async function setupNetwork(): Promise<AccountsFile> {
   // CONTRACT_ISSUER: asfDefaultRipple
   await ensureIssuerFlags(contractIssuer, [DEFAULT_RIPPLE_FLAG], "CONTRACT_ISSUER");
 
+  // Every registry GPU has its own treasury: its shares, its revenue, its dividends.
+  const treasuries = GPUS.map((g) => treasuryOf(g.id));
+
   // Step 3: Establish trustlines
   // All non-issuers trust TDX
   const nonIssuers: AccountName[] = [
-    "TREASURY_GPU_A",
-    "TREASURY_GPU_B",
+    ...treasuries,
     "PROTOCOL_FEES",
     "LENDING_POOL",
     "ORACLE",
@@ -118,21 +120,16 @@ export async function setupNetwork(): Promise<AccountsFile> {
   // Different accounts never share a sequence, so run them in parallel.
   await Promise.all(nonIssuers.map((acct) => ensureTrustline(wallets[acct], "TDX", tdxIssuer.address, "1000000000", acct)));
 
-  // Treasuries, personas and LENDING_POOL trust GPA and GPB
-  const shareTrustees: AccountName[] = [
-    "TREASURY_GPU_A",
-    "TREASURY_GPU_B",
-    "LENDING_POOL",
-    "ALICE",
-    "BOB",
-    "CAROL",
-    "DEV",
-  ];
+  // Each treasury trusts its own GPU's shares; LENDING_POOL (collateral), CAROL (market maker bids),
+  // the personas and DEV trust every GPU's shares.
+  await Promise.all(
+    GPUS.map((g) => ensureTrustline(wallets[treasuryOf(g.id)], g.shareCode, shareIssuer.address, "1000000000", treasuryOf(g.id)))
+  );
+  const shareTrustees: AccountName[] = ["LENDING_POOL", "ALICE", "BOB", "CAROL", "DEV"];
 
   await Promise.all(
     shareTrustees.map(async (acct) => {
-      await ensureTrustline(wallets[acct], "GPA", shareIssuer.address, "1000000000", acct);
-      await ensureTrustline(wallets[acct], "GPB", shareIssuer.address, "1000000000", acct);
+      for (const g of GPUS) await ensureTrustline(wallets[acct], g.shareCode, shareIssuer.address, "1000000000", acct);
     })
   );
 
@@ -154,10 +151,9 @@ export async function setupNetwork(): Promise<AccountsFile> {
   );
 
   // Step 4: Issue tokens
-  // 1,000 GPA to TREASURY_GPU_A
-  await ensureTokenSupply(shareIssuer, wallets.TREASURY_GPU_A, "GPA", "1000", "TREASURY_GPU_A");
-  // 1,000 GPB to TREASURY_GPU_B
-  await ensureTokenSupply(shareIssuer, wallets.TREASURY_GPU_B, "GPB", "1000", "TREASURY_GPU_B");
+  // 1,000 shares of each GPU to its own treasury (GPA to TREASURY_GPU_A, ..., GPH to TREASURY_GPU_H),
+  // once: a treasury that sold shares is never topped back up (that would mint new shares and dilute holders).
+  for (const g of GPUS) await ensureSharesIssued(shareIssuer, wallets[treasuryOf(g.id)], g.shareCode, String(g.sharesTotal), treasuryOf(g.id));
 
   // 200 HRA and 200 HRB to treasuries
   await ensureTokenSupply(contractIssuer, wallets.TREASURY_GPU_A, "HRA", "200", "TREASURY_GPU_A");
@@ -179,19 +175,14 @@ export async function setupNetwork(): Promise<AccountsFile> {
   // Step 5: Initial DEX Sell Offers
   // Shares: start at 5.000000 TDX per share
   // Contracts: start at 0.250000 TDX per slot
-  await ensureInitialOffer(
-    wallets.TREASURY_GPU_A,
-    { currency: "GPA", issuer: shareIssuer.address, value: "1000" },
-    { currency: "TDX", issuer: tdxIssuer.address, value: "5000" },
-    "TREASURY_GPU_A (GPA 1000 @ 5.0 TDX)"
-  );
-
-  await ensureInitialOffer(
-    wallets.TREASURY_GPU_B,
-    { currency: "GPB", issuer: shareIssuer.address, value: "1000" },
-    { currency: "TDX", issuer: tdxIssuer.address, value: "5000" },
-    "TREASURY_GPU_B (GPB 1000 @ 5.0 TDX)"
-  );
+  for (const g of GPUS) {
+    await ensureInitialOffer(
+      wallets[treasuryOf(g.id)],
+      { currency: g.shareCode, issuer: shareIssuer.address, value: String(g.sharesTotal) },
+      { currency: "TDX", issuer: tdxIssuer.address, value: String(g.sharesTotal * 5) },
+      `${treasuryOf(g.id)} (${g.shareCode} ${g.sharesTotal} @ 5.0 TDX)`
+    );
+  }
 
   await ensureInitialOffer(
     wallets.TREASURY_GPU_A,
@@ -334,6 +325,21 @@ async function ensureTokenSupply(
   await submitTx(issuer, payment);
 }
 
+// Issue a GPU's shares to its treasury only if the issuer has never issued that code.
+async function ensureSharesIssued(issuer: Wallet, treasury: Wallet, code: string, total: string, treasuryName: string): Promise<void> {
+  const client = await getClient();
+  const res = await client.request({ command: "gateway_balances", account: issuer.address, ledger_index: "validated" });
+  const outstanding = Number((res.result.obligations as Record<string, string> | undefined)?.[code] ?? 0);
+  if (outstanding > 0) return;
+  console.log(`Issuing ${total} ${code} to ${treasuryName}...`);
+  await submitTx(issuer, {
+    TransactionType: "Payment",
+    Account: issuer.address,
+    Destination: treasury.address,
+    Amount: { currency: code, issuer: issuer.address, value: total },
+  });
+}
+
 async function ensureInitialOffer(
   treasury: Wallet,
   takerGets: { currency: string; issuer: string; value: string },
@@ -458,7 +464,7 @@ export async function restockShares(gpuId: GpuId, price = "5.000000"): Promise<{
   const client = await getClient();
   const shareIssuer = getAccountAddress("SHARE_ISSUER");
   const tdxIssuer = getAccountAddress("TDX_ISSUER");
-  const treasury = getAccountWallet(gpuId === "gpu-a" ? "TREASURY_GPU_A" : "TREASURY_GPU_B");
+  const treasury = getAccountWallet(treasuryOf(gpuId));
   const broker = getAccountWallet("LENDING_POOL");
   const balanceOf = async (address: string) => {
     const res = await client.request({ command: "account_lines", account: address, ledger_index: "validated" });

@@ -2,15 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { Wallet } from "xrpl";
 import type { ECDSA } from "xrpl";
-import { networkName, type AccountName, type AccountsFile, type NetworkName } from "@moonshift/shared";
+import { GPUS, networkName, treasuryOf, type AccountName, type AccountsFile, type NetworkName } from "@moonshift/shared";
 import dotenv from "dotenv";
 
 export const ALL_ACCOUNT_NAMES: readonly AccountName[] = [
   "TDX_ISSUER",
   "SHARE_ISSUER",
   "CONTRACT_ISSUER",
-  "TREASURY_GPU_A",
-  "TREASURY_GPU_B",
+  ...GPUS.map((g) => treasuryOf(g.id)),
   "PROTOCOL_FEES",
   "LENDING_POOL",
   "ORACLE",

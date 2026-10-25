@@ -5,7 +5,7 @@
 
 import { randomBytes } from "crypto";
 import * as realXrpl from "@moonshift/xrpl";
-import { GPUS, explorerUrl, type GpuId } from "@moonshift/shared";
+import { GPUS, explorerUrl, treasuryOf, type GpuId } from "@moonshift/shared";
 import type {
   AccountName,
   AccountsFile,
@@ -56,7 +56,7 @@ const SHARE_PRICE = "1.050000"; // flat mock price, pricing service owns the rea
 const CONTRACT_PRICE = "0.410000";
 
 function treasuryFor(gpuId: GpuId): string {
-  return gpuId === "gpu-a" ? "TREASURY_GPU_A" : "TREASURY_GPU_B";
+  return treasuryOf(gpuId);
 }
 
 function ensureGpuMaps(gpuId: GpuId) {
@@ -103,8 +103,7 @@ export async function setupNetwork(): Promise<AccountsFile> {
     "TDX_ISSUER",
     "SHARE_ISSUER",
     "CONTRACT_ISSUER",
-    "TREASURY_GPU_A",
-    "TREASURY_GPU_B",
+    ...GPUS.map((g) => treasuryOf(g.id)),
     "PROTOCOL_FEES",
     "LENDING_POOL",
     "ORACLE",

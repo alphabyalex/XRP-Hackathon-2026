@@ -1,4 +1,4 @@
-import { GPUS, type GpuId } from "@moonshift/shared";
+import { GPUS, treasuryOf, type GpuId } from "@moonshift/shared";
 import type { AccountName, Balances, Holder } from "@moonshift/shared";
 import { getClient } from "./client.js";
 import { getAccountAddress } from "./wallets.js";
@@ -44,14 +44,8 @@ export async function getHolders(gpuId: GpuId): Promise<Holder[]> {
   }
 
   const shareIssuerAddress = getAccountAddress("SHARE_ISSUER");
-  const treasuryAAddress = getAccountAddress("TREASURY_GPU_A");
-  const treasuryBAddress = getAccountAddress("TREASURY_GPU_B");
-
-  const excluded = new Set([
-    shareIssuerAddress,
-    treasuryAAddress,
-    treasuryBAddress,
-  ]);
+  // The issuer and every GPU's treasury hold shares but are not holders.
+  const excluded = new Set([shareIssuerAddress, ...GPUS.map((g) => getAccountAddress(treasuryOf(g.id)))]);
 
   const holders: Holder[] = [];
 

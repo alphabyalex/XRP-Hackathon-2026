@@ -15,6 +15,24 @@
   "TREASURY_GPU_B": {
     "address": "rEnnzc2Ev8Yq3v8Qkjj5G3PhGjUbAPDsvR"
   },
+  "TREASURY_GPU_C": {
+    "address": "r4YVaRBuXi9d9FnQ3LisA8pNN4iocZicfB"
+  },
+  "TREASURY_GPU_D": {
+    "address": "r96DZjSx2iWWTbYznFPJWMtA3eLuuEVKSz"
+  },
+  "TREASURY_GPU_E": {
+    "address": "r3V59BZC9JshL29zHWCiBnuHcziBE7wwnW"
+  },
+  "TREASURY_GPU_F": {
+    "address": "rLvKmT1joYpiCrr22a9WVr8D5eZX7yjmzP"
+  },
+  "TREASURY_GPU_G": {
+    "address": "rPMaUYLkF2cLZh33Wa2r7mthUrm4a1sa9y"
+  },
+  "TREASURY_GPU_H": {
+    "address": "r4Z1DcyAMtYYbBeL2wvA96MPNbFPeSzEyG"
+  },
   "PROTOCOL_FEES": {
     "address": "rGM67q5oNc74RpNkTU47nDEcyZ1tSBS24m"
   },

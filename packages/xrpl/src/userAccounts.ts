@@ -7,7 +7,7 @@
 // encrypted.
 
 import type { SubmittableTransaction, TrustSet, Payment, Wallet } from "xrpl";
-import { explorerUrl, type TxResult } from "@moonshift/shared";
+import { GPUS, explorerUrl, type TxResult } from "@moonshift/shared";
 import { getClient, withAccountLock } from "./client.js";
 import { getAccountWallet } from "./wallets.js";
 
@@ -75,13 +75,9 @@ export async function createUserAccount(start = STARTING_BALANCE): Promise<Creat
     Account: wallet.address,
     LimitAmount: { currency, issuer, value: TRUST_LIMIT },
   });
-  const trust = await submitMany(wallet, [
-    line("TDX", tdx.address),
-    line("GPA", shares.address),
-    line("GPB", shares.address),
-    line("HRA", contracts.address),
-    line("HRB", contracts.address),
-  ]);
+  // USDC, every GPU's shares, and the two hours tokens (GPUs added since tasks replaced slots have none).
+  const lines = [["TDX", tdx.address], ...GPUS.map((g) => [g.shareCode, shares.address]), ["HRA", contracts.address], ["HRB", contracts.address]];
+  const trust = await submitMany(wallet, lines.map(([c, i]) => line(c, i)));
   const t2 = Date.now();
 
   const pay = (issuer: Wallet, currency: string, value: string): Payment => ({
@@ -100,7 +96,7 @@ export async function createUserAccount(start = STARTING_BALANCE): Promise<Creat
     seed: wallet.seed,
     address: wallet.address,
     txs: [
-      ...trust.map((t, i) => ({ label: `trust line ${["TDX", "GPA", "GPB", "HRA", "HRB"][i]}`, hash: t.hash })),
+      ...trust.map((t, i) => ({ label: `trust line ${lines[i][0]}`, hash: t.hash })),
       { label: `${start.usdc} USDC`, hash: usdc[0].hash },
       { label: `${start.gpa} GPU-A shares`, hash: gpu[0].hash },
       { label: `${start.gpb} GPU-B shares`, hash: gpu[1].hash },

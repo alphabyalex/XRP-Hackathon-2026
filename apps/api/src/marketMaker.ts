@@ -5,7 +5,7 @@
 // NAV moves more than 1%. Real devnet offers; users trade against them, and
 // any offer a user posts inside the spread moves the midpoint.
 
-import { GPUS, fix6, type GpuId } from "@moonshift/shared";
+import { GPUS, fix6, treasuryOf, type GpuId } from "@moonshift/shared";
 import * as xrpl from "./adapters/xrplAdapter.js";
 import * as pricing from "./adapters/pricingClient.js";
 import { logTx } from "./db/helpers.js";
@@ -28,16 +28,6 @@ export async function syncOracle(gpuId: GpuId): Promise<string | null> {
 
 const BID_DISCOUNT = 0.03;
 const BID_SHARES = "100";
-const TREASURY: Record<GpuId, "TREASURY_GPU_A" | "TREASURY_GPU_B"> = {
-  "gpu-a": "TREASURY_GPU_A",
-  "gpu-b": "TREASURY_GPU_B",
-  "gpu-c": "TREASURY_GPU_B",
-  "gpu-d": "TREASURY_GPU_B",
-  "gpu-e": "TREASURY_GPU_B",
-  "gpu-f": "TREASURY_GPU_B",
-  "gpu-g": "TREASURY_GPU_B",
-  "gpu-h": "TREASURY_GPU_B",
-};
 
 let running: Promise<Record<string, unknown>> | null = null;
 
@@ -49,10 +39,10 @@ export function quoteMarket(): Promise<Record<string, unknown>> {
       try {
         const nav = Number((await pricing.getNav(g.id)).nav_per_share);
         if (!(nav > 0)) continue;
-        const held = (await xrpl.getBalances(TREASURY[g.id])).tokens[g.shareCode] ?? "0";
-        const ask = await xrpl.requoteShareOffer({ account: TREASURY[g.id], gpuId: g.id, side: "ask", price: fix6(nav), qty: held });
+        const held = (await xrpl.getBalances(treasuryOf(g.id))).tokens[g.shareCode] ?? "0";
+        const ask = await xrpl.requoteShareOffer({ account: treasuryOf(g.id), gpuId: g.id, side: "ask", price: fix6(nav), qty: held });
         const bid = await xrpl.requoteShareOffer({ account: "CAROL", gpuId: g.id, side: "bid", price: fix6(nav * (1 - BID_DISCOUNT)), qty: BID_SHARES });
-        for (const [who, r] of [[TREASURY[g.id], ask], ["CAROL", bid]] as const) {
+        for (const [who, r] of [[treasuryOf(g.id), ask], ["CAROL", bid]] as const) {
           for (const hash of r.hashes) {
             logTx({ hash, result: "tesSUCCESS", validated: true, explorerUrl: "" }, "marketMaker", who, `${who} quotes ${g.id} shares at ${r.price} USDC`);
           }

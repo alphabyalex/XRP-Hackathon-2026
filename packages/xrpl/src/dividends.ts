@@ -1,5 +1,5 @@
 import { BatchFlags, type Batch, type Payment } from "xrpl";
-import type { PayDividendsParams, TxResult } from "@moonshift/shared";
+import { treasuryOf, type PayDividendsParams, type TxResult } from "@moonshift/shared";
 import { getClient, submitTx } from "./client.js";
 import { getAccountAddress, getAccountWallet } from "./wallets.js";
 import { checkFeatures } from "./features.js";
@@ -7,7 +7,7 @@ import { checkFeatures } from "./features.js";
 const TF_INNER_BATCH_TXN = 0x40000000;
 
 export async function payDividends(p: PayDividendsParams): Promise<TxResult[]> {
-  const treasuryAccount = p.gpuId === "gpu-a" ? "TREASURY_GPU_A" : "TREASURY_GPU_B";
+  const treasuryAccount = treasuryOf(p.gpuId);
   const treasuryWallet = getAccountWallet(treasuryAccount);
   const protocolFeesAddress = getAccountAddress("PROTOCOL_FEES");
   const tdxIssuer = getAccountAddress("TDX_ISSUER");

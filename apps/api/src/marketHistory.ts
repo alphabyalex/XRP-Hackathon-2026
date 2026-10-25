@@ -3,7 +3,7 @@
 // comes from work a GPU actually served; nothing is generated (the old
 // 24-hour backfill and its startup dividends are gone).
 
-import { type GpuId } from "@moonshift/shared";
+import { treasuryOf, type GpuId } from "@moonshift/shared";
 import { db } from "./db/db.js";
 import { startSim } from "./sim.js";
 import * as xrpl from "./adapters/xrplAdapter.js";
@@ -29,16 +29,6 @@ export function historyCalendar(gpuId: GpuId, from: string, to: string) {
 
 // The GPU's treasury cash (its USDC balance on the ledger), refreshed at most once a minute.
 const treasuryCash = swr<string>("treasury cash", 60_000, 30 * 60_000);
-const TREASURY: Record<GpuId, "TREASURY_GPU_A" | "TREASURY_GPU_B"> = {
-  "gpu-a": "TREASURY_GPU_A",
-  "gpu-b": "TREASURY_GPU_B",
-  "gpu-c": "TREASURY_GPU_B",
-  "gpu-d": "TREASURY_GPU_B",
-  "gpu-e": "TREASURY_GPU_B",
-  "gpu-f": "TREASURY_GPU_B",
-  "gpu-g": "TREASURY_GPU_B",
-  "gpu-h": "TREASURY_GPU_B",
-};
 
 // Share of the last 24 hours the GPU was booked or serving inference (overlaps counted once).
 export function utilization24hPct(gpuId: GpuId, now = Date.now()): number {
@@ -73,7 +63,7 @@ export async function navInputs(gpuId: GpuId): Promise<Record<string, string>> {
   const days = paid.first ? Math.max(1, (Date.now() - new Date(paid.first).getTime()) / (24 * HOUR)) : 1;
   const [cash, market] = await Promise.all([
     treasuryCash
-      .get(gpuId, async () => (await xrpl.getBalances(TREASURY[gpuId])).tokens.TDX ?? "0")
+      .get(gpuId, async () => (await xrpl.getBalances(treasuryOf(gpuId))).tokens.TDX ?? "0")
       .catch(() => null),
     sharePrice(gpuId).catch(() => null),
   ]);
