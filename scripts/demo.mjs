@@ -120,6 +120,27 @@ function shutdown() {
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
+// One stack at a time. A stack stopped from outside (its ports killed, the terminal closed) used to leave
+// its api watcher and this script running; each restart then added another market maker quoting the same
+// books. So a new start first ends the previous stack's whole process tree, then records itself.
+const PID_FILE = path.join(ROOT, ".demo-stack.pid");
+try {
+  const prev = Number(fs.readFileSync(PID_FILE, "utf8"));
+  if (prev && prev !== process.pid) {
+    if (isWin) spawnSync("taskkill", ["/pid", String(prev), "/T", "/F"], { stdio: "ignore" });
+    else
+      try {
+        process.kill(-prev, "SIGTERM");
+      } catch {
+        process.kill(prev, "SIGTERM");
+      }
+    log("demo", `ended the previous stack (pid ${prev})`);
+  }
+} catch {
+  // no previous stack
+}
+fs.writeFileSync(PID_FILE, String(process.pid));
+
 // ---------------------------------------------------------------------------
 
 const fileEnv = loadEnv();
