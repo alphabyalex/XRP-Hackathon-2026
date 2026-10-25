@@ -69,8 +69,9 @@ export function AccountPortfolio() {
   </main>;
   return <main className="wrap account-portfolio">
     <header className="account-header">
-      <div><p className="account-eyebrow">Portfolio</p>
-        {data?<h1 className="bignum" data-testid="net-worth">{money(data.totals.totalValue)} <span>USDC</span></h1>:<div className="account-skeleton account-total" aria-label="Loading portfolio"/>}
+      {/* cash plus shares at market price, less loans: a value, not a USDC balance (that is the line below) */}
+      <div><p className="account-eyebrow">Total value</p>
+        {data?<h1 className="bignum" data-testid="net-worth">{money(data.totals.totalValue)}</h1>:<div className="account-skeleton account-total" aria-label="Loading portfolio"/>}
         {data?<div className="account-inline"><span>USDC <b>{money(data.balances.usdc)}</b></span><span>XRP <b>{money(data.balances.xrp)}</b></span><span>Earned this week <b className="account-income">+{money(data.totals.earned7d)}</b></span></div>:<div className="account-skeleton"/>}
       </div>
       {data && <div className="account-address">{data.explorerUrl?<a href={data.explorerUrl} target="_blank" rel="noreferrer">{short(data.address)} ↗</a>:short(data.address)}</div>}
