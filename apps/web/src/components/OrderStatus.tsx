@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { usdc } from "@/lib/format";
-import { cancelOrder, fmtEta, fmtTime, getOrder, orderEventsUrl, providerName, raiseCap, type Order } from "@/lib/routerApi";
+import { cancelOrder, fmtEta, fmtTime, getOrder, orderEventsUrl, raiseCap, type Order } from "@/lib/routerApi";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
 import "./router.css";
@@ -60,8 +60,9 @@ export function OrderStatus({ initial }: { initial: Order }) {
   }, [initial.orderId]);
 
   const running = order.segments.length ? order.segments.filter((s) => !s.endedAt) : [];
-  const where = (running.length ? running : order.segments.length ? order.segments : []).map((s) => `${s.label} · ${providerName(s.provider)}`);
-  const planned = (order.plan.parts ?? []).map((p) => `${p.label} · ${providerName(p.provider)}`);
+  // Tasks run on Moonshift's own GPUs, so the GPU's name is the whole answer.
+  const where = (running.length ? running : order.segments.length ? order.segments : []).map((s) => s.label);
+  const planned = (order.plan.parts ?? []).map((p) => p.label);
   const gpus = [...new Set(where.length ? where : planned)];
   const settled = order.status === "settled" || (order.status === "cancelled" && order.charged != null);
   const finished = settled || order.status === "completed" || order.status === "failed" || order.status === "cancelled";

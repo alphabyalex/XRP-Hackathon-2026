@@ -10,7 +10,6 @@ const LINKS = [
   { href: "/lend", label: "Lend" },
   { href: "/market", label: "Market" },
   { href: "/playground", label: "Developers" },
-  { href: "/#schedule", label: "How it earns" },
 ];
 
 export function Nav() {

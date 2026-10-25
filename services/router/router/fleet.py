@@ -1,6 +1,6 @@
 """The fleet: the GPUs we can actually run on, joined with the catalog and their live state.
 
-Static spec comes from config/fleet.json (or fleet.live.json). Live state per GPU: active jobs
+Static spec comes from config/fleet.json (or fleet.own.json, fleet.live.json). Live state per GPU: active jobs
 and queue (router leases), booked windows (services/compute calendar plus the router's own rental
 bookings), and availability (reclaimed, offline, stale or missing offer).
 """
@@ -18,7 +18,7 @@ from typing import Any
 import httpx
 
 from router import config as C
-from router.catalog import Availability, Offer, iso, make_offer, now_utc, parse_time
+from router.catalog import Availability, Offer, gpu_key, iso, make_offer, now_utc, parse_time
 
 log = logging.getLogger("router.fleet")
 
@@ -36,6 +36,7 @@ class FleetEntry:
     offerFound: bool = True  # noqa: N815
     instanceId: str | None = None  # noqa: N815 (EC2 instance, for interruption events)
     capacityReservationId: str | None = None  # noqa: N815 (EC2 Capacity Block / reservation)
+    benchmark: dict[str, Any] | None = None  # the market offer that sets this GPU's price
 
 
 @dataclass(frozen=True)
@@ -73,13 +74,37 @@ def _expand(s: str) -> str:
     return re.sub(r"\$\{(\w+)\}", lambda m: os.getenv(m.group(1), ""), s or "")
 
 
+FLEET_FILES = {"live": "fleet.live.json", "own": "fleet.own.json"}
+
+
+def benchmark_offer(catalog: dict[str, Offer], gpu_model: str) -> Offer | None:
+    """The cheapest guaranteed (on-demand) market offer for this GPU model, per GPU."""
+    rows = [
+        o
+        for o in catalog.values()
+        if o.provider != "moonshift"
+        and o.capacityType == "on-demand"
+        and o.availability.status != "none"
+        and o.pricePerHourUsd > 0
+        and (gpu_key(o.gpuModel) or o.gpuModel) == gpu_model
+    ]
+    return min(rows, key=lambda o: (o.pricePerHourUsd / max(o.gpuCount, 1), o.key), default=None)
+
+
 def load_entries(catalog: dict[str, Offer]) -> list[FleetEntry]:
-    path = C.CONFIG_DIR / ("fleet.live.json" if C.FLEET_SOURCE == "live" else "fleet.json")
+    path = C.CONFIG_DIR / FLEET_FILES.get(C.FLEET_SOURCE, "fleet.json")
     raw = json.loads(path.read_text())["gpus"]
     out: list[FleetEntry] = []
     for g in raw:
+        bench: dict[str, Any] | None = None
         if "moonshift" in g:
             m = g["moonshift"]
+            price = float(m["pricePerHourUsdc"])
+            if m.get("benchmark"):
+                b = benchmark_offer(catalog, m["benchmark"])
+                if b is not None:
+                    price = b.pricePerHourUsd / max(b.gpuCount, 1)
+                    bench = {"offerKey": b.key, "pricePerGpuHourUsd": round(price, 6), "asOf": b.asOf}
             offer = make_offer(
                 provider="moonshift",
                 region=m.get("region", "moonshift"),
@@ -87,7 +112,7 @@ def load_entries(catalog: dict[str, Offer]) -> list[FleetEntry]:
                 gpu_model=m["gpuModel"],
                 gpu_count=1,
                 capacity_type="moonshift",
-                price_per_hour_usd=float(m["pricePerHourUsdc"]),
+                price_per_hour_usd=price,
                 price_source="static",
                 as_of=iso(now_utc()),
                 availability=Availability("live"),
@@ -124,6 +149,7 @@ def load_entries(catalog: dict[str, Offer]) -> list[FleetEntry]:
                 offerFound=found,
                 instanceId=g.get("instanceId"),
                 capacityReservationId=g.get("capacityReservationId"),
+                benchmark=bench,
             )
         )
     return out
@@ -281,6 +307,7 @@ class FleetState:
             "moonshiftGpuId": e.moonshiftGpuId,
             "computeGpuId": e.computeGpuId,
             "endpoint": bool(e.endpoint),
+            "benchmark": e.benchmark,
             "asOf": v.asOf,
             "state": {
                 "available": v.available,

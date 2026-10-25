@@ -32,7 +32,7 @@ import * as pricing from "../adapters/pricingClient.js";
 import * as compute from "../adapters/computeClient.js";
 import { swr, timed } from "./swr.js";
 import { ServiceUnavailable } from "../adapters/serviceFetch.js";
-import { accountForWallet, type UserAccount } from "../users/accounts.js";
+import { accountForWallet, resetAccountForWallet, userForWallet, type UserAccount } from "../users/accounts.js";
 
 export class LendingError extends Error {
   constructor(
@@ -808,6 +808,23 @@ export async function walletSignIn(b: { challengeId: string; publicKey: string; 
     wallet: { address: v.address, network: v.network, verified: true, status: "verified", connectedAt: v.verifiedAt },
     account: { address: user.address, created, setupMs },
   };
+}
+
+// Operator reset (/admin/router): a fresh account for the wallet, linked to it
+// in credit, so the score has no Moonshift loan history. Refused while the
+// current account has a loan open.
+export async function resetWalletAccount(wallet: string) {
+  const prev = userForWallet(wallet);
+  if (!prev) throw new LendingError("NO_ACCOUNT", "This wallet has no Moonshift account yet.", 404);
+  const open = db
+    .prepare(`SELECT COUNT(*) AS n FROM xls_loans WHERE borrower_address = ? AND status IN ('open', 'margin_call')`)
+    .get(prev.address) as { n: number };
+  if (open.n > 0) throw new LendingError("LOAN_OPEN", "Repay the open loan before resetting this account.", 409);
+  const r = await resetAccountForWallet(wallet);
+  await walletCall("/link/wallet", { body: { borrower: r.user.address, address: wallet, network: r.user.walletNetwork } });
+  credit.invalidateProfile(CREDIT_NETWORK(), r.previous);
+  credit.invalidateProfile(CREDIT_NETWORK(), r.user.address);
+  return { wallet, previousAccount: r.previous, account: r.user.address, setupMs: r.setupMs };
 }
 
 // The signed-in wallet, its account and the wallet's newest transactions.

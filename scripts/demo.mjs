@@ -128,9 +128,9 @@ const services = [
   // Local compute in its own MOCK mode (simulated GPU) unless COMPUTE_URL
   // points at the EC2 box, in which case the api talks to that instead.
   { name: "compute", dir: "services/compute", module: "compute.main:app", port: 5000, flag: "MOCK_COMPUTE", skipIfRemote: "COMPUTE_URL", env: { MOCK: "1" } },
-  // router: order routing across GPUs and providers (Lucy). Local state, in-process queues and the mock
-  // fleet by default; settles on devnet through the api. AWS backends are switched on by env.
-  { name: "router", dir: "services/router", module: "router.main:app", port: 7200, flag: "MOCK_ROUTER", env: { FLEET_SOURCE: "mock", STATE_BACKEND: "local", QUEUE_BACKEND: "local", ORCHESTRATOR: "local", SETTLEMENT: "api", COMPUTE_URL: "http://localhost:5000" } },
+  // router: order routing (Lucy). Tasks run only on Moonshift's GPU-A and GPU-B (fleet.own.json), priced
+  // from the external market catalog; local state and in-process queues; settles on devnet through the api.
+  { name: "router", dir: "services/router", module: "router.main:app", port: 7200, flag: "MOCK_ROUTER", env: { FLEET_SOURCE: "own", STATE_BACKEND: "local", QUEUE_BACKEND: "local", ORCHESTRATOR: "local", SETTLEMENT: "api", COMPUTE_URL: "http://localhost:5000" } },
 ];
 
 const apiEnv = {

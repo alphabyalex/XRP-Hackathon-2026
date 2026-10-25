@@ -146,10 +146,19 @@ export interface FleetGpu {
   pricePerHourUsdc: string;
   interruptible: boolean;
   warningWindowSeconds: number;
+  benchmark?: { offerKey: string; pricePerGpuHourUsd: number; asOf: string } | null; // market offer that sets the price
   state: { available: boolean; reason: string | null; activeJobs: number; returnsAt: string | null };
 }
 
 export const fleet = () => apiFetch<FleetGpu[]>("/router/fleet");
+
+// Operator: a fresh Moonshift account for a wallet (clean loan history).
+export const resetAccount = (wallet: string, adminKey: string) =>
+  apiFetch<{ wallet: string; previousAccount: string; account: string; setupMs: number }>("/operator/accounts/reset", {
+    method: "POST",
+    headers: adminKey ? { "X-MS-Admin-Key": adminKey } : {},
+    body: JSON.stringify({ wallet }),
+  });
 
 export const reclaim = (id: string, adminKey: string, warningSeconds?: number) =>
   apiFetch<{ affectedOrders: string[] }>(`/router/fleet/${id}/reclaim`, {

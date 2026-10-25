@@ -46,7 +46,7 @@ DB_PATH = Path(_env("ROUTER_DB_PATH", str(SERVICE_DIR / "data" / "router.db")))
 
 # ---- Backends: every external dependency has a local / mock mode ------------------------
 
-FLEET_SOURCE = _env("FLEET_SOURCE", "mock").lower()  # mock | live
+FLEET_SOURCE = _env("FLEET_SOURCE", "mock").lower()  # mock | own | live
 STATE_BACKEND = _env("STATE_BACKEND", "local").lower()  # local (SQLite) | dynamodb
 QUEUE_BACKEND = _env("QUEUE_BACKEND", "local").lower()  # local | sqs
 ORCHESTRATOR = _env("ORCHESTRATOR", "local").lower()  # local | stepfunctions
