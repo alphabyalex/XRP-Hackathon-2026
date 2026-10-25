@@ -2,15 +2,22 @@
 
 from __future__ import annotations
 
+import os
+import time
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
-import time
 
 from fastapi import FastAPI, Header, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from .config import Settings
-from .models import BookingRequest, ChatCompletionRequest, ChatMessage, ComputeError
+from .models import (
+    BookingRequest,
+    ChatCompletionRequest,
+    ChatMessage,
+    ComputeError,
+    WorkerRegisterRequest,
+)
 from .pricing import RateClient
 from .providers import MockProvider, VllmProvider
 from .resume import install as install_resume
@@ -38,18 +45,25 @@ def _parse_query_time(val: str | datetime | None, default: datetime) -> datetime
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
     scheduler = Scheduler(settings)
-    if settings.mock:
-        providers = {
-            "gpu-a": MockProvider(settings.mock_latency_seconds),
-            "gpu-b": MockProvider(settings.mock_latency_seconds),
-        }
-    else:
-        providers = {"gpu-a": VllmProvider(settings.vllm_url, settings.request_timeout_seconds)}
-        providers["gpu-b"] = (
-            MockProvider(settings.mock_latency_seconds)
-            if settings.gpu_b_mode == "simulated"
-            else VllmProvider(settings.gpu_b_vllm_url, settings.request_timeout_seconds)
-        )
+    providers: dict[str, ModelProvider] = {}
+    for gid in scheduler.workers:
+        if settings.mock:
+            providers[gid] = MockProvider(settings.mock_latency_seconds)
+        elif gid == "gpu-a":
+            providers[gid] = VllmProvider(settings.vllm_url, settings.request_timeout_seconds)
+        elif gid == "gpu-b":
+            providers[gid] = (
+                VllmProvider(settings.gpu_b_vllm_url, settings.request_timeout_seconds)
+                if settings.gpu_b_vllm_url
+                else MockProvider(settings.mock_latency_seconds)
+            )
+        else:
+            custom_url = os.getenv(f"{gid.upper().replace('-', '_')}_VLLM_URL", "")
+            providers[gid] = (
+                VllmProvider(custom_url, settings.request_timeout_seconds)
+                if custom_url
+                else MockProvider(settings.mock_latency_seconds)
+            )
     router = ComputeRouter(
         settings=settings,
         scheduler=scheduler,
@@ -144,6 +158,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return StreamingResponse(sse_events(result), media_type="text/event-stream")
         return JSONResponse(result.body)
 
+    @app.post("/internal/workers/register")
+    async def register_worker(
+        req: WorkerRegisterRequest,
+        internal_key: str | None = Header(default=None, alias="X-MS-Internal-Key"),
+    ) -> dict[str, object]:
+        if internal_key != settings.internal_api_key:
+            raise ComputeError("UNAUTHORIZED", "A valid internal API key is required.", 401)
+        supervisor = scheduler.register_worker(
+            gpu_id=req.gpu_id,
+            model=req.model,
+            tokens_per_sec=req.tokens_per_sec,
+            simulated=req.simulated,
+        )
+        if req.gpu_id not in providers:
+            custom_url = os.getenv(f"{req.gpu_id.upper().replace('-', '_')}_VLLM_URL", "")
+            providers[req.gpu_id] = (
+                MockProvider(settings.mock_latency_seconds)
+                if settings.mock or not custom_url
+                else VllmProvider(custom_url, settings.request_timeout_seconds)
+            )
+        await supervisor.load_snapshot()
+        supervisor.monte_carlo.start()
+        return {"registered": True, "gpu_id": req.gpu_id, "status": await supervisor.status()}
+
     @app.get("/monte-carlo/status")
     async def monte_carlo_status() -> dict[str, object]:
         return {gpu_id: worker.monte_carlo.metrics() for gpu_id, worker in scheduler.workers.items()}
@@ -160,7 +198,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         switch_latency_ms = await worker.monte_carlo.preempt(f"DEMO_INSTANT_SWITCH_{gpu_id}")
 
         # Serve resident LLM inference
-        provider = providers[gpu_id]
+        provider = providers.get(gpu_id) or MockProvider(settings.mock_latency_seconds)
         inf_start = time.perf_counter()
         completion = await provider.complete(
             messages=[ChatMessage(role="user", content=prompt)],

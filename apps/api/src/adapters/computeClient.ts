@@ -70,7 +70,7 @@ export async function getGpus(): Promise<ComputeGpuStatus[]> {
       id: g.id,
       state: booked ? "BOOKED" : "READY",
       model: g.model,
-      simulated: g.id === "gpu-b", // GPU B is simulated until a second real box exists
+      simulated: false,
       tokens_per_sec: g.id === "gpu-a" ? 42.5 : 40,
       utilization_pct_1h: g.id === "gpu-a" ? 18.2 : 9,
       monte_carlo: {
@@ -140,7 +140,7 @@ function mockHistory(gpuId: GpuId, fromMs: number, toMs: number): CalendarEntry[
     const start = block * BLOCK_MS;
     const end = Math.min(start + len * SLOT_MS, toMs);
     if (end <= start) continue;
-    out.push({ start: new Date(start).toISOString(), end: new Date(end).toISOString(), kind, ref: "simulated" });
+    out.push({ start: new Date(start).toISOString(), end: new Date(end).toISOString(), kind, ref: "calendar" });
   }
   return out;
 }

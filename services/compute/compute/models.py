@@ -64,3 +64,10 @@ class UsageEvent(BaseModel):
     started_at: datetime
     finished_at: datetime
     simulated: bool
+
+
+class WorkerRegisterRequest(BaseModel):
+    gpu_id: str
+    model: str | None = None
+    tokens_per_sec: float | None = None
+    simulated: bool | None = None

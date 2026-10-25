@@ -4,6 +4,10 @@
     { "provider": "coreweave", "region": "us-east", "instanceType": "gh200-1x", "gpuModel": "GH200", "gpuCount": 1, "capacityType": "on-demand", "pricePerHourUsd": 6.50, "asOf": "2026-10-24T00:00:00Z", "source": "https://www.coreweave.com/pricing" },
     { "provider": "coreweave", "region": "us-east", "instanceType": "l40s-8x", "gpuModel": "L40S", "gpuCount": 8, "capacityType": "on-demand", "pricePerHourUsd": 18.00, "asOf": "2026-10-24T00:00:00Z", "source": "https://www.coreweave.com/pricing" },
     { "provider": "coreweave", "region": "us-east", "instanceType": "a100-8x", "gpuModel": "A100", "gpuCount": 8, "capacityType": "on-demand", "pricePerHourUsd": 21.60, "asOf": "2026-10-24T00:00:00Z", "source": "https://www.coreweave.com/pricing" },
-    { "provider": "coreweave", "region": "us-east", "instanceType": "h100-8x", "gpuModel": "H100", "gpuCount": 8, "capacityType": "on-demand", "pricePerHourUsd": 49.24, "asOf": "2026-10-24T00:00:00Z", "source": "https://www.coreweave.com/pricing" }
+    { "provider": "coreweave", "region": "us-east", "instanceType": "h100-8x", "gpuModel": "H100", "gpuCount": 8, "capacityType": "on-demand", "pricePerHourUsd": 49.24, "asOf": "2026-10-24T00:00:00Z", "source": "https://www.coreweave.com/pricing" },
+    { "provider": "akash", "region": "Decentralized Cloud", "instanceType": "1x-t4", "gpuModel": "T4", "gpuCount": 1, "capacityType": "marketplace", "pricePerHourUsd": 0.16, "asOf": "2026-10-24T00:00:00Z", "source": "https://console.akash.network" },
+    { "provider": "akash", "region": "Decentralized Cloud", "instanceType": "1x-a100-80gb", "gpuModel": "A100", "gpuCount": 1, "capacityType": "marketplace", "pricePerHourUsd": 1.15, "asOf": "2026-10-24T00:00:00Z", "source": "https://console.akash.network" },
+    { "provider": "akash", "region": "Decentralized Cloud", "instanceType": "1x-rtx4090", "gpuModel": "RTX 4090", "gpuCount": 1, "capacityType": "marketplace", "pricePerHourUsd": 0.34, "asOf": "2026-10-24T00:00:00Z", "source": "https://console.akash.network" },
+    { "provider": "akash", "region": "Decentralized Cloud", "instanceType": "1x-a10g", "gpuModel": "A10G", "gpuCount": 1, "capacityType": "marketplace", "pricePerHourUsd": 0.18, "asOf": "2026-10-24T00:00:00Z", "source": "https://console.akash.network" }
   ]
 }

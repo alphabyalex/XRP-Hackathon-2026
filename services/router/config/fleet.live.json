@@ -13,10 +13,28 @@
     {
       "id": "gpu-b1",
       "label": "GPU-B1",
-      "moonshift": { "gpuModel": "T4", "hardware": "NVIDIA T4 16GB (g4dn.xlarge)", "pricePerHourUsdc": "0.250000", "region": "us-east-2" },
+      "moonshift": { "gpuModel": "T4", "hardware": "NVIDIA T4 16GB (Akash dCloud via akt)", "pricePerHourUsdc": "0.160000", "region": "Decentralized Cloud" },
       "maxConcurrent": 1,
       "moonshiftGpuId": "gpu-b",
       "computeGpuId": "gpu-b",
+      "endpoint": "${COMPUTE_URL}"
+    },
+    {
+      "id": "gpu-c1",
+      "label": "GPU-C1",
+      "moonshift": { "gpuModel": "A100", "hardware": "NVIDIA A100 80GB (Akash dCloud)", "pricePerHourUsdc": "1.150000", "region": "Decentralized Cloud" },
+      "maxConcurrent": 2,
+      "moonshiftGpuId": "gpu-c",
+      "computeGpuId": "gpu-c",
+      "endpoint": "${COMPUTE_URL}"
+    },
+    {
+      "id": "gpu-d1",
+      "label": "GPU-D1",
+      "moonshift": { "gpuModel": "RTX 4090", "hardware": "NVIDIA RTX 4090 24GB (Akash dCloud)", "pricePerHourUsdc": "0.340000", "region": "Decentralized Cloud" },
+      "maxConcurrent": 1,
+      "moonshiftGpuId": "gpu-d",
+      "computeGpuId": "gpu-d",
       "endpoint": "${COMPUTE_URL}"
     }
   ]

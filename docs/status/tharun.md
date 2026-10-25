@@ -4,6 +4,17 @@ Updated after each phase. Newest phase first in Done.
 
 ## Done
 
+### Dynamic Compute Fleet Scaling & Multi-Node Architecture (2026-10-24)
+- **Eliminated Hardcoded 2-GPU Constraints Across Compute & Architecture**:
+  - Generalized `services/compute/compute/scheduler.py` from a fixed 2-worker dictionary to a dynamic registry supporting arbitrary worker fleets (`settings.gpu_nodes` configurable via `GPU_NODES`).
+  - Added dynamic runtime registration via `POST /internal/workers/register` allowing any compute node (Akash A100/H100, local workers, or secondary instances) to register and join the Monte Carlo and inference routing loops.
+  - Updated `services/compute/compute/main.py` with dynamic provider resolution and multi-node Monte Carlo status reporting.
+  - Generalized oracle document indexing in `packages/xrpl/src/oracle.ts` from hardcoded ternaries to `GPUS.findIndex() + 1`, supporting arbitrary numbers of GPU assets on XRPL.
+  - Expanded `services/router/config/fleet.live.json` with multi-node live fleet: GPU-A1 (AWS EC2 g4dn.xlarge), GPU-B1 (Akash dCloud T4 at $0.16/hr), GPU-C1 (Akash A100 80GB at $1.15/hr), and GPU-D1 (Akash RTX 4090 24GB at $0.34/hr).
+  - Added Akash Network as an audited provider in `services/router/config/providers.json` and added decentralized marketplace pricing to `static_prices.json` (increasing catalog offers to 35).
+  - Updated `InstantSwitchCard.tsx` on `/playground` replacing "Simulated Paths" with "Risk Paths Evaluated" to adhere to project UI guidelines.
+  - Added automated test in `services/compute/tests/test_api.py` verifying dynamic worker registration, fleet expansion, and telemetry tracking (all 18 compute tests passing, 291 monorepo tests passing total).
+
 ### Main Synchronization & Monorepo Merge (2026-10-24)
 - **Monorepo Merge & Integration**:
   - Pulled and cleanly merged `origin/main` containing updates from teammates Alex, Kristian, and Lucy: router fleet service, brokerage-style portfolio account page, Crossmark wallet session management, and 24-hour market history.

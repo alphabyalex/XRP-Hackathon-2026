@@ -474,28 +474,45 @@ class GpuSupervisor:
 
 
 class Scheduler:
-    """Container for the two GPU supervisors and their persisted calendars."""
+    """Container for dynamically scalable GPU supervisors and their persisted calendars."""
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.workers = {
-            "gpu-a": GpuSupervisor(
-                gpu_id="gpu-a",
-                model=settings.model,
-                simulated=settings.mock,
-                tokens_per_sec=settings.gpu_a_tokens_per_sec,
-                settings=settings,
-                snapshot_path=settings.state_dir / "gpu-a-calendar.json",
-            ),
-            "gpu-b": GpuSupervisor(
-                gpu_id="gpu-b",
-                model=settings.model,
-                simulated=settings.mock or settings.gpu_b_mode == "simulated",
-                tokens_per_sec=settings.gpu_b_tokens_per_sec,
-                settings=settings,
-                snapshot_path=settings.state_dir / "gpu-b-calendar.json",
-            ),
-        }
+        self.workers: dict[str, GpuSupervisor] = {}
+        for gid in settings.gpu_nodes:
+            self.register_worker(gid)
+
+    def register_worker(
+        self,
+        gpu_id: str,
+        model: str | None = None,
+        tokens_per_sec: float | None = None,
+        simulated: bool | None = None,
+    ) -> GpuSupervisor:
+        if gpu_id in self.workers:
+            return self.workers[gpu_id]
+        sim = (
+            simulated
+            if simulated is not None
+            else (
+                self.settings.mock
+                if gpu_id == "gpu-a"
+                else (self.settings.mock or self.settings.gpu_b_mode == "simulated")
+            )
+        )
+        tps = tokens_per_sec or (
+            self.settings.gpu_a_tokens_per_sec if gpu_id == "gpu-a" else self.settings.gpu_b_tokens_per_sec
+        )
+        supervisor = GpuSupervisor(
+            gpu_id=gpu_id,
+            model=model or self.settings.model,
+            simulated=sim,
+            tokens_per_sec=tps,
+            settings=self.settings,
+            snapshot_path=self.settings.state_dir / f"{gpu_id}-calendar.json",
+        )
+        self.workers[gpu_id] = supervisor
+        return supervisor
 
     async def load(self) -> None:
         await asyncio.gather(*(worker.load_snapshot() for worker in self.workers.values()))

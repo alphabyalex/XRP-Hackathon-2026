@@ -9,7 +9,7 @@ export async function publishOracle(p: PublishOracleParams): Promise<TxResult> {
   const gpu = GPUS.find((g) => g.id === p.gpuId);
   if (!gpu) throw new Error(`Unknown gpuId: ${p.gpuId}`);
 
-  const oracleDocId = p.gpuId === "gpu-a" ? 1 : 2;
+  const oracleDocId = Math.max(1, GPUS.findIndex((g) => g.id === p.gpuId) + 1);
 
   // Scale is 4 decimal places (multiply by 10,000)
   const navPrice = Math.round(Number(p.navPerShare) * 10000);
@@ -68,7 +68,7 @@ export interface OracleReading {
 export async function readOracle(gpuId: string): Promise<OracleReading | null> {
   const gpu = GPUS.find((g) => g.id === gpuId);
   if (!gpu) throw new Error(`Unknown gpuId: ${gpuId}`);
-  const documentId = gpuId === "gpu-a" ? 1 : 2;
+  const documentId = Math.max(1, GPUS.findIndex((g) => g.id === gpuId) + 1);
   const client = await getClient();
   let node: any;
   try {

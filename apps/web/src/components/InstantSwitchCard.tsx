@@ -148,7 +148,7 @@ export function InstantSwitchCard() {
         </div>
 
         <div>
-          <span style={{ fontSize: 12, color: "var(--ink3)", display: "block" }}>Simulated Paths</span>
+          <span style={{ fontSize: 12, color: "var(--ink3)", display: "block" }}>Risk Paths Evaluated</span>
           <b style={{ fontSize: 15, marginTop: 4, display: "block" }}>
             {sim?.paths_simulated ? fmt(sim.paths_simulated, 0) : "3,250,000"}
           </b>

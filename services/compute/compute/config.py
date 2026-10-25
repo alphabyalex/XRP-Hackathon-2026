@@ -60,6 +60,7 @@ class Settings:
     mock_latency_seconds: float
     state_dir: Path
     pricing_cache_seconds: int
+    gpu_nodes: tuple[str, ...] = ("gpu-a", "gpu-b")
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -97,4 +98,5 @@ class Settings:
             mock_latency_seconds=_float("MOCK_LATENCY_SECONDS", 0.05),
             state_dir=Path(os.getenv("COMPUTE_STATE_DIR", ".state")),
             pricing_cache_seconds=_int("PRICING_CACHE_SECONDS", 60),
+            gpu_nodes=tuple(x.strip() for x in os.getenv("GPU_NODES", "gpu-a,gpu-b").split(",") if x.strip()),
         )
