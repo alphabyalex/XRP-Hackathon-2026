@@ -5,13 +5,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { AgentText, CreditProfile, LoanQuoteApiResponse, PortfolioResponse, XlsLoanRecord } from "@moonshift/shared";
 import { getPortfolio } from "@/lib/api";
 import { fmt, shortHash, typedAmount, usdc } from "@/lib/format";
-import { borrowerProfile, listLoans, maxPrincipal, openFromQuote, walletGet, type ConnectedWallet, payNext, payOff, pct, quoteLoan, quoteMemo, txUrl, useApiEvents } from "@/lib/lendingApi";
+import { ApiCodeError, borrowerProfile, collateralOptions, listLoans, maxPrincipal, openFromQuote, walletGet, type CollateralOption, type ConnectedWallet, payNext, payOff, pct, quoteLoan, quoteMemo, txUrl, useApiEvents } from "@/lib/lendingApi";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
 import { HealthMeter, LoanTxs, StatusChip, TxLink } from "./LendingBits";
 import { WalletConnect } from "./WalletConnect";
 import { useWallet } from "@/lib/wallet";
 import { ConnectPrompt } from "./ConnectPrompt";
+import "./lending/lending.css";
 
 const FACTOR_TEXT: Record<string, string> = {
   accountAgeDays: "Account age (days)",
@@ -93,8 +94,7 @@ export function BorrowContent({
   initialMax,
   initialWallet,
   defaultShares,
-  gpuId,
-  gpuLabel,
+  gpuId: initialGpuId,
 }: {
   initialPortfolio: PortfolioResponse | null;
   initialProfile: CreditProfile | null;
@@ -102,10 +102,13 @@ export function BorrowContent({
   initialWallet: ConnectedWallet | null;
   defaultShares: string;
   gpuId: string;
-  gpuLabel: string;
-  sharePrice: number;
 }) {
   const [portfolio, setPortfolio] = useState(initialPortfolio);
+  // The GPU whose shares are locked. Every GPU the account holds is offered.
+  const [gpuId, setGpuId] = useState(initialGpuId);
+  const [options, setOptions] = useState<CollateralOption[] | null>(null);
+  // The api refused an amount above the limit (409 OVER_LIMIT).
+  const [refused, setRefused] = useState<string | null>(null);
   const [shares, setShares] = useState(defaultShares);
   // The borrower types the amount; the largest approved one is shown beside it.
   const [principal, setPrincipal] = useState("");
@@ -140,14 +143,34 @@ export function BorrowContent({
   // The max on screen answers this request; the server-rendered one counts.
   const maxFor = useRef(initialMax ? `${defaultShares}|${gpuId}|0` : "");
 
-  const held = Number(portfolio?.shares.find((s) => s.gpuId === gpuId)?.qty ?? 0);
+  const option = options?.find((o) => o.gpuId === gpuId);
+  const held = option?.shares ?? Number(portfolio?.shares.find((s) => s.gpuId === gpuId)?.qty ?? 0);
+  const gpuLabel = option?.label ?? gpuId.toUpperCase();
   const code = `${gpuLabel} shares`;
 
   const refresh = useCallback(async () => {
-    const [p, l] = await Promise.all([getPortfolio().catch(() => null), listLoans(true).catch(() => null)]);
+    const [p, l, o] = await Promise.all([getPortfolio().catch(() => null), listLoans(true).catch(() => null), collateralOptions().catch(() => null)]);
     if (p) setPortfolio(p);
     if (l) setLoans(l.loans);
+    if (o) setOptions(o);
   }, []);
+
+  // Start on a GPU the account actually holds.
+  useEffect(() => {
+    if (!options?.length || options.some((o) => o.gpuId === gpuId)) return;
+    setGpuId(options[0].gpuId);
+  }, [options, gpuId]);
+
+  function pickGpu(id: string) {
+    if (id === gpuId) return;
+    const h = options?.find((o) => o.gpuId === id)?.shares ?? 0;
+    setGpuId(id);
+    setMax(null);
+    setQuote(null);
+    setRefused(null);
+    // Keep the typed share count unless the new GPU has fewer.
+    if (Number(shares) > h) setShares(h > 0 ? String(Math.floor(h)) : "");
+  }
 
   // Credit profile (cached by the api). The server usually renders it already.
   useEffect(() => {
@@ -228,11 +251,16 @@ export function BorrowContent({
     };
   }, [shares, gpuId, requote]);
 
+  const maxNum = max ? Number(max.maxPrincipal) : null;
+  // Above the approved amount: no quote and no loan, only the limit.
+  const overMax = maxNum !== null && Number(principal) > maxNum;
+  useEffect(() => setRefused(null), [principal, shares, gpuId]);
+
   // Live quote once an amount is entered, debounced. Stale responses are dropped.
   useEffect(() => {
     const s = Number(shares);
     const p = Number(principal);
-    if (!(s > 0) || !(p > 0)) {
+    if (!(s > 0) || !(p > 0) || overMax) {
       ++seq.current;
       setQuote(null);
       setQuoting(false);
@@ -255,7 +283,7 @@ export function BorrowContent({
       }
     }, 450);
     return () => clearTimeout(t);
-  }, [shares, principal, gpuId, requote]);
+  }, [shares, principal, gpuId, requote, overMax]);
 
   // The credit memo arrives after the quote: show the quote now, the memo when Bedrock is done.
   useEffect(() => {
@@ -307,7 +335,7 @@ export function BorrowContent({
   });
 
   async function doOpen() {
-    if (!quote || busy) return;
+    if (!quote || busy || blocked) return;
     setBusy("open");
     try {
       const loan = await openFromQuote(quote.quoteId);
@@ -316,7 +344,10 @@ export function BorrowContent({
       setRequote((n) => n + 1); // the profile and the max change after a loan
       await refresh();
     } catch (e) {
-      toast("Borrow failed", (e as Error).message);
+      if (e instanceof ApiCodeError && e.code === "OVER_LIMIT") {
+        setRefused(e.message);
+        setRequote((n) => n + 1); // refetch the limit the api enforced
+      } else toast("Borrow failed", (e as Error).message);
     } finally {
       setBusy(null);
     }
@@ -336,7 +367,12 @@ export function BorrowContent({
     }
   }
 
-  const q = quote?.quote;
+  // A counter-offer is a smaller loan than asked: shown as the limit, never opened.
+  const limit = quote?.counterOffer ? Number(quote.counterOffer.offered) : maxNum;
+  const overLimit = overMax || !!quote?.counterOffer || !!refused;
+  const overHeld = Number(shares) > held;
+  const blocked = overLimit || overHeld;
+  const q = overLimit ? undefined : quote?.quote;
   const active = loans.filter((l) => l.status === "open" || l.status === "margin_call");
   const past = loans.filter((l) => !(l.status === "open" || l.status === "margin_call")).slice(0, 6);
   // The profile drives the card: it is refetched on every wallet change, so it
@@ -486,6 +522,30 @@ export function BorrowContent({
 
           {/* Quote and open */}
           <div className="trade card">
+            <div className="gpu-pick">
+              <span className="lbl">Collateral</span>
+              {options === null ? (
+                <p className="note">Reading your holdings...</p>
+              ) : options.length === 0 ? (
+                <p className="note">You hold no GPU shares yet. Buy shares on the Market to borrow against them.</p>
+              ) : (
+                <div className="gpu-opts" role="radiogroup" aria-label="GPU to borrow against">
+                  {options.map((o) => (
+                    <button
+                      key={o.gpuId}
+                      type="button"
+                      role="radio"
+                      aria-checked={o.gpuId === gpuId}
+                      className={o.gpuId === gpuId ? "gpu-opt on" : "gpu-opt"}
+                      onClick={() => pickGpu(o.gpuId)}
+                    >
+                      <b>{o.label}</b>
+                      <span>{fmt(o.shares, 0)} shares</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="two">
               <div>
                 <label className="lbl" htmlFor="coll">
@@ -495,7 +555,9 @@ export function BorrowContent({
                   <input id="coll" type="text" autoComplete="off" value={shares} inputMode="numeric" onChange={(e) => setShares(typedAmount(e.target.value, false))} />
                   <span>shares</span>
                 </div>
-                <span className="note">You hold {fmt(held, 0)} {code}</span>
+                <span className={overHeld ? "note dn" : "note"}>
+                  You hold {fmt(held, 0)} {code}
+                </span>
               </div>
               <div>
                 <label className="lbl" htmlFor="amt">
@@ -513,8 +575,10 @@ export function BorrowContent({
                   />
                   <span>USDC</span>
                 </div>
-                {quote?.counterOffer ? (
-                  <span className="note">Approved for {fmt(Number(quote.counterOffer.offered), 2)} USDC</span>
+                {overLimit && limit !== null ? (
+                  <span className="note dn">You can borrow up to {fmt(limit, 2)} USDC against these shares</span>
+                ) : refused ? (
+                  <span className="note dn">{refused}</span>
                 ) : max && Number(max.maxPrincipal) > 0 ? (
                   <button type="button" className="note max-hint" onClick={() => setPrincipal(String(Number(max.maxPrincipal)))}>
                     Up to {fmt(Number(max.maxPrincipal), 0)} USDC
@@ -567,15 +631,19 @@ export function BorrowContent({
                 )}
               </>
             )}
-            {quoteErr && !q && <p className="note dn">{quoteErr}</p>}
-            <Button disabled={!q || q.decision !== "approve" || !!busy || quoting} onClick={doOpen}>
+            {quoteErr && !q && !overLimit && <p className="note dn">{quoteErr}</p>}
+            <Button disabled={!q || q.decision !== "approve" || !!busy || quoting || blocked} onClick={doOpen}>
               {busy === "open"
                 ? "Opening your loan..."
-                : q?.decision === "decline"
-                  ? "Not approved"
-                  : Number(principal) > 0
-                    ? `Lock ${fmt(Number(shares) || 0, 0)} ${code}, borrow ${fmt(Number(quote?.counterOffer ? quote.principal : principal), 2)} USDC`
-                    : "Enter an amount"}
+                : overHeld
+                  ? `You hold ${fmt(held, 0)} ${code}`
+                  : overLimit
+                    ? "Above your limit"
+                    : q?.decision === "decline"
+                      ? "Not approved"
+                      : Number(principal) > 0
+                        ? `Lock ${fmt(Number(shares) || 0, 0)} ${code}, borrow ${fmt(Number(principal), 2)} USDC`
+                        : "Enter an amount"}
             </Button>
           </div>
         </div>

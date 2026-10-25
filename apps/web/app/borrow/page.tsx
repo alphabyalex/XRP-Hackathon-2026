@@ -48,8 +48,6 @@ export default async function BorrowPage() {
         initialWallet={me?.wallet ?? null}
         defaultShares={DEFAULT_SHARES}
         gpuId={gpu.id}
-        gpuLabel={gpu.id.toUpperCase()}
-        sharePrice={Number(gpu.sharePrice) || 0}
       />
     );
   } catch (_err) {

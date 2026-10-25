@@ -164,9 +164,7 @@ export function HomeContent() {
       {featured && (
         <section className="s tinted close">
           <div className="wrap">
-            <Reveal>
-              <MoneyStack revenue24h={featured.revenue24h} />
-            </Reveal>
+            <MoneyStack revenue24h={featured.revenue24h} />
           </div>
         </section>
       )}

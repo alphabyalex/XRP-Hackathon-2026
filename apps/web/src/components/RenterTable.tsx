@@ -26,8 +26,9 @@ function Others({ g }: { g: CatalogGpu }) {
   );
 }
 
-export function RenterTable() {
+export function RenterTable({ fallback }: { fallback?: React.ReactNode }) {
   const { data, error } = useCatalog();
+  if (!data && error && fallback) return <>{fallback}</>;
   if (!data) {
     return <p className="note rent-note">{error ? "GPU listings are not available right now. They will appear here as soon as the catalog answers." : "Loading GPUs"}</p>;
   }

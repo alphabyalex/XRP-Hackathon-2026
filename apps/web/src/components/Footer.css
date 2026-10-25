@@ -1,0 +1,70 @@
+/* Site footer (Lucy). Light on every page, including the ones globals.css
+   darkens with main:has(.enter) + footer: .site-footer.ft outranks it. */
+footer.site-footer.ft {
+  background: var(--bg);
+  color: var(--ink2);
+  border-top: 1px solid var(--rule);
+  padding-block: 48px 28px;
+  --mk-b: var(--ink);
+}
+.site-footer.ft .logo {
+  color: var(--ink);
+}
+.ft-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 40px;
+}
+.ft-brand p {
+  margin: 12px 0 0;
+  max-width: 300px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink2);
+}
+.ft-cols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+.ft-cols span {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.ft-cols ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 9px;
+}
+.ft-cols a {
+  font-size: 14px;
+  color: var(--ink2);
+  text-decoration: none;
+  transition: color 0.2s var(--ease);
+}
+.ft-cols a:hover {
+  color: var(--ink);
+}
+.ft-base {
+  margin-top: 40px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+  font-size: 13px;
+  color: var(--ink3);
+}
+@media (max-width: 760px) {
+  .ft-top {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+}
+@media (max-width: 420px) {
+  .ft-cols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

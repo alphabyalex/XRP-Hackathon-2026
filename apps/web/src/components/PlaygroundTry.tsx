@@ -83,7 +83,7 @@ export function PlaygroundTry({ autoplay = false }: { autoplay?: boolean }) {
     const cached = fromAuto ? readCache(q, p) : null;
     if (cached) return reveal(my, cached);
     try {
-      const res = await chatRouted(q, p);
+      const res = await chatRouted(q, p, fromAuto ? "gpu-a" : undefined);
       if (my !== runId.current) return;
       const a: Answer = {
         text: res.choices[0]?.message.content ?? "",

@@ -12,12 +12,9 @@ import { fmtEta, type Mode, type TaskType } from "@/lib/routerApi";
 
 export type TaskSize = Omit<Sizing, "model">;
 
-const TYPES: { value: TaskType; label: string }[] = [
-  { value: "inference", label: "Inference" },
-  { value: "fine-tune", label: "Fine-tune" },
-  { value: "render", label: "Render" },
-  { value: "other", label: "Other" },
-];
+// The serving endpoint runs text inference only (other types answer TASK_TYPE_UNAVAILABLE), so
+// only inference is offered here; planned types live on Docs.
+const TYPES: { value: TaskType; label: string }[] = [{ value: "inference", label: "Text inference" }];
 
 function Slider({
   id,
@@ -158,7 +155,7 @@ export function TaskDescribe({
         <span className="note" style={{ margin: 0 }}>
           {note ?? " "}
         </span>
-        <button type="button" className="btn ghost sm" disabled={!text.trim() || busy} onClick={estimate}>
+        <button type="button" className="btn ghost sm" style={{ width: "auto", flex: "none" }} disabled={!text.trim() || busy} onClick={estimate}>
           {busy ? "Sizing..." : "Size it"}
         </button>
       </div>

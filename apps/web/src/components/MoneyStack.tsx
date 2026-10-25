@@ -10,7 +10,7 @@ export function MoneyStack({ revenue24h }: { revenue24h: number }) {
   const s = splitRevenue(revenue24h);
 
   return (
-    <div className="money">
+    <div className="money" ref={ref}>
       <div data-reveal className={clsx(inView && "in")}>
         <div className="cents">
           80<small>&cent;</small>
@@ -20,7 +20,7 @@ export function MoneyStack({ revenue24h }: { revenue24h: number }) {
         </h2>
       </div>
       <div data-reveal className={clsx(inView && "in")}>
-        <div className={clsx("stack", inView && "in")} ref={ref}>
+        <div className={clsx("stack", inView && "in")}>
           <div style={{ flexGrow: 80, background: "var(--accent)" }} />
           <div style={{ flexGrow: 15, background: "var(--ink)" }} />
           <div style={{ flexGrow: 5, background: "var(--rule2)" }} />

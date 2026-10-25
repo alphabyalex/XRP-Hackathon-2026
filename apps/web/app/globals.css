@@ -2191,3 +2191,42 @@ button.cal7-cell.free {
 .trades td.dn {
   color: var(--down);
 }
+
+/* Nav menu for small screens */
+.nav-menu-btn {
+  display: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 4px;
+  color: inherit;
+  cursor: pointer;
+}
+.nav-menu {
+  display: none;
+}
+@media (max-width: 860px) {
+  .nav-menu-btn {
+    display: inline-block;
+  }
+  .nav-menu.open {
+    display: block;
+    background: var(--bg);
+    border-bottom: 1px solid var(--rule);
+  }
+  .nav-menu nav {
+    display: flex;
+    flex-direction: column;
+    padding-block: 8px 14px;
+  }
+  .nav-menu a {
+    padding: 10px 0;
+    font-size: 16px;
+  }
+}
+@media (max-width: 420px) {
+  .nav-end .nav-tab {
+    display: none;
+  }
+}

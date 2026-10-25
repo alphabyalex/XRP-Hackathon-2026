@@ -49,7 +49,14 @@ export function GpuDetailContent({ id }: { id: string }) {
   const v = gpuView(gpu, now);
   const price = Number(gpu.sharePrice) || 0;
   const ch = Number(gpu.change24hPct ?? 0);
-  const hourly = num(cat?.prices.rentalUsdPerHour);
+  // Until the catalog answers, use the api's own cost breakdown for this GPU (real hardware only).
+  const res = gpu.resources;
+  const spec = (s: string | undefined, re: RegExp) => num(re.exec(s ?? "")?.[1]);
+  const vcpu = num(cat?.vcpu) ?? spec(res?.components.cpu.spec, /(\d+)\s*vCPU/);
+  const ramGb = num(cat?.ramGb) ?? spec(res?.components.ram.spec, /(\d+)\s*GiB/);
+  const diskGb = num(cat?.storageGb) ?? spec(res?.components.storage.spec, /(\d+)\s*GB/);
+  const hourly = num(cat?.prices.rentalUsdPerHour) ?? num(res?.totalHourlyUsd);
+  const where = cat ? whereOf(cat) : res?.provider?.replace(/\s*\(.*\)$/, "") ?? null;
   const gpuHours = size ? (size.gpus * size.durationSeconds) / 3600 : 1;
 
   return (
@@ -66,7 +73,7 @@ export function GpuDetailContent({ id }: { id: string }) {
               <b style={{ fontSize: 28 }}>{v.dashLabel}</b>
               <span>
                 {cat?.card ?? gpu.hw}
-                {cat ? `, ${whereOf(cat)}` : gpu.resources?.region ? `, ${gpu.resources.region}` : ""}
+                {where ? `, ${where}` : ""}
               </span>
             </div>
           </div>
@@ -116,7 +123,7 @@ export function GpuDetailContent({ id }: { id: string }) {
             <div className="facts gpu-specs">
               <div>
                 <span>Location</span>
-                <b>{cat ? whereOf(cat) : "–"}</b>
+                <b>{where ?? "–"}</b>
               </div>
               <div>
                 <span>Card</span>
@@ -127,15 +134,15 @@ export function GpuDetailContent({ id }: { id: string }) {
               </div>
               <div>
                 <span>vCPU</span>
-                <b>{num(cat?.vcpu) ?? "–"}</b>
+                <b>{vcpu ?? "–"}</b>
               </div>
               <div>
                 <span>RAM</span>
-                <b>{num(cat?.ramGb) !== null ? `${cat?.ramGb} GB` : "–"}</b>
+                <b>{ramGb !== null ? `${ramGb} GB` : "–"}</b>
               </div>
               <div>
                 <span>Storage</span>
-                <b>{num(cat?.storageGb) !== null ? `${cat?.storageGb} GB` : "–"}</b>
+                <b>{diskGb !== null ? `${diskGb} GB` : "–"}</b>
               </div>
               <div>
                 <span>Free nodes</span>
@@ -143,7 +150,7 @@ export function GpuDetailContent({ id }: { id: string }) {
               </div>
               <div>
                 <span>Price to rent for an hour</span>
-                <b>{usdHr(cat?.prices.rentalUsdPerHour)}</b>
+                <b>{usdHr(hourly)}</b>
               </div>
             </div>
             <div className="task-grid">

@@ -17,7 +17,7 @@ interface ClusterRow {
 }
 
 // The GPU's live state from compute, in plain words.
-const STATUS: Record<string, string> = { READY: "Available", BOOKED: "Busy", DRAINING: "Busy", OFFLINE: "Not connected" };
+const STATUS: Record<string, string> = { READY: "Available", SERVING: "Available", BOOKED: "Busy", DRAINING: "Busy", OFFLINE: "Not connected" };
 
 // GET /catalog/aws (contracts/compute/aws_sse.json): live AWS rates, refreshed on the aws event.
 interface AwsRate {
