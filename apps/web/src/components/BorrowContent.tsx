@@ -44,7 +44,6 @@ import type { LinePoint } from "./charts";
 import { BorrowCharts } from "./lending/BorrowCharts";
 import { AccountHistory } from "./lending/AccountHistory";
 import { Apply } from "./lending/Apply";
-import { NetworkLine } from "./lending/NetworkLine";
 
 const FACTOR_TEXT: Record<string, string> = {
   accountAgeDays: "Account age (days)",
@@ -642,7 +641,6 @@ export function BorrowContent({
               <span className="lbl" style={{ margin: 0 }}>
                 Credit rating
               </span>
-              <NetworkLine />
             </div>
             {credit ? (
               <>

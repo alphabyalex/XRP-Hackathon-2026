@@ -45,8 +45,10 @@ export function AccountHistory({ loans }: { loans: XlsLoanRecord[] }) {
     );
 
   return (
-    <section className="bw-hist">
-      <h3 className="sub-h">Your history</h3>
+    <section className="bw-hist trade card">
+      <h3 className="sub-h" style={{ margin: 0 }}>
+        Your history
+      </h3>
       {rows.length === 0 ? (
         <p className="note">No loans yet. Your loans, payments and margin calls appear here as they land on the ledger.</p>
       ) : (

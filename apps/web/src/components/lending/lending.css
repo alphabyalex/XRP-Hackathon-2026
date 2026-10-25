@@ -331,8 +331,15 @@
   margin-top: 6px;
   font-size: 12.5px;
 }
+/* A card like "Work with Moonshift" below it, so the two line up edge to edge. */
 .bw-hist {
   margin-top: 40px;
+}
+.bw-hist > .note {
+  margin: 6px 0 0;
+}
+.bw-hist > .tbl {
+  margin-top: 16px;
 }
 .bw-hist td.dn {
   color: var(--down);
