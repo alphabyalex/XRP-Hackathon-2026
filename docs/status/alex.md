@@ -13,6 +13,10 @@ Night run, 2026-10-25. Branch `alex`. Started 04:36 ET from de6b6e8 (alex = main
 - 04:57 Market (e18df27): renter table from `GET /catalog/gpus` (location, card and VRAM, vCPU, RAM, storage, price per hour with GPU market and AWS prices under it, 24h change, free nodes, 24h utilization sparkline, "Rent a GPU"). Share table below it.
 - 04:57 GPU page (e18df27): "Run a task" (default) with specs, "Describe your task" (`POST /tasks/estimate`, sliders ease to the size), task types, model picker (`GET /models`, serving only), live hardware quote (`POST /tasks/quote`), the router checkout for the real submit, and a 7-day booking calendar (`GET /gpus/:id/calendar`, `POST /bookings`). "Buy shares" (`?view=shares`) with candles, depth, 24h stats, order book, trades with ledger links and a buy / sell ticket (`POST /market/:gpuId/order`, falls back to /shares/buy and /shares/sell while that route is missing).
 
+- 05:16 integration (early, no conflicts): merged origin/kristian (no new commits), origin/tharun (c09e6d1) and origin/lucy (6584323) into alex. Every changed file belonged to its committer. Typecheck passes in all four workspaces. xrpl tests pass. api 57 of 59 (see Blockers). Restarted demo:prod on the merged code: `/catalog/gpus`, `/catalog/aws`, `/models`, `/gpus/:id/calendar`, `/tasks/estimate`, `/tasks/quote` all answer.
+- 05:19 headless pass of every page at 1280 and 400 on the production build: no horizontal scroll, no banned words outside Docs, no em dashes. Fixed: MoneyStack never revealed, GPU page 20 px overflow at 400, hero counted the offline GPU-B, mobile nav had no way to reach the links (added a Menu).
+- 05:22 Home showcase pins `gpuId: "gpu-a"` (Tharun's new option). The task page offers text inference only (the endpoint answers TASK_TYPE_UNAVAILABLE for the others).
+
 ## Next
 
 1. 05:30 checkpoint, 05:40 integration (kristian, tharun, lucy into alex).
@@ -21,6 +25,8 @@ Night run, 2026-10-25. Branch `alex`. Started 04:36 ET from de6b6e8 (alex = main
 4. Release 07:30 to 08:20: demo:reset, demo:check, demo:prod, browser walk, fast-forward main, tag demo-safe.
 
 ## Blockers
+
+- api tests 57 of 59, both Kristian's: `GPU nodes cataloged with multi-provider attributes` (expects two READY GPUs; GPU-B is now correctly OFFLINE) and `Credit profile caches responses` (cached read took 140 ms against a 60 ms limit while the full stack was running). Note: `npm test` in apps/api runs 0 tests on Windows because the quoted glob reaches tsx literally; run `npx tsx --test tests/**/*.test.ts` from bash.
 
 - Kristian's contracts (stats, base-apr, market order, market event) were not on origin/kristian at 04:54. The GPU page reads `/gpus/:id/stats` with the shape below and falls back to `/gpus/:id` fields until it answers.
 - Tharun's routes (`/catalog/gpus`, `/catalog/aws`, `/models`, `/tasks/*`, `/bookings`, `/gpus/:id/calendar`) are contracts only so far. The UI shows loading or "not available" states until they answer.
@@ -33,6 +39,10 @@ Night run, 2026-10-25. Branch `alex`. Started 04:36 ET from de6b6e8 (alex = main
 - Tharun: services/compute/compute/resume.py sends `continue_final_message` on every stream; the Akash node (vLLM 0.6.2) answers 400, so router tasks on GPU-A fail and fall back to GPU-B. Send it only on a resume (partial text) and retry without it on a 400.
 - Lucy: the Home borrow card is your BorrowPanel. Please drive its chart from `GET /lending/base-apr` and let it move live (usePolled from `@/lib/liveData` works: `usePolled<T>("/lending/base-apr", { ms: 5000, on: ["loan"] })`).
 - Lucy: the charts in `components/charts/` are yours to use (`import { LiveLine, ... } from "@/components/charts"`).
+
+- Kristian: `/lending/markets`, `/lending/dashboard` and `/lending/loanbook` answer 404 on the merged stack, and /lend calls them (console errors on /lend). `/gpus/:id/stats` still 404 (console error on the GPU share view).
+- Lucy: /borrow calls `/loans/profile/me` and `/loans/max` while nobody is signed in and logs two 401s. Please skip those calls until the wallet is connected.
+- Kristian: scripts/demo.mjs should start local services on 127.0.0.1, not localhost (Tharun's request, macOS AirPlay on port 5000).
 
 ## Decisions
 

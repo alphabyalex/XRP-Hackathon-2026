@@ -173,7 +173,7 @@ export function TaskDescribe({
         <Slider id="sz-vcpu" label="vCPU" value={size.vcpu} shown={vcpu} animating={animating} min={1} max={maxVcpu} step={1} unit="" onChange={set("vcpu")} />
         <Slider id="sz-ram" label="RAM" value={size.ramGb} shown={ram} animating={animating} min={1} max={maxRam} step={1} unit="GB" onChange={set("ramGb")} />
         <Slider id="sz-disk" label="Storage" value={size.storageGb} shown={disk} animating={animating} min={1} max={maxDisk} step={1} unit="GB" onChange={set("storageGb")} />
-        <Slider id="sz-time" label="Run time" value={size.durationSeconds / 60} shown={mins} animating={animating} min={5} max={1440} step={5} unit="min" onChange={set("durationSeconds")} />
+        <Slider id="sz-time" label="Run time" value={size.durationSeconds / 60} shown={mins} animating={animating} min={1} max={1440} step={1} unit="min" onChange={set("durationSeconds")} />
       </div>
 
       <label className="lbl" htmlFor="task-model">
