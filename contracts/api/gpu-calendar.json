@@ -1,0 +1,24 @@
+{
+  "method": "GET",
+  "path": "/gpus/:id/calendar",
+  "request": {
+    "query": {
+      "from": "ISO timestamp",
+      "to": "ISO timestamp"
+    }
+  },
+  "responseShape": {
+    "gpuId": "gpu-a",
+    "from": "ISO timestamp",
+    "to": "ISO timestamp",
+    "calendar": [
+      {
+        "start": "ISO timestamp",
+        "end": "ISO timestamp",
+        "kind": "BOOKED or INFERENCE",
+        "ref": "record id"
+      }
+    ]
+  },
+  "note": "Shape contract, not runtime seed data. Decimal values are strings. Empty collections are returned when there is no recorded activity."
+}

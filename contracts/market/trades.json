@@ -1,0 +1,19 @@
+{
+  "method": "GET",
+  "path": "/market/:gpuId/trades?limit=50",
+  "request": {},
+  "responseShape": {
+    "gpuId": "gpu-a",
+    "trades": [
+      {
+        "id": "tx hash:gpu id",
+        "time": "ISO timestamp",
+        "side": "buy or sell (taker)",
+        "size": "decimal shares",
+        "price": "decimal USDC/share",
+        "txHash": "validated transaction hash"
+      }
+    ]
+  },
+  "note": "Shape contract, not runtime seed data. Decimal values are strings. Empty collections are returned when there is no recorded activity."
+}

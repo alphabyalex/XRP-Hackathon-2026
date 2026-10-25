@@ -1,0 +1,20 @@
+{
+  "method": "GET",
+  "path": "/gpus/:id/stats",
+  "request": {},
+  "responseShape": {
+    "gpuId": "gpu-a",
+    "asOf": "ISO timestamp",
+    "price": "decimal USDC/share",
+    "change24hPct": "decimal percent against persisted opening",
+    "navPerShare": "decimal or null",
+    "revenue24h": "decimal USDC",
+    "paidPerShare24h": "decimal USDC/share",
+    "yieldPct": "decimal percent",
+    "workingPct20h": "decimal percent",
+    "paidToHoldersLastNight": "decimal USDC",
+    "openingPrice": "decimal USDC/share",
+    "openedAt": "ISO timestamp"
+  },
+  "note": "Shape contract, not runtime seed data. Decimal values are strings. Empty collections are returned when there is no recorded activity."
+}

@@ -1,0 +1,18 @@
+{
+  "method": "GET",
+  "path": "/market/:gpuId/summary",
+  "request": {},
+  "responseShape": {
+    "gpuId": "gpu-a",
+    "asOf": "ISO timestamp",
+    "price": "decimal",
+    "volume24h": "decimal shares",
+    "volumeUsdc24h": "decimal USDC",
+    "high24h": "decimal or null",
+    "low24h": "decimal or null",
+    "marketCap": "decimal USDC",
+    "holders": "integer",
+    "freeFloat": "decimal shares"
+  },
+  "note": "Shape contract, not runtime seed data. Decimal values are strings. Empty collections are returned when there is no recorded activity."
+}

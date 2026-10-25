@@ -1,0 +1,18 @@
+{
+  "method": "POST",
+  "path": "/loans/quote or /loans/open",
+  "request": {
+    "principal": "explicit requested decimal; never reduced"
+  },
+  "responseShape": {
+    "httpStatus": 409,
+    "code": "OVER_LIMIT",
+    "maxBorrow": "decimal USDC",
+    "error": {
+      "code": "OVER_LIMIT",
+      "message": "Requested amount exceeds the available borrowing limit",
+      "maxBorrow": "decimal USDC"
+    }
+  },
+  "note": "Shape contract, not runtime seed data. Decimal values are strings. Empty collections are returned when there is no recorded activity."
+}

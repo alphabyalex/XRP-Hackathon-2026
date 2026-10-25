@@ -1,0 +1,32 @@
+{
+  "method": "GET",
+  "path": "/lending/markets",
+  "request": {},
+  "responseShape": {
+    "asOf": "ISO timestamp",
+    "markets": [
+      {
+        "id": "round number string",
+        "round": "integer",
+        "title": "generic use of funds",
+        "gpuId": "GPU id or null",
+        "gpuCount": "integer or null",
+        "powerKw": "number or null",
+        "pricePerGpuUnit": "decimal or null",
+        "useOfFunds": "string or null",
+        "size": "decimal USDC of vault assets",
+        "filled": "decimal USDC of shares issued",
+        "phase": "subscription, investment or redemption",
+        "opensAt": "ISO creation time or null",
+        "closesAt": "ISO subscription close",
+        "redemptionAt": "ISO redemption date",
+        "targetApr": "fraction or null",
+        "cover": "decimal USDC",
+        "collateral": "GPU shares and first-loss cover",
+        "vaultId": "ledger vault ID",
+        "loanBrokerId": "ledger broker ID"
+      }
+    ]
+  },
+  "note": "Shape contract, not runtime seed data. Decimal values are strings. Empty collections are returned when there is no recorded activity."
+}

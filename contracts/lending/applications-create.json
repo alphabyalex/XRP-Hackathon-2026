@@ -1,0 +1,18 @@
+{
+  "method": "POST",
+  "path": "/applications",
+  "request": {
+    "type": "request capital or list a market",
+    "name": "string",
+    "organization": "string",
+    "contact": "string",
+    "needs": "string",
+    "notes": "string"
+  },
+  "responseShape": {
+    "id": "UUID",
+    "status": "Under review",
+    "createdAt": "ISO timestamp"
+  },
+  "note": "Shape contract, not runtime seed data. Decimal values are strings. Empty collections are returned when there is no recorded activity."
+}
