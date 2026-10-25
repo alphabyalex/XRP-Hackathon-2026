@@ -57,7 +57,7 @@ def test_resume_applies_qwen_chat_template_and_continues_open_reply():
         assert body["model"] == ALIAS
         assert body["max_tokens"] == 17
         assert body["prompt"] == (
-            "<|im_start|>system\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.<|im_end|>\n"
+            "<|im_start|>system\nYou are Qwen, created by Alibaba Cloud.\nYou are a helpful assistant.<|im_end|>\n"
             "<|im_start|>user\nExplain a GPU.<|im_end|>\n<|im_start|>assistant\nA GPU runs"
         )
         assert "messages" not in body and "continue_final_message" not in body
@@ -171,7 +171,8 @@ def test_live_compute_omits_cpu_fixture_and_inference_still_works(tmp_path):
     app.state.router.providers["gpu-a"] = VllmProvider("http://worker", 5, ALIAS, httpx.MockTransport(upstream))
     app.state.router.rates = RateClient("", 30, 5, False, api_url="http://api", transport=httpx.MockTransport(
         lambda request: httpx.Response(200, json={"gpus": [{"id": "gpu-a", "status": "serving", "prices": {
-            "rentalUsdPerHour": "0.550000", "economy": {"usdPerHour": "0.550000", "updatedAt": datetime.now(UTC).isoformat()}
+            "rentalUsdPerHour": "0.200000", "rental": {"usdPerHour": "0.200000", "updatedAt": datetime.now(UTC).isoformat(),
+                "source": "Akash lease plus margin", "priceBasis": "akash_lease_plus_margin"}
         }}]})
     ))
     with TestClient(app) as client:

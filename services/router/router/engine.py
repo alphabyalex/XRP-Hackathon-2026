@@ -15,6 +15,7 @@ import hashlib
 import json
 import re
 from collections.abc import AsyncIterator
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -182,7 +183,7 @@ class ComputeEngine:
             "resume": {"text": done_text, "tokens": done_tokens},
             "checkpointEvery": C.CHECKPOINT_EVERY_TOKENS,
         }
-        async with httpx.AsyncClient(transport=self.transport, timeout=None, headers=headers) as http:
+        async with httpx.AsyncClient(transport=self.transport, timeout=httpx.Timeout(90, connect=5), headers=headers) as http:
             watcher = asyncio.create_task(self._forward_signal(http, entry, signal))
             try:
                 async with http.stream("POST", f"{entry.endpoint}/v1/resume/stream", json=body) as r:
@@ -201,13 +202,17 @@ class ComputeEngine:
                     raise RouterError(503, "UPSTREAM_ERROR", "The GPU stream ended before the request completed")
             finally:
                 watcher.cancel()
+                with suppress(asyncio.CancelledError):
+                    await watcher
 
     async def _forward_signal(self, http: httpx.AsyncClient, entry: FleetEntry, signal: Signal) -> None:
         await signal.event.wait()
-        await http.post(
+        response = await http.post(
             f"{entry.endpoint}/v1/resume/interrupt",
             json={"gpuId": entry.computeGpuId or entry.moonshiftGpuId, "reason": signal.reason, "move": signal.move},
+            timeout=5,
         )
+        response.raise_for_status()
 
 
 def engine_for(entry: FleetEntry) -> LocalEngine | ComputeEngine:

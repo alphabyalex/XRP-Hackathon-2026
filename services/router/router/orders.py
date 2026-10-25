@@ -517,8 +517,10 @@ class Orders:
             start_tokens = tokens
             interrupted: GenEvent | None = None
             unit = float(seg["unitPriceUsdc"])
+            stream = None
             try:
-                async for ev in engine_for(entry).stream(entry, messages, max_tokens, text, tokens, sig):
+                stream = engine_for(entry).stream(entry, messages, max_tokens, text, tokens, sig)
+                async for ev in stream:
                     if ev.kind == "token":
                         if self._over_cap(order, (ev.tokens - start_tokens) * unit) and not sig.event.is_set():
                             sig.fire("CAP_REACHED", True)  # checkpoint here; the token past the cap is not kept
@@ -549,10 +551,14 @@ class Orders:
                         text = ev.text or text
                         order["output"][r] = text
             finally:
-                self._unregister(entry.id, oid, part)
-                seg["served"] = float(tokens - start_tokens)
-                seg["endedAt"] = iso(now_utc())
-                self.save(order)
+                try:
+                    if stream is not None:
+                        await stream.aclose()
+                finally:
+                    self._unregister(entry.id, oid, part)
+                    seg["served"] = float(tokens - start_tokens)
+                    seg["endedAt"] = iso(now_utc())
+                    self.save(order)
             if interrupted is None:
                 self.emit(order, "progress", dict(order["progress"]))
                 return entry

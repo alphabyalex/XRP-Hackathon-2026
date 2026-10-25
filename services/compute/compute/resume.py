@@ -24,7 +24,7 @@ import logging
 import os
 import uuid
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import aclosing, asynccontextmanager, suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -36,7 +36,10 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from .models import ChatMessage, ComputeError, UsageEvent
-from .providers import MockProvider, ProviderError, VllmProvider, estimate_text_tokens
+from .providers import (
+    NODE_ATTEMPTS, RETRY_DELAY_SECONDS, MockProvider, ProviderError, VllmProvider,
+    estimate_text_tokens, node_lock, transient_upstream,
+)
 from .scheduler import Scheduler
 
 log = logging.getLogger("compute.resume")
@@ -115,45 +118,40 @@ async def mock_tokens(provider: MockProvider, req: StreamRequest, tokens_per_sec
 def continuation_prompt(messages: list[ChatMessage], partial: str, model: str) -> str:
     """Apply Qwen2.5's published text chat template, leaving the assistant turn open.
 
-    Source: Qwen/Qwen2.5-1.5B-Instruct tokenizer_config.json on Hugging Face.
+    Sources: Qwen/Qwen2.5-{1.5B,3B}-Instruct tokenizer_config.json on Hugging Face.
     Keep this explicit: applying a different model's template would silently corrupt a resume.
     Tool messages are not part of the compute API's ChatMessage contract.
     """
-    if model != "Qwen/Qwen2.5-1.5B-Instruct":
+    if model not in {"Qwen/Qwen2.5-1.5B-Instruct", "Qwen/Qwen2.5-3B-Instruct"}:
         raise ProviderError("Continuation is not configured for this model's chat template")
     prompt = ""
     if messages[0].role != "system":
-        prompt = "<|im_start|>system\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.<|im_end|>\n"
+        prompt = "<|im_start|>system\nYou are Qwen, created by Alibaba Cloud.\nYou are a helpful assistant.<|im_end|>\n"
     for message in messages:
         prompt += f"<|im_start|>{message.role}\n{message.content}<|im_end|>\n"
     return prompt + "<|im_start|>assistant\n" + partial
 
 
-# One request at a time per vLLM node (one T4 serves GPU-A): concurrent streams and the order's
-# own retry otherwise compete for the same small KV cache and fail together.
-_node_locks: dict[str, asyncio.Lock] = {}
-NODE_ATTEMPTS = 2
-
-
 async def vllm_tokens(provider: VllmProvider, req: StreamRequest, model: str) -> AsyncIterator[str]:
     """Stream from the node, serialized per node, retrying once on the same node when the
     failure came before any token was sent (a retry after a token would duplicate text)."""
-    lock = _node_locks.setdefault(provider.base_url, asyncio.Lock())
-    async with lock:
+    async with node_lock(provider.base_url):
         for attempt in range(1, NODE_ATTEMPTS + 1):
             emitted = False
             try:
-                async for piece in _vllm_once(provider, req, model):
-                    emitted = True
-                    yield piece
+                async with aclosing(_vllm_once(provider, req, model)) as source:
+                    async for piece in source:
+                        emitted = True
+                        yield piece
                 return
             except ProviderError as error:
                 cause = error.__cause__
-                detail = getattr(cause, "detail", None) or (type(cause).__name__ if cause else str(error))
+                detail = (f"HTTP {cause.response.status_code}" if isinstance(cause, httpx.HTTPStatusError)
+                          else type(cause).__name__ if cause else type(error).__name__)
                 log.warning("vllm %s attempt %d of %d failed: %s", req.gpuId, attempt, NODE_ATTEMPTS, detail)
-                if emitted or attempt == NODE_ATTEMPTS:
+                if emitted or attempt == NODE_ATTEMPTS or not transient_upstream(error):
                     raise
-                await asyncio.sleep(1.0)
+                await asyncio.sleep(RETRY_DELAY_SECONDS)
 
 
 async def _vllm_once(provider: VllmProvider, req: StreamRequest, model: str) -> AsyncIterator[str]:
@@ -178,11 +176,7 @@ async def _vllm_once(provider: VllmProvider, req: StreamRequest, model: str) -> 
     try:
         async with httpx.AsyncClient(timeout=provider.timeout_seconds, transport=provider.transport) as http:
             async with http.stream("POST", f"{provider.base_url}{path}", json=payload) as response:
-                if response.status_code >= 400:
-                    body = (await response.aread()).decode("utf-8", "replace")[:200]
-                    err = httpx.HTTPStatusError(f"HTTP {response.status_code}", request=response.request, response=response)
-                    err.detail = f"HTTP {response.status_code} {body}"  # type: ignore[attr-defined]
-                    raise err
+                response.raise_for_status()
                 async for line in response.aiter_lines():
                     if not line.startswith("data:"):
                         continue
@@ -191,20 +185,26 @@ async def _vllm_once(provider: VllmProvider, req: StreamRequest, model: str) -> 
                         finished = True
                         break
                     body = json.loads(raw)
+                    if not isinstance(body, dict):
+                        raise ProviderError("The model endpoint returned an invalid stream event")
                     if "error" in body:
                         raise ProviderError("The model endpoint reported a generation error")
                     choices = body.get("choices", [])
                     if not choices:
                         continue  # usage-only event
                     choice = choices[0]
+                    if not isinstance(choice, dict):
+                        raise ProviderError("The model endpoint returned an invalid stream choice")
                     delta = choice.get("text") if req.resume.text else choice.get("delta", {}).get("content")
                     if delta:
+                        if not isinstance(delta, str):
+                            raise ProviderError("The model endpoint returned invalid reply text")
                         emitted = True
                         yield delta
                     if choice.get("finish_reason") is not None:
                         finished = True
         if not finished or not emitted:
-            raise ProviderError("The model endpoint did not return a complete answer")
+            raise ProviderError("The model endpoint did not return a complete answer", retryable=not emitted)
     except (httpx.HTTPError, ValueError, TypeError, KeyError, IndexError) as error:
         raise ProviderError("The model endpoint could not complete the stream") from error
 
@@ -235,6 +235,7 @@ def install(app: FastAPI, scheduler: Scheduler, providers: dict[str, Any], setti
         text, n, start_n = req.resume.text, req.resume.tokens, req.resume.tokens
         started = datetime.now(UTC)
         ok = False
+        source = None
         try:
             if isinstance(provider, MockProvider):
                 source = mock_tokens(provider, req, worker.tokens_per_sec, scale)
@@ -258,9 +259,15 @@ def install(app: FastAPI, scheduler: Scheduler, providers: dict[str, Any], setti
             yield sse("done", text=text, tokens=n)
             ok = True
         finally:
-            drain.cancel()
-            hub.remove(req.gpuId, flag)
-            await worker.release(request_id, succeeded=ok)
+            try:
+                if source is not None:
+                    await source.aclose()
+            finally:
+                drain.cancel()
+                with suppress(asyncio.CancelledError):
+                    await drain
+                hub.remove(req.gpuId, flag)
+                await worker.release(request_id, succeeded=ok)
             if ok and req.reportUsage and n > start_n:
                 served = n - start_n
                 charge = (Decimal(req.chargePerToken) * served).quantize(Decimal("0.000001"))
@@ -287,13 +294,15 @@ def install(app: FastAPI, scheduler: Scheduler, providers: dict[str, Any], setti
             raise ComputeError("UPSTREAM_ERROR", "The model endpoint could not start this request.", 503) from error
 
         async def body() -> AsyncIterator[str]:
-            if first:
-                yield first
             try:
+                if first:
+                    yield first
                 async for chunk in gen:
                     yield chunk
             except ProviderError:
                 yield sse("error", reason="UPSTREAM_ERROR")
+            finally:
+                await gen.aclose()
 
         return StreamingResponse(body(), media_type="text/event-stream")
 
