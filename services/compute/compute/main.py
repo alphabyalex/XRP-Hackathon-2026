@@ -141,6 +141,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         created = await scheduler.create_booking(booking)
         return {"booking_id": created.booking_id}
 
+    @app.delete("/bookings/{booking_id}")
+    async def delete_booking(
+        booking_id: str,
+        internal_key: str | None = Header(default=None, alias="X-MS-Internal-Key"),
+    ) -> dict[str, str]:
+        if internal_key != settings.internal_api_key:
+            raise ComputeError("UNAUTHORIZED", "A valid internal API key is required.", 401)
+        cancelled = await scheduler.cancel_booking(booking_id)
+        if not cancelled:
+            raise ComputeError("NOT_FOUND", f"Booking {booking_id} not found.", 404)
+        return {"status": "cancelled", "booking_id": booking_id}
+
     @app.post("/v1/chat/completions")
     async def chat_completions(
         chat: ChatCompletionRequest,
