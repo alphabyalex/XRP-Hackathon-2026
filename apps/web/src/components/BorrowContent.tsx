@@ -576,32 +576,38 @@ export function BorrowContent({
               {active.map((l) => {
                 const h = l.health;
                 return (
-                  <div className="trade card" key={l.id}>
+                  <div className="trade card loan-card" key={l.id}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
                       <span className="lbl" style={{ margin: 0 }}>
                         {l.gpuId.toUpperCase()} loan {l.id.slice(0, 8)} · round {l.round}
                       </span>
                       <StatusChip status={l.status} />
                     </div>
-                    <div className="bignum" style={{ marginTop: 10 }}>
-                      {fmt(Number(l.ledger?.totalValueOutstanding ?? l.principal), 2)} USDC
-                    </div>
-                    {h && <HealthMeter ltv={Number(h.ltv)} marginCallLtv={Number(l.marginCallLtv)} liquidationLtv={Number(l.liquidationLtv)} />}
-                    <div className="line" style={{ marginTop: 16 }}>
-                      <span>Collateral</span>
-                      <b>
-                        {l.collateralShares} {code} at {h ? fmt(Number(h.collateralPrice), 2) : "..."} USDC
-                      </b>
-                    </div>
-                    <div className="line">
-                      <span>APR</span>
-                      <b>{pct(l.apr, 2)}</b>
-                    </div>
-                    <div className="line">
-                      <span>Next payment</span>
-                      <b>
-                        {fmt(Number(l.ledger?.periodicPayment ?? 0), 2)} USDC in {until(l.ledger?.nextPaymentDueDate, now)}
-                      </b>
+                    <div className="loan-body">
+                      <div>
+                        <div className="bignum" style={{ marginTop: 10 }}>
+                          {fmt(Number(l.ledger?.totalValueOutstanding ?? l.principal), 2)} USDC
+                        </div>
+                        {h && <HealthMeter ltv={Number(h.ltv)} marginCallLtv={Number(l.marginCallLtv)} liquidationLtv={Number(l.liquidationLtv)} />}
+                      </div>
+                      <div>
+                        <div className="line" style={{ marginTop: 16 }}>
+                          <span>Collateral</span>
+                          <b>
+                            {l.collateralShares} {code} at {h ? fmt(Number(h.collateralPrice), 2) : "..."} USDC
+                          </b>
+                        </div>
+                        <div className="line">
+                          <span>APR</span>
+                          <b>{pct(l.apr, 2)}</b>
+                        </div>
+                        <div className="line">
+                          <span>Next payment</span>
+                          <b>
+                            {fmt(Number(l.ledger?.periodicPayment ?? 0), 2)} USDC in {until(l.ledger?.nextPaymentDueDate, now)}
+                          </b>
+                        </div>
+                      </div>
                     </div>
                     {alerts[l.id] && l.status === "margin_call" && <p className="note dn">{alerts[l.id]}</p>}
                     <LoanTxs loan={l} />

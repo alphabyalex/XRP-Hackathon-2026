@@ -426,6 +426,10 @@ section.s,
 main.s {
   padding-block: clamp(104px, 12vw, 160px);
 }
+/* a page's first section starts right under the nav */
+main.s {
+  padding-top: clamp(32px, 4vw, 56px);
+}
 .tinted {
   position: relative;
   isolation: isolate;
@@ -1441,8 +1445,20 @@ footer .wrap {
 }
 .loans {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
+}
+/* an open loan spans the panel area: balance and health left, terms right */
+.loan-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px 48px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .loan-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .score {
   display: flex;
@@ -1728,4 +1744,13 @@ a.txl:hover {
   margin: 18px 0 0;
   font-size: 13px;
   color: var(--ink3);
+}
+
+/* Market: GPU rental prices, a compact comparison table */
+.gpu-rent th {
+  padding: 10px 16px 8px;
+}
+.gpu-rent td {
+  padding: 11px 16px;
+  font-size: 14px;
 }
