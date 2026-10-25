@@ -46,7 +46,7 @@ export function BorrowCharts({
       <div className="bw-charts one">
         <div className="trade card">
           <span className="lbl">{gpuLabel} share price, last hours</span>
-          <LiveLine key={`px${prices.length}`} points={prices} unit="USDC" height={130} label="Share price" format={(v) => fmt(v, 2)} empty="Waiting for price history" />
+          <LiveLine points={prices} unit="USDC" height={130} label="Share price" format={(v) => fmt(v, 2)} empty="Waiting for price history" />
           <p className="note">Enter an amount to see LTV at these prices, the payment schedule and dividend coverage.</p>
         </div>
       </div>
@@ -58,7 +58,7 @@ export function BorrowCharts({
       <div className="trade card">
         <span className="lbl">LTV at the GPU&apos;s share price, last hours</span>
         <LiveLine
-          key={`ltv${ltv.length}`}
+         
           points={ltv}
           unit="%"
           height={150}
@@ -75,7 +75,7 @@ export function BorrowCharts({
       </div>
       <div className="trade card">
         <span className="lbl">Payment schedule</span>
-        <LiveBars key={`pay${bars.length}`} bars={bars} unit="USDC" height={150} label="Payment schedule" format={(v) => fmt(v, 2)} empty="Enter an amount to see it" />
+        <LiveBars bars={bars} unit="USDC" height={150} label="Payment schedule" format={(v) => fmt(v, 2)} empty="Enter an amount to see it" />
         {bars.length > 0 && (
           <p className="note">
             {bars.length} payments of {fmt(bars[0].v, 2)} USDC, {fmt(total, 2)} USDC in all.
@@ -85,7 +85,7 @@ export function BorrowCharts({
       <div className="trade card">
         <span className="lbl">Dividend coverage, live</span>
         <LiveLine
-          key={`cov${coverage.length}`}
+         
           points={coverage}
           unit="x"
           height={150}

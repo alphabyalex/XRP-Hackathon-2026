@@ -3,7 +3,7 @@
 // borrower asking for access to capital; "market" is a GPU operator asking
 // for a vault to fund their GPUs.
 import { useState } from "react";
-import { submitApplication, type ApplicationKind } from "@/lib/lendingApi";
+import { LENDING_ROUTES_LIVE, submitApplication, type ApplicationKind } from "@/lib/lendingApi";
 import { Segmented } from "../Segmented";
 import { Button } from "../Button";
 
@@ -104,8 +104,16 @@ export function Apply() {
             <textarea className="field" rows={3} placeholder={c.placeholder} value={f.details} onChange={(e) => setF({ ...f, details: e.target.value })} />
           </label>
           <div className="wide bw-apply-foot">
-            {err ? <span className="note dn">{err}</span> : <span className="note">An analyst replies by email.</span>}
-            <Button type="submit" disabled={!ok || busy}>{busy ? "Sending..." : kind === "capital" ? "Request access" : "Submit market"}</Button>
+            {!LENDING_ROUTES_LIVE ? (
+              <span className="note">Requests open shortly.</span>
+            ) : err ? (
+              <span className="note dn">{err}</span>
+            ) : (
+              <span className="note">An analyst replies by email.</span>
+            )}
+            <Button type="submit" disabled={!ok || busy || !LENDING_ROUTES_LIVE}>
+              {busy ? "Sending..." : kind === "capital" ? "Request access" : "Submit market"}
+            </Button>
           </div>
         </form>
       )}

@@ -296,7 +296,8 @@ export function BorrowContent({
 
   // Credit profile (cached by the api). The server usually renders it already.
   useEffect(() => {
-    if (initialProfile && requote === 0) return;
+    // Signed out there is no profile to read (the api answers 401).
+    if (!walletKey || (initialProfile && requote === 0)) return;
     let alive = true;
     // A new wallet's first score can take a few seconds: retry rather than give up.
     (async () => {
@@ -313,7 +314,7 @@ export function BorrowContent({
     return () => {
       alive = false;
     };
-  }, [initialProfile, requote]);
+  }, [initialProfile, requote, walletKey]);
 
   // The connected wallet's newest transactions (the feed then grows live).
   useEffect(() => {
@@ -392,7 +393,7 @@ export function BorrowContent({
   // Largest approved amount for the shares entered, shown under the amount field.
   useEffect(() => {
     const s = Number(shares);
-    if (!(s > 0)) return setMax(null);
+    if (!walletKey || !(s > 0)) return setMax(null);
     const key = `${s}|${gpuId}|${requote}`;
     if (key === maxFor.current) return;
     let alive = true;
@@ -409,7 +410,7 @@ export function BorrowContent({
       alive = false;
       clearTimeout(t);
     };
-  }, [shares, gpuId, requote]);
+  }, [shares, gpuId, requote, walletKey]);
 
   const maxNum = max ? Number(max.maxPrincipal) : null;
   // Above the approved amount: no quote and no loan, only the limit.

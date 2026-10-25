@@ -69,8 +69,6 @@ function Tween({ v, d = 2, suffix = "" }: { v: number | null; d?: number; suffix
   );
 }
 
-// key={length} on each chart: useTween (charts/theme.ts) answers one render
-// late when the number of points grows, which draws NaN; a remount avoids it.
 export function Dashboard({
   totals,
   outstandingSeries,
@@ -120,19 +118,19 @@ export function Dashboard({
       <div className="dash-charts">
         <div className="trade card">
           <span className="lbl">Outstanding</span>
-          <LiveLine key={outstandingSeries.length} points={outstandingSeries} unit="USDC" height={170} label="Outstanding over time" empty="Collecting live points" />
+          <LiveLine points={outstandingSeries} unit="USDC" height={170} label="Outstanding over time" empty="Collecting live points" />
         </div>
         <div className="trade card">
           <span className="lbl">Utilization</span>
-          <LiveLine key={utilizationSeries.length} points={utilizationSeries} unit="%" height={170} label="Utilization over time" empty="Collecting live points" />
+          <LiveLine points={utilizationSeries} unit="%" height={170} label="Utilization over time" empty="Collecting live points" />
         </div>
         <div className="trade card">
           <span className="lbl">APR of each loan at origination</span>
-          <LiveLine key={aprPoints.length} points={aprPoints} unit="%" height={170} area={false} label="APR over time" empty="No loans yet" />
+          <LiveLine points={aprPoints} unit="%" height={170} area={false} label="APR over time" empty="No loans yet" />
         </div>
         <div className="trade card">
           <span className="lbl">Principal originated per hour</span>
-          <LiveBars key={bars.length} bars={bars} unit="USDC" height={170} label="Originations" empty="No loans yet" />
+          <LiveBars bars={bars} unit="USDC" height={170} label="Originations" empty="No loans yet" />
         </div>
       </div>
 

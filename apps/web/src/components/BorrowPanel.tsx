@@ -68,7 +68,7 @@ export function BorrowPanel({ gpuId, gpuLabel, sharePrice }: { gpuId: string; gp
       <div className="bignum" style={{ marginTop: 6 }}>
         {apr !== null ? `${fmt(apr, 2)}%` : "..."}
       </div>
-      <LiveLine key={series.length} points={series} unit="%" height={120} area={false} label="Borrow APR" format={(v) => fmt(v, 2)} empty="Waiting for the first loan" />
+      <LiveLine points={series} unit="%" height={120} area={false} label="Borrow APR" format={(v) => fmt(v, 2)} empty="Waiting for the first loan" />
       <label className="lbl" htmlFor="home-coll" style={{ marginTop: 14 }}>
         Shares to lock
       </label>

@@ -87,12 +87,14 @@ export async function collateralOptions(): Promise<CollateralOption[]> {
         shares: Number(r.shares ?? r.qty ?? r.held ?? r.available ?? 0),
       }))
       .filter((o) => o.gpuId && o.shares > 0);
-  try {
-    const r = await apiFetch<any>("/loans/collateral-options");
-    const rows = Array.isArray(r) ? r : (r?.options ?? r?.gpus ?? []);
-    if (Array.isArray(rows)) return norm(rows);
-  } catch {
-    // not deployed yet: fall through to the portfolio
+  if (LENDING_ROUTES_LIVE) {
+    try {
+      const r = await apiFetch<any>("/loans/collateral-options");
+      const rows = Array.isArray(r) ? r : (r?.options ?? r?.gpus ?? []);
+      if (Array.isArray(rows)) return norm(rows);
+    } catch {
+      // fall through to the portfolio
+    }
   }
   const p = await getPortfolio();
   return norm(p.shares);
@@ -149,9 +151,15 @@ export function useApiEvents(types: string[], onEvent: (type: string, data: any)
 // are deployed, each returns null and the page reads /vault and /loans instead.
 // ---------------------------------------------------------------------------
 
+// Kristian's lending routes (collateral-options, /lending/*). Off until they are
+// deployed: a call to a missing route is a console 404 on every page view.
+// While off, the pages read /vault, /loans and /portfolio/me instead.
+export const LENDING_ROUTES_LIVE = false;
+
 // A route that is not deployed yet answers 404 once; it is asked again a minute later.
 const missing = new Map<string, number>();
 async function optional<T>(path: string): Promise<T | null> {
+  if (!LENDING_ROUTES_LIVE) return null;
   const since = missing.get(path);
   if (since && Date.now() - since < 60_000) return null;
   try {
