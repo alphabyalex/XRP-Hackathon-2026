@@ -6,6 +6,7 @@ import * as pricing from "../adapters/pricingClient.js";
 import { db } from "../db/db.js";
 import { historyCalendar } from "../marketHistory.js";
 import { change24hPct, priceHistory, sharePrice } from "../sharePrice.js";
+import { gpuHealth, isListed, listedGpus } from "../gpuHealth.js";
 
 export const gpusRouter = Router();
 
@@ -66,9 +67,13 @@ gpusRouter.post("/monte-carlo/switch-demo", async (req, res) => {
   }
 });
 
+// Per GPU: real hardware (endpoint up, model it serves), the mock worker, or hidden. No endpoint URLs.
+gpusRouter.get("/gpus-health", (_req, res) => res.json(gpuHealth()));
+
 gpusRouter.get("/gpus", async (_req, res) => {
   try {
-    const summaries = await Promise.all(GPUS.map((g) => buildSummary(g.id)));
+    // Only GPUs whose endpoint passed its health check, plus the mock GPU (gpuHealth.ts).
+    const summaries = await Promise.all(listedGpus().map((g) => buildSummary(g.id)));
     res.json(summaries);
   } catch (err) {
     res.status(500).json({ error: { code: "INTERNAL", message: (err as Error).message } });
@@ -78,8 +83,8 @@ gpusRouter.get("/gpus", async (_req, res) => {
 gpusRouter.get("/gpus/:id", async (req, res) => {
   const gpuId = req.params.id as GpuId;
   const gpu = GPUS.find((g) => g.id === gpuId);
-  if (!gpu) {
-    res.status(404).json({ error: { code: "NOT_FOUND", message: "unknown gpuId" } });
+  if (!gpu || !isListed(gpuId)) {
+    res.status(404).json({ error: { code: "NOT_FOUND", message: gpu ? "GPU not online" : "unknown gpuId" } });
     return;
   }
   try {

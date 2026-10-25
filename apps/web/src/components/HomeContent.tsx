@@ -68,7 +68,7 @@ export function HomeContent() {
                 <b>{fmt(avgUtil, 1)}%</b>of the last 20 hours working
               </div>
               <div>
-                <b>{GPUS.length}</b>GPUs live on the XRPL
+                <b>{views.length}</b>GPUs live on the XRPL
               </div>
             </div>
           </div>

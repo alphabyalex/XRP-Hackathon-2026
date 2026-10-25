@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { GPUS } from "@moonshift/shared";
+import { listedGpus } from "../gpuHealth.js";
 import * as xrpl from "../adapters/xrplAdapter.js";
 import { db } from "../db/db.js";
 import { asActor } from "../middleware/session.js";
@@ -10,10 +10,10 @@ portfolioRouter.get("/portfolio/:account", asActor("params", "account"), async (
   const account = req.params.account;
   try {
     const balances = await xrpl.getBalances(account as any);
-    const shares = GPUS.map((g) => ({ gpuId: g.id, qty: balances.tokens[g.shareCode] ?? "0" })).filter(
+    const shares = listedGpus().map((g) => ({ gpuId: g.id, qty: balances.tokens[g.shareCode] ?? "0" })).filter(
       (s) => Number(s.qty) > 0
     );
-    const contracts = GPUS.map((g) => ({ gpuId: g.id, qty: balances.tokens[g.contractCode] ?? "0" })).filter(
+    const contracts = listedGpus().map((g) => ({ gpuId: g.id, qty: balances.tokens[g.contractCode] ?? "0" })).filter(
       (c) => Number(c.qty) > 0
     );
     const payoutRow = db

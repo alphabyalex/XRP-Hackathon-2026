@@ -53,3 +53,14 @@ def test_listed_price_when_the_market_has_no_offer(monkeypatch):
     monkeypatch.setattr(C, "FLEET_SOURCE", "own")
     entries = load_entries(catalog())
     assert all(e.offer.pricePerHourUsd == 0.526 and e.benchmark is None for e in entries)
+
+
+def test_gpus_apps_api_does_not_list_are_not_offered(monkeypatch):
+    from router.fleet import FleetState
+
+    monkeypatch.setattr(C, "FLEET_SOURCE", "own")
+    entries = load_entries(catalog(offer("aws", "g4dn.xlarge", "on-demand", 0.526)))
+    state = FleetState(unlisted={"gpu-a"})
+    views = {e.id: state.view(e, now_utc()) for e in entries}
+    assert views["gpu-a"].available is False and views["gpu-a"].reason == "NOT_LISTED"
+    assert views["gpu-b"].available is True

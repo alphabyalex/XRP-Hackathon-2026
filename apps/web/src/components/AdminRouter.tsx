@@ -4,7 +4,7 @@ import { Button } from "./Button";
 import { useToast } from "./Toast";
 import { StressControls } from "./LendingBits";
 import { InstantSwitchCard } from "./InstantSwitchCard";
-import { GPUS } from "@moonshift/shared";
+import { apiFetch } from "@/lib/api";
 import { fmt } from "@/lib/format";
 import {
   catalog,
@@ -38,11 +38,21 @@ function benchmarkLabel(g: FleetGpu): string {
   return `${providerName(prov)} ${instance} ${capacity}, ${region}`;
 }
 
+interface GpuHealthRow {
+  gpuId: string;
+  kind: "real" | "mock" | "hidden";
+  ok: boolean;
+  model: string | null;
+  latencyMs: number | null;
+  error: string | null;
+}
+
 // Operator view: live prices across providers, the fleet with a reclaim control, recent orders.
 export function AdminRouter() {
   const [offers, setOffers] = useState<CatalogOffer[]>([]);
   const [gpus, setGpus] = useState<FleetGpu[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [health, setHealth] = useState<GpuHealthRow[]>([]);
   const [why, setWhy] = useState<string | null>(null);
   const [adminKey, setAdminKey] = useState("");
   const [resetWallet, setResetWallet] = useState("");
@@ -53,6 +63,7 @@ export function AdminRouter() {
     catalog().then((c) => setOffers(c.offers)).catch(() => undefined);
     fleet().then(setGpus).catch(() => undefined);
     listOrders().then((o) => setOrders(o.orders)).catch(() => undefined);
+    apiFetch<GpuHealthRow[]>("/gpus-health").then(setHealth).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -113,6 +124,33 @@ export function AdminRouter() {
             style={{ fontSize: 15 }}
             aria-label="Admin key"
           />
+        </div>
+
+        <h3>GPUs</h3>
+        <p className="why">Listed: an endpoint that answers its health check, or the mock worker. Hidden GPUs appear once their endpoint is set and healthy.</p>
+        <div className="tbl">
+        <table>
+          <thead>
+            <tr>
+              <th>GPU</th>
+              <th>Serving</th>
+              <th>Model</th>
+              <th>Health check</th>
+              <th>Last error</th>
+            </tr>
+          </thead>
+          <tbody>
+            {health.map((h) => (
+              <tr key={h.gpuId}>
+                <td className="l">{h.gpuId.toUpperCase()}</td>
+                <td className="l">{h.kind === "real" ? "Real hardware" : h.kind === "mock" ? "Mock worker" : "Hidden (no healthy endpoint)"}</td>
+                <td className="l">{h.model ?? ""}</td>
+                <td>{h.latencyMs !== null ? `${h.latencyMs} ms` : ""}</td>
+                <td className="l">{h.error ?? ""}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
         </div>
 
         <h3>Fleet</h3>
@@ -211,7 +249,7 @@ export function AdminRouter() {
 
         <h3>Loan stress test</h3>
         <p className="why">Moves a GPU&apos;s collateral price so open loans hit a margin call or liquidation. Restore puts the market price back.</p>
-        {GPUS.map((g) => (
+        {health.filter((h) => h.ok).map((g) => ({ id: g.gpuId })).map((g) => (
           <div key={g.id} className="trade card" style={{ marginBottom: 16 }}>
             <StressControls gpuId={g.id} label={g.id.toUpperCase()} />
           </div>

@@ -322,8 +322,8 @@ LEVELS: dict[Mode, str] = {"cheapest": "Pausable", "balanced": "Guaranteed", "fa
 def service_fleet(views: Sequence[GpuView], order: OrderSpec) -> list[GpuView] | None:
     """The candidate pool when it is all Moonshift GPUs with a market spot benchmark, else None."""
     pool = candidates(views, order)
-    executable = [v for v in views if v.executable]
-    if not executable or any(v.provider != "moonshift" or v.spotUsdcPerHour <= 0 for v in executable):
+    live = [v for v in views if v.executable and v.available]
+    if not live or any(v.provider != "moonshift" or v.spotUsdcPerHour <= 0 for v in live):
         return None
     return pool
 

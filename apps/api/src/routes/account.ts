@@ -9,6 +9,7 @@ import { db } from "../db/db.js";
 import { buildReturns } from "../marketData/returns.js";
 import { change24hPct, sharePrice } from "../sharePrice.js";
 import { historyCalendar } from "../marketHistory.js";
+import { listedGpus } from "../gpuHealth.js";
 
 import { asActor } from "../middleware/session.js";
 export const accountRouter = Router();
@@ -47,7 +48,7 @@ export async function buildAccount(input: string): Promise<AccountResponse> {
   const since = (days: number) => new Date(now - days * 86400000).toISOString();
   const [balances, records, gpuData] = await Promise.all([
     xrpl.getBalances(account), svc.listLoans(account),
-    Promise.all(GPUS.map(async gpu => {
+    Promise.all(listedGpus().map(async gpu => {
       const [nav, oracle, history, calendar] = await Promise.all([
         pricing.getNav(gpu.id), sharePrice(gpu.id), compute.getRevenueHistory(gpu.id, 168),
         compute.getCalendar(gpu.id, since(1), new Date(now).toISOString()),

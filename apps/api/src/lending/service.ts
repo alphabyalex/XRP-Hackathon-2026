@@ -26,6 +26,7 @@ import { db } from "../db/db.js";
 import { logTx } from "../db/helpers.js";
 import { broadcast } from "../sse.js";
 import * as lending from "../adapters/lendingAdapter.js";
+import { isListed } from "../gpuHealth.js";
 import * as credit from "../adapters/creditClient.js";
 import * as risk from "../adapters/riskClient.js";
 import * as pricing from "../adapters/pricingClient.js";
@@ -135,6 +136,7 @@ async function riskInputs(gpuId: GpuId, address: string, name: AccountName | und
 export async function buildQuote(req: LoanQuoteApiRequest): Promise<LoanQuoteApiResponse> {
   const gpu = GPUS.find((g) => g.id === req.gpuId);
   if (!gpu) throw new LendingError("BAD_REQUEST", `unknown gpuId ${req.gpuId}`);
+  if (!isListed(gpu.id)) throw new LendingError("GPU_NOT_LISTED", "This GPU is not online yet.", 409);
   // principal "max": quote the largest amount risk approves (what /borrow opens on).
   if (req.principal === "max" && Number(req.collateralShares) > 0) {
     const { maxPrincipal } = await timed("max", maxApprovedPrincipal(req));
