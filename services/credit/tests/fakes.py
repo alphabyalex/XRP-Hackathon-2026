@@ -81,6 +81,8 @@ class FakeLedger:
     accounts: dict[str, dict[str, Any]] = field(default_factory=dict)  # address -> account_info AccountData
     lines: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     txs: dict[str, list[dict[str, Any]]] = field(default_factory=dict)  # newest first
+    objects: dict[str, list[dict[str, Any]]] = field(default_factory=dict)  # account_objects entries
+    offers: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     page_size: int = 2
     rate_limit_first: int = 0  # answer this many requests with HTTP 429 first
     ledger_index: int = 1000
@@ -106,6 +108,10 @@ class FakeLedger:
             return {"account_data": self.accounts[acct], "ledger_index": self.ledger_index, "validated": True}
         if method == "account_lines":
             return {"account": acct, "lines": self.lines.get(acct, [])}
+        if method == "account_objects":
+            return {"account": acct, "account_objects": self.objects.get(acct, [])}
+        if method == "account_offers":
+            return {"account": acct, "offers": self.offers.get(acct, [])}
         if method == "account_tx":
             items = list(self.txs.get(acct, []))
             if p.get("forward"):

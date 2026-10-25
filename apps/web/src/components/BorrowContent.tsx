@@ -69,6 +69,18 @@ function changeText(c: FactorChange) {
   return c.delta !== 0 ? `${label} ${c.delta > 0 ? "+" : ""}${c.delta} (${move})` : `${label} ${move}`;
 }
 
+// Open loans, locked collateral and DEX offers (account_objects, account_offers via Quicknode).
+function obligationText(c: unknown) {
+  const o = (c as { history?: { obligations?: Record<string, number> | null } }).history?.obligations;
+  if (!o) return null;
+  const parts = [
+    o.loans ? `${o.loans} open loan${o.loans > 1 ? "s" : ""}` : "",
+    o.escrows ? `${o.escrows} locked collateral` : "",
+    o.offers ? `${o.offers} open offer${o.offers > 1 ? "s" : ""}` : "",
+  ].filter(Boolean);
+  return parts.length ? parts.join(", ") : "no open obligations";
+}
+
 function activityText(a: Activity) {
   if (a.type !== "Payment") return a.type;
   return a.direction === "out" ? "Sent" : "Received";
@@ -547,6 +559,7 @@ export function BorrowContent({
                           <b>{c.part}</b>
                           <span>
                             {shortHash(c.address)}
+                            {obligationText(c) && ` · ${obligationText(c)}`}
                           </span>
                           {/* the wallet row above already says it for a connected wallet */}
                           {c.ownership && !c.ownership.verified && !wallet && <span className="unverified">Ownership not verified</span>}

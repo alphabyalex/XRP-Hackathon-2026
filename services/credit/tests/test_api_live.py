@@ -58,3 +58,20 @@ def test_missing_account_is_404(fake):
 def test_mainnet_profiles_are_read_only(fake):
     fake.accounts[MISSING] = {"Account": MISSING, "Balance": "1"}
     assert client.get(f"/profile/mainnet/{MISSING}").json()["readOnly"] is True
+
+
+def test_obligations_from_account_objects_and_offers(fake):
+    fake.objects[BORROWER] = [
+        {"LedgerEntryType": "Escrow"},
+        {"LedgerEntryType": "Escrow"},
+        {"LedgerEntryType": "Loan"},
+        {"LedgerEntryType": "RippleState"},
+    ]
+    fake.offers[BORROWER] = [{"seq": 7}]
+    owed = client.get(f"/profile/testnet/{BORROWER}").json()["history"]["obligations"]
+    assert owed["escrows"] == 2
+    assert owed["loans"] == 1
+    assert owed["offers"] == 1
+    assert owed["ownerCount"] == 4
+    methods = {r["method"] for r in fake.requests}
+    assert {"account_objects", "account_offers"} <= methods

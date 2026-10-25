@@ -80,6 +80,53 @@ applicant and keep watching them after the loan is made.
 Every profile says `source: "quicknode"` or `source: "public"`, so it is
 always visible which data came through Quicknode.
 
+## Every Quicknode method we call, and why it matters for underwriting
+
+Updated 2026-10-25. All reads go through `services/credit/credit/xrpl_client.py` (an allow-list of read methods, no submit path) or the WebSocket in `credit/ws.py`. Quicknode serves mainnet and testnet; devnet (where XLS-66 loans live) uses the public node.
+
+| Method | Where | What it gives the underwriter | Shown on /borrow as |
+|---|---|---|---|
+| `account_tx` (paged by `marker`, newest first; plus one `forward: true` read for the first tx) | `XrplClient.account_tx`, `first_tx` | The full payment history: account age, payments in and out, distinct counterparties, largest outflows, and Moonshift repayments, margin calls and liquidations. Deep pages never change, so they are cached forever. | Every factor row, each linked to the tx behind it |
+| `account_info` | `XrplClient.account_info` | Balance and sequence: balance stability, and whether the account is active at the validated ledger. | "Balance stability" factor |
+| `account_lines` | `XrplClient.account_lines` | Trust lines: which assets the account holds and how many issuers it deals with. | "Trust lines" factor |
+| `account_objects` | `XrplClient.account_objects`, `profile.obligations` | What still binds the account: open loans, escrows (locked collateral), checks and payment channels. A borrower with collateral already locked elsewhere has less free to pledge. | "no open obligations" or "1 open loan, 2 locked collateral" on each source line |
+| `account_offers` | `XrplClient.account_offers`, `profile.obligations` | Open DEX orders: balance committed to the book but not spent. | Part of the obligations line |
+| `subscribe` `accounts` (WebSocket) | `credit/ws.py` | Every validated tx on a connected wallet. The profile is rescored the moment it lands and the change is pushed to the page. | "Score 72 to 75" and the highlighted factor, plus the new row in Wallet activity |
+| `subscribe` `streams: ["ledger"]` (same WebSocket) | `credit/ws.py`, `credit/network.py` | Ledger closes: index, hash, base fee, reserve, tx count. | "Data via Quicknode · ledger N" on the credit panel |
+| `server_info` (every 30 s) | `credit/network.py` | Network status: validated ledger, fees, load factor, complete ledgers. Keeps the ledger line live when no wallet is being watched. | Same line; `GET /network` on credit |
+
+Every 15 s the credit service publishes the status network's latest ledger as a `NETWORK_STATUS` credit event (`GET /events` on credit, relayed by the api's `/events` as `credit`). Calls, credits, cache hits and p50 latency per method are counted in `GET /stats`.
+
+### Reproduce each call
+
+The endpoint URL holds a token: keep it in your shell, never in a file you commit.
+
+```bash
+export QN="$QUICKNODE_XRPL_TESTNET_URL"   # from .env, not printed
+ADDR=rEuJaGWzrtk2wfxpnKeDUUSjBf4WapSRAt
+
+rpc() { curl -s -X POST "$QN" -H 'Content-Type: application/json' -d "{\"method\":\"$1\",\"params\":[$2]}"; }
+rpc account_tx      "{\"account\":\"$ADDR\",\"ledger_index_min\":-1,\"ledger_index_max\":-1,\"limit\":200,\"forward\":false}"
+rpc account_info    "{\"account\":\"$ADDR\",\"ledger_index\":\"validated\"}"
+rpc account_lines   "{\"account\":\"$ADDR\",\"ledger_index\":\"validated\",\"limit\":400}"
+rpc account_objects "{\"account\":\"$ADDR\",\"ledger_index\":\"validated\",\"limit\":200}"
+rpc account_offers  "{\"account\":\"$ADDR\",\"ledger_index\":\"validated\",\"limit\":200}"
+rpc server_info     "{}"
+
+# WebSocket: the same URL with wss://. Account txs and ledger closes on one connection.
+npx wscat -c "wss://${QN#https://}" -x "{\"id\":1,\"command\":\"subscribe\",\"accounts\":[\"$ADDR\"],\"streams\":[\"ledger\"]}"
+```
+
+Through the service (port 7100):
+
+```bash
+curl -s localhost:7100/network                 # ledger index, fee, reserve, load, source
+curl -s -H "X-MS-Internal-Key: $INTERNAL_API_KEY" localhost:7100/profile/testnet/$ADDR | jq .history.obligations
+curl -s localhost:7100/stats                   # calls by method, credits, p50
+```
+
+Verified live 2026-10-25 05:18 ET: `/network` returned testnet ledger 21,809,725 with `source: "quicknode"`, and the api's `/events` carried `NETWORK_STATUS` for ledger 21,809,734 about 15 s later. The test wallet's obligations read `{"escrows": 0, "loans": 0, "offers": 0}` via `account_objects` and `account_offers`.
+
 ## 1. What we verified (Phase 0, checked 2026-10-24)
 
 | Question | Answer | Source |
