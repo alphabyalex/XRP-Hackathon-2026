@@ -57,8 +57,11 @@ collector uses official public price feeds without launching an instance.
 Authenticated AWS collection, when configured, is read-only: Pricing GetProducts
 and EC2 DescribeSpotPriceHistory. No deployment or instance launch is performed.
 
-Router collection refreshes spot rates every 300 seconds and on-demand rates
-every 86400 seconds. The API polls the router snapshot every 5 seconds, preserves
+The default public AWS collector refreshes both spot and on-demand feeds every
+300 seconds. The optional authenticated on-demand collector uses 86400 seconds.
+The router refreshes its cached GPU Economy view from the API every 15 seconds;
+that API respects GPU Economy's own refresh policy. The API polls the router
+snapshot every 5 seconds, preserves
 upstream timestamps and emits SSE event `aws` only when that snapshot changes.
 `GET /catalog/aws` exposes the same snapshot for polling. A missing source
 returns empty arrays and null timestamps. Consumers can show elapsed age from

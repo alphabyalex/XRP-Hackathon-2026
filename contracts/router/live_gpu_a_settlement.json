@@ -1,8 +1,8 @@
 {
-  "orderId": "ord_91f946e9",
+  "orderId": "ord_43a4788e",
   "status": "settled",
-  "estimateUsdc": "0.000044",
-  "capUsdc": "0.000055",
+  "estimateUsdc": "0.000046",
+  "capUsdc": "0.000058",
   "charged": "0.000007",
   "settlements": [
     {
@@ -16,23 +16,26 @@
       "toPoolUsdc": "0.000007",
       "providerCostUsdc": "0.000000",
       "to": "TREASURY_GPU_A",
-      "hash": "33382824F5282EAF3CD4DF610B34C609283BECB8A1B0CB6B6B3D7B5164A65B59",
-      "explorerUrl": "https://devnet.xrpl.org/transactions/33382824F5282EAF3CD4DF610B34C609283BECB8A1B0CB6B6B3D7B5164A65B59",
-      "batch": "EE519784E17D39D6B6BE2011D560AE7FECD2858C8DA93CC9BD803993B77A60D2"
+      "hash": "5807BC405F46895F4AF661F271C0387DAF0B6EAA0722D80DC9D2EF1FA804061D",
+      "explorerUrl": "https://devnet.xrpl.org/transactions/5807BC405F46895F4AF661F271C0387DAF0B6EAA0722D80DC9D2EF1FA804061D",
+      "batch": "D1B525DC3F0A4BCFEB3BDD279FF25B6DE0A0F208F58D832066AADE84440B0F97"
     }
   ],
   "refund": {
     "to": "DEV",
-    "amountUsdc": "0.000048",
-    "hash": "82FB52146C7FF601628884ADC365C3D836FF6CC017E33CA4C9386E44511F14C1",
-    "explorerUrl": "https://devnet.xrpl.org/transactions/82FB52146C7FF601628884ADC365C3D836FF6CC017E33CA4C9386E44511F14C1",
-    "batch": "EE519784E17D39D6B6BE2011D560AE7FECD2858C8DA93CC9BD803993B77A60D2"
+    "amountUsdc": "0.000051",
+    "hash": "A11144B4B72EE02B72CAE356C1D9356D5179DCE3DA79ECC6B927A8940570B161",
+    "explorerUrl": "https://devnet.xrpl.org/transactions/A11144B4B72EE02B72CAE356C1D9356D5179DCE3DA79ECC6B927A8940570B161",
+    "batch": "D1B525DC3F0A4BCFEB3BDD279FF25B6DE0A0F208F58D832066AADE84440B0F97"
   },
   "validation": {
     "network": "devnet",
     "buyer": "DEV",
+    "gpuId": "gpu-a",
     "actualWeights": "Qwen/Qwen2.5-1.5B-Instruct",
     "output": "Moonshift",
+    "catalogAndRouterHourlyRate": "0.550000",
+    "legacyInferenceRouteUsesValidatedSettlement": true,
     "noNewCloudResources": true
   }
 }
