@@ -1,0 +1,69 @@
+{
+  "gpuId": "gpu-d",
+  "network": "akash-mainnet",
+  "dseq": "1792938865934",
+  "provider": "akash15tl6v6gd0nte0syyxnv57zmmspgju4c3xfmdhk",
+  "providerName": "overclock",
+  "providerLocation": {
+    "cityCode": "FAT",
+    "country": "US",
+    "region": "na-us-west"
+  },
+  "resources": {
+    "vCpu": 4,
+    "ramGiB": 16,
+    "ephemeralStorageGiB": 50,
+    "gpuCount": 1
+  },
+  "hardware": {
+    "name": "Tesla T4",
+    "usableVramMiB": 15360,
+    "physicalGpuUuidSha256": "36096ece66834bf2e46857acf10307451a1ad7a1da972cda30332cb2790a7651",
+    "visibleGpuCount": 1,
+    "runtimeFlags": [
+      {
+        "--model": "Qwen/Qwen2.5-3B-Instruct",
+        "--served-model-name": "Qwen/Qwen2.5-3B-Instruct",
+        "--max-model-len": "4096",
+        "--max-num-seqs": "2"
+      }
+    ]
+  },
+  "nominalVramGB": 16,
+  "modelRequested": "Qwen/Qwen2.5-3B-Instruct",
+  "servedModelName": "Qwen/Qwen2.5-3B-Instruct",
+  "contextTokens": 4096,
+  "maxConcurrentSequences": 2,
+  "pricing": {
+    "denom": "uact",
+    "amountPerBlock": "233.188884000000000000",
+    "bidCeilingPerBlock": "500",
+    "estimatedUsdPerHour": "0.1399133304000000000000",
+    "conversionAssumption": "600 six-second blocks per hour; 1000000 uact per USD",
+    "source": "akt accepted lease"
+  },
+  "status": "serving",
+  "verification": {
+    "verifiedAt": "2026-10-25T14:50:16.222780Z",
+    "leaseAccepted": true,
+    "hardwareVerified": true,
+    "modelProcessVerified": true,
+    "healthStatus": 200,
+    "healthLatencySeconds": 0.188957,
+    "freshInferenceVerified": true,
+    "freshInferenceLatencySeconds": 1.164762,
+    "freshInferenceExpectedResultMatched": true,
+    "usage": {
+      "prompt_tokens": 44,
+      "total_tokens": 47,
+      "completion_tokens": 3
+    }
+  },
+  "planningObservation": {
+    "receipt": "contracts/compute/observed_gpu_d_throughput.json",
+    "source": "minimum_observed_end_to_end",
+    "sampleCount": 2,
+    "planningTokensPerSec": 34.857104,
+    "observedAt": "2026-10-25T14:50:24.256672Z"
+  }
+}

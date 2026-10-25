@@ -1,74 +1,79 @@
 # Akash GPU inventory
 
-GPU-A is the existing Akash NVIDIA T4 endpoint. It loads
-`Qwen/Qwen2.5-1.5B-Instruct` with a 4096-token runtime context limit.
-The existing vLLM 0.6.2 endpoint accepts the historical wire alias
-`Qwen/Qwen3-1.7B`. This alias does not identify the weights.
-`GPU_A_VLLM_URL` selects the endpoint; `GPU_A_VLLM_MODEL` selects its wire model.
-Public APIs identify the actual weights.
+Live availability requires a passing health check, matching model identity and
+measured inference throughput. An accepted lease or a prepared manifest does
+not prove capacity. Public receipts in `leases/` contain accepted bids, resource
+specifications and verification results. GPU endpoint addresses stay private.
 
-Prepared manifests now set both `--model` and `--served-model-name` to
-`Qwen/Qwen2.5-1.5B-Instruct`. They have not been deployed. A manifest edit does
-not update the running endpoint. Change the wire model environment variable to
-the canonical name only after a separately authorized deployment changes it.
-
-| GPU | Hardware | VRAM | Prepared manifest | Current availability |
+| GPU | Actual hardware | Actual model | Lease | Verification |
 | --- | --- | --- | --- | --- |
-| A | NVIDIA T4 | 16 GB | `nodes/node-a-t4.yaml` | Listed only while its configured endpoint passes health |
-| B | NVIDIA Tesla V100 PCIe | 32 GiB | `nodes/node-b-v100-live.yaml` | Healthy lease, canonical Qwen2.5-3B-Instruct, verified inference |
-| C | NVIDIA A100 | 80 GB | `nodes/node-c-a100.yaml` | Prepared only |
-| D | NVIDIA H100 | 80 GB | `nodes/node-d-h100.yaml` | Prepared only |
-| E | NVIDIA RTX 4090 | 24 GB | `nodes/node-e-rtx4090.yaml` | Prepared only |
-| F | NVIDIA RTX 3090 | 24 GB | `nodes/node-f-rtx3090.yaml` | Prepared only |
-| G | NVIDIA RTX 4000 Ada | 20 GB | `nodes/node-g-rtx4000ada.yaml` | Prepared only |
-| H | NVIDIA Tesla P40 | 24 GB | `nodes/node-h-p40.yaml` | Prepared only |
+| A | NVIDIA T4, 16 GB | Qwen2.5-1.5B-Instruct | 1792883508772 | Hardware, inference and physical identity verified |
+| B | Tesla V100 PCIe, 32 GB | Qwen2.5-3B-Instruct | 1792936107663 | Hardware, inference and physical identity verified |
+| C | Tesla V100 PCIe, 32 GB | Qwen2.5-3B-Instruct | 1792939554118 | Hardware, inference, two throughput samples and physical identity verified |
+| D | NVIDIA T4, 16 GB nominal, 15360 MiB usable | Qwen2.5-3B-Instruct | 1792938865934 | Hardware, inference, two throughput samples and physical identity verified |
+| E | RTX 3090 requested, not yet verified | Qwen2.5-3B-Instruct requested | 1792940820777 | Image download pending; unavailable |
+| F | V100 requested, not yet verified | Qwen2.5-3B-Instruct requested | 1792940870902 | Image download pending; unavailable |
+| G | V100 requested, not yet verified | Qwen2.5-3B-Instruct requested | 1792941075797 | Image download pending; unavailable |
+| H | Replacement being screened | Unavailable | No replacement lease accepted | Unavailable |
 
-## Authorized expansion on 2026-10-25
+The four verified physical GPU UUID hashes are distinct. Do not describe this
+as eight physical GPUs until all eight UUID hashes, health checks and inference
+results have been verified. Offline or unmeasured nodes remain hidden from the
+serving catalog. `GPU_NODES` enables only verified, measured workers.
 
-The existing GPU-A lease is preserved. A separately authorized GPU-B lease,
-`1792936107663`, has been accepted on ZenCloud. Its live SDL is
-`nodes/node-b-v100-live.yaml`. The public audit receipt is
-`leases/gpu-b.json`. On 2026-10-25 at 13:56 UTC, a remote `nvidia-smi` query
-confirmed a Tesla V100 PCIe with 32768 MiB VRAM. The running process loaded
-the requested canonical model, health returned 200 and a fresh real inference
-returned the correct arithmetic result. Recheck live health before listing it.
-A lease being active alone does not prove its model is ready.
+GPU-A loads canonical `Qwen/Qwen2.5-1.5B-Instruct` weights. Its historical vLLM
+0.6.2 wire alias is `Qwen/Qwen3-1.7B`; the alias does not identify the weights.
+GPU-B through GPU-D use canonical `Qwen/Qwen2.5-3B-Instruct` for both weights
+and served model name. Their context limit is 4096 tokens with two concurrent
+model sequences.
 
-GPU-B requests one V100, 4 vCPU, 16 GiB RAM and 50 GiB ephemeral storage.
-It loads `Qwen/Qwen2.5-3B-Instruct`, uses that canonical served model name,
-limits context to 4096 tokens and permits two concurrent model sequences.
-The accepted bid is `383.910083 uact` per block. At 600 six-second blocks per
-hour, that is approximately USD 0.230346 per hour or USD 5.528305 per day.
-Actual billing follows chain blocks. The SDL bid ceiling is 500 uact per block.
-The provider advertises city code `NYL`, country `BE`, region `eu-west`.
+## Resources and prices
 
-Model downloads use ephemeral storage and repeat if the container is replaced.
-The separately billed API backend uses its own deployment and storage.
+GPU-A has 4 vCPU, 16 GiB RAM, 100 GiB ephemeral storage and one T4. Its accepted
+bid is 272 uact/block, approximately USD 0.1632/hour. GPU-B and GPU-C each have
+4 vCPU, 16 GiB RAM, 50 GiB ephemeral storage and one V100. Each accepted bid is
+383.910083 uact/block, approximately USD 0.230346/hour. GPU-D has the same CPU,
+RAM and storage sizes and one T4; its bid is 233.188884 uact/block, approximately
+USD 0.139913/hour.
 
-Letters match the application registry and `akash_manager.py`. Filename letters
-were corrected to match the hardware mapping. The legacy `deploy.yaml` is a
-separate T4 specification, not proof of a second live GPU or current lease specs.
+The authorized new-node bid ceiling is 500 uact/block per GPU, approximately
+USD 0.30/hour. Dollar estimates assume 600 six-second blocks/hour and one
+million uact per USD. Actual billing follows chain blocks. Accepted costs and
+source timestamps are recorded per lease. Price comparisons use live feeds;
+they do not replace the accepted lease cost.
 
-GPU-A's saved lease SDL was read without mutation on 2026-10-25: 4 vCPU, 16 GiB
-RAM, 100 GiB storage and one GPU. The catalog and prepared node-A manifest now
-match those verified resources. Its provider catalog record advertises city `LIS`,
-country `PT` and `location-region=eu-southwest`. The catalog displays Lisbon and
-Portugal from those verified attributes, not from the ingress hostname. Set
-`GPU_A_CITY` and `GPU_A_REGION` when a separately authorized relocation changes
-the lease. Other unverified GPU locations remain unavailable.
+GPU-A advertises city code LIS, country PT, region eu-southwest. GPU-B and
+GPU-C advertise NYL, BE, eu-west. GPU-D advertises FAT, US, na-us-west. Provider
+attributes are the location source; ingress hostnames are not location proof.
 
-Prices and availability come from live health, GPU Economy median observations,
-the router fleet and timestamped AWS comparison feeds. No frozen market prices
-or claims that all prepared GPUs are online are presented here.
+## Failed expansion capacity
 
-## Deployment controls
+Four new ZenCloud V100 leases never served or accepted application tasks.
+Each crashed with CUDA out-of-memory while an incumbent process already used
+28.02 GiB of the assigned 31.73 GiB device. The containers could not remain
+running long enough for UUID inspection, so duplicate UUIDs are not asserted.
+The owner authorized closure of these four failed ephemeral leases. All four
+were confirmed absent from active inventory. The structured audit is
+`leases/failed-expansion-capacity.json`. Working A/B/C/D leases were preserved.
+New capacity from that provider is excluded pending investigation.
 
-The overnight freeze was superseded by the owner's explicit morning instruction
-to add GPU capacity and move the backend to Akash. Inspect real bids and their
-resource specifications before accepting a lease. Preserve working deployments
-while validating replacements. Keep newly leased nodes out of the serving
-catalog until health, hardware, model process and fresh inference checks pass.
+## Manifests and controls
 
-AWS GPU capacity is not deployed. Never print keys, seeds, endpoint secrets or
-the contents of `.env` while inspecting infrastructure. Use Console secret
-references and stdin secret maps instead of literal secrets in an SDL.
+Files without `-live` are prepared hardware specifications. Their letter and
+hardware pairing does not override verified runtime metadata. The P40
+specification is not executable with vLLM 0.6.2 because that engine requires
+[CUDA compute capability 7.0 or newer](https://raw.githubusercontent.com/vllm-project/vllm/v0.6.2/docs/source/getting_started/installation.rst);
+[NVIDIA lists P40 at capability 6.1](https://developer.nvidia.com/cuda/gpus/legacy). Never count it as
+serving capacity with this image.
+
+Model weights use ephemeral storage and download again when a container is
+replaced. The separately billed API backend has its own deployment and
+persistent storage; its audit receipt is `leases/backend.json`.
+
+The owner explicitly authorized the morning capacity expansion. Inspect actual
+bids, preserve working deployments, verify physical UUID uniqueness and enable
+workers only after hardware, model process, health, fresh inference and two
+throughput samples pass. Keep unavailable capacity hidden. Do not print keys,
+seeds, GPU endpoint addresses or `.env` contents. GPU SDLs contain only public
+model weights and standard image configuration. Backend secrets use native
+Console secret references and stdin maps. No AWS GPU deployment is running.
