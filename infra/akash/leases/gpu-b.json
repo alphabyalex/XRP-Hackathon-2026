@@ -1,0 +1,65 @@
+{
+  "gpuId": "gpu-b",
+  "network": "akash-mainnet",
+  "dseq": "1792936107663",
+  "provider": "akash16yr3wxt97ae045a06kr3ycde9srcgpg8syjxxm",
+  "providerName": "ZenCloud",
+  "providerLocation": {
+    "cityCode": "NYL",
+    "country": "BE",
+    "region": "eu-west",
+    "source": "akt console provider get"
+  },
+  "resources": {
+    "vCpu": 4,
+    "ramGiB": 16,
+    "ephemeralStorageGiB": 50,
+    "gpuCount": 1,
+    "gpuModelRequested": "v100"
+  },
+  "modelRequested": "Qwen/Qwen2.5-3B-Instruct",
+  "servedModelName": "Qwen/Qwen2.5-3B-Instruct",
+  "contextTokens": 4096,
+  "maxConcurrentSequences": 2,
+  "containerImage": "vllm/vllm-openai:v0.6.2",
+  "pricing": {
+    "denom": "uact",
+    "amountPerBlock": "383.910083000000000000",
+    "bidCeilingPerBlock": "500",
+    "estimatedUsdPerHour": 0.2303460498,
+    "estimatedUsdPerDay": 5.5283051952,
+    "conversionAssumption": "600 six-second blocks per hour; 1000000 uact per USD",
+    "source": "akt console bid list and accepted lease price"
+  },
+  "funding": {
+    "autoTopUpEnabled": true,
+    "estimatedTopUpAmount": "$5.53",
+    "topUpFrequencyMs": 86400000,
+    "runtimeLimitHours": null,
+    "runtimeEndsAt": null
+  },
+  "status": "serving",
+  "verification": {
+    "verifiedAt": "2026-10-25T13:56:39.192910Z",
+    "leaseAccepted": true,
+    "hardwareVerified": true,
+    "modelProcessVerified": true,
+    "freshInferenceVerified": true,
+    "healthStatus": 200,
+    "healthLatencySeconds": 0.203,
+    "reportedModelId": "Qwen/Qwen2.5-3B-Instruct",
+    "freshInferenceLatencySeconds": 1.545,
+    "freshInferencePrompt": "Compute 17 plus 29. Answer with the number only.",
+    "freshInferenceResponse": "46",
+    "usage": {
+      "prompt_tokens": 44,
+      "total_tokens": 47,
+      "completion_tokens": 3
+    }
+  },
+  "hardware": {
+    "name": "Tesla V100-PCIE-32GB",
+    "vramMiB": 32768,
+    "source": "akt console shell: nvidia-smi"
+  }
+}
