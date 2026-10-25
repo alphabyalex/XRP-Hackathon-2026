@@ -40,7 +40,7 @@ def _flag(name: str, default: str = "0") -> bool:
 PORT = int(_env("PORT", "7200"))
 INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "")
 API_URL = _env("API_URL", "http://localhost:4000").rstrip("/")
-COMPUTE_URL = _env("COMPUTE_URL", "http://localhost:5000").rstrip("/")
+COMPUTE_URL = _env("COMPUTE_URL", "http://localhost:5001").rstrip("/")
 EXPLORER = _env("XRPL_EXPLORER", "https://devnet.xrpl.org").rstrip("/")
 DB_PATH = Path(_env("ROUTER_DB_PATH", str(SERVICE_DIR / "data" / "router.db")))
 

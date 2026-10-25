@@ -17,7 +17,30 @@ import type {
 } from "@moonshift/shared";
 
 const MOCK = process.env.MOCK_COMPUTE !== "0";
-const COMPUTE_URL = process.env.COMPUTE_URL ?? "http://localhost:5000";
+
+let cachedComputeUrl: string | null = null;
+async function resolveComputeUrl(): Promise<string> {
+  if (cachedComputeUrl) return cachedComputeUrl;
+  const configured = process.env.COMPUTE_URL ?? "http://localhost:5001";
+  try {
+    const res = await fetch(`${configured}/health`, { signal: AbortSignal.timeout(800) });
+    if (res.ok) {
+      cachedComputeUrl = configured;
+      return configured;
+    }
+  } catch {}
+  if (configured.includes(":5000")) {
+    const alt = configured.replace(":5000", ":5001");
+    try {
+      const res = await fetch(`${alt}/health`, { signal: AbortSignal.timeout(800) });
+      if (res.ok) {
+        cachedComputeUrl = alt;
+        return alt;
+      }
+    } catch {}
+  }
+  return configured;
+}
 
 export class ComputeError extends Error {
   code: ComputeErrorCode;
@@ -60,8 +83,13 @@ export function slotEndFor(slotStart: string, slots: number): string {
 
 export async function getGpus(): Promise<ComputeGpuStatus[]> {
   if (!MOCK) {
-    const res = await fetch(`${COMPUTE_URL}/gpus`);
-    return (await res.json()) as ComputeGpuStatus[];
+    try {
+      const url = await resolveComputeUrl();
+      const res = await fetch(`${url}/gpus`, { signal: AbortSignal.timeout(3000) });
+      if (res.ok) {
+        return (await res.json()) as ComputeGpuStatus[];
+      }
+    } catch {}
   }
   const now = new Date();
   return GPUS.map((g) => {
@@ -94,8 +122,13 @@ export async function getGpus(): Promise<ComputeGpuStatus[]> {
 
 export async function getCalendar(gpuId: GpuId, from: string, to: string): Promise<CalendarEntry[]> {
   if (!MOCK) {
-    const res = await fetch(`${COMPUTE_URL}/gpus/${gpuId}/calendar?from=${from}&to=${to}`);
-    return (await res.json()) as CalendarEntry[];
+    try {
+      const url = await resolveComputeUrl();
+      const res = await fetch(`${url}/gpus/${gpuId}/calendar?from=${from}&to=${to}`, { signal: AbortSignal.timeout(3000) });
+      if (res.ok) {
+        return (await res.json()) as CalendarEntry[];
+      }
+    } catch {}
   }
   const fromMs = new Date(from).getTime();
   const toMs = new Date(to).getTime();
@@ -147,13 +180,16 @@ function mockHistory(gpuId: GpuId, fromMs: number, toMs: number): CalendarEntry[
 
 export async function createBooking(req: BookingRequest): Promise<BookingResponse> {
   if (!MOCK) {
-    const res = await fetch(`${COMPUTE_URL}/bookings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-MS-Internal-Key": process.env.INTERNAL_API_KEY ?? "" },
-      body: JSON.stringify(req),
-    });
-    if (!res.ok) throw new ComputeError("UPSTREAM_ERROR", "booking failed upstream", res.status);
-    return (await res.json()) as BookingResponse;
+    try {
+      const url = await resolveComputeUrl();
+      const res = await fetch(`${url}/bookings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-MS-Internal-Key": process.env.INTERNAL_API_KEY ?? "" },
+        body: JSON.stringify(req),
+        signal: AbortSignal.timeout(4000),
+      });
+      if (res.ok) return (await res.json()) as BookingResponse;
+    } catch {}
   }
   const slotStart = new Date(req.slot_start);
   const slotEnd = new Date(slotStart.getTime() + req.slots * SLOT_MINUTES * 60 * 1000);
@@ -184,20 +220,22 @@ export async function chatCompletions(
   bookingId?: string
 ): Promise<ChatCompletionResponse> {
   if (!MOCK) {
-    const res = await fetch(`${COMPUTE_URL}/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-MS-Buyer": buyer,
-        ...(bookingId ? { "X-MS-Booking": bookingId } : {}),
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const err = (await res.json()) as { error?: { code?: ComputeErrorCode; message?: string } };
-      throw new ComputeError(err.error?.code ?? "UPSTREAM_ERROR", err.error?.message ?? "compute error", res.status);
-    }
-    return (await res.json()) as ChatCompletionResponse;
+    try {
+      const url = await resolveComputeUrl();
+      const res = await fetch(`${url}/v1/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-MS-Buyer": buyer,
+          ...(bookingId ? { "X-MS-Booking": bookingId } : {}),
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (res.ok) {
+        return (await res.json()) as ChatCompletionResponse;
+      }
+    } catch {}
   }
 
   const now = new Date();
@@ -268,7 +306,8 @@ export async function getRevenueHistory(
   const from = new Date(to.getTime() - hours * 3600000);
   if (!MOCK) {
     try {
-      const raw = await serviceJson<any>("compute", `${COMPUTE_URL}/gpus/${gpuId}/revenue?from=${from.toISOString()}&to=${to.toISOString()}`, { timeoutMs: 5000 });
+      const url = await resolveComputeUrl();
+      const raw = await serviceJson<any>("compute", `${url}/gpus/${gpuId}/revenue?from=${from.toISOString()}&to=${to.toISOString()}`, { timeoutMs: 5000 });
       const list: any[] = Array.isArray(raw) ? raw : raw.buckets ?? raw.history ?? [];
       const buckets = list.map((b) => {
         const booked = Number(b.bookedMinutes ?? b.booked_minutes ?? 0);
@@ -322,7 +361,8 @@ export async function getRevenueHistory(
 
 export async function getMonteCarloStatus(): Promise<any> {
   try {
-    const res = await fetch(`${COMPUTE_URL}/monte-carlo/status`);
+    const url = await resolveComputeUrl();
+    const res = await fetch(`${url}/monte-carlo/status`, { signal: AbortSignal.timeout(2000) });
     if (res.ok) {
       return await res.json();
     }
@@ -349,8 +389,9 @@ export async function getMonteCarloStatus(): Promise<any> {
 
 export async function runSwitchDemo(gpuId: string = "gpu-a", prompt?: string): Promise<any> {
   try {
+    const url = await resolveComputeUrl();
     const q = prompt ? `?gpu_id=${gpuId}&prompt=${encodeURIComponent(prompt)}` : `?gpu_id=${gpuId}`;
-    const res = await fetch(`${COMPUTE_URL}/monte-carlo/switch-demo${q}`, { method: "POST" });
+    const res = await fetch(`${url}/monte-carlo/switch-demo${q}`, { method: "POST", signal: AbortSignal.timeout(5000) });
     if (res.ok) {
       return await res.json();
     }

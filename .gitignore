@@ -4,6 +4,10 @@
 .env.*
 !.env.example
 contracts/active_loans.json
+*.pem
+*.key
+*.cert
+*.crt
 
 # dependencies and build output
 node_modules/

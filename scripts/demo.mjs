@@ -11,8 +11,21 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+function checkPortAvailable(port) {
+  return new Promise((resolve) => {
+    const tester = net
+      .createServer()
+      .once("error", () => resolve(false))
+      .once("listening", () => {
+        tester.once("close", () => resolve(true)).close();
+      })
+      .listen(port, "127.0.0.1");
+  });
+}
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = new Set(process.argv.slice(2));
@@ -147,6 +160,34 @@ const apiEnv = {
 
 if (py) {
   log("demo", `Python ${py.version} found; starting pricing, risk, credit, compute`);
+  for (const s of services) {
+    if (s.name === "compute" && s.port === 5000) {
+      const free = await checkPortAvailable(5000);
+      if (!free) {
+        log("demo", "port 5000 in use (AirPlay), assigning compute to port 5001");
+        s.port = 5001;
+      }
+    } else if (s.name === "risk" && s.port === 7000) {
+      const free = await checkPortAvailable(7000);
+      if (!free) {
+        log("demo", "port 7000 in use (AirPlay), assigning risk to port 7001");
+        s.port = 7001;
+      }
+    }
+  }
+  const compSvc = services.find((s) => s.name === "compute");
+  if (compSvc) {
+    apiEnv.COMPUTE_URL = `http://localhost:${compSvc.port}`;
+    const routerSvc = services.find((s) => s.name === "router");
+    if (routerSvc && routerSvc.env) {
+      routerSvc.env.COMPUTE_URL = apiEnv.COMPUTE_URL;
+    }
+  }
+  const riskSvc = services.find((s) => s.name === "risk");
+  if (riskSvc) {
+    apiEnv.RISK_URL = `http://localhost:${riskSvc.port}`;
+  }
+
   for (const s of services) {
     const remote = s.skipIfRemote && baseEnv[s.skipIfRemote] && !/localhost|127\.0\.0\.1/.test(baseEnv[s.skipIfRemote]);
     if (remote) {

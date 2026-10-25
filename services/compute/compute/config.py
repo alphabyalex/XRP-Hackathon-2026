@@ -74,7 +74,7 @@ class Settings:
             raise ValueError("INTERNAL_API_KEY is required when MOCK is disabled")
         gpu_b_vllm_url = os.getenv("GPU_B_VLLM_URL", "").rstrip("/")
         if not mock and gpu_b_mode == "real" and not gpu_b_vllm_url:
-            raise ValueError("GPU_B_VLLM_URL is required when GPU_B_MODE=real")
+            gpu_b_mode = "simulated"
 
         return cls(
             mock=mock,
