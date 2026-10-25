@@ -3,14 +3,14 @@ import { gpuHealth, refreshHealth } from "../gpuHealth.js";
 import { internalHeaders } from "../adapters/serviceFetch.js";
 import { broadcast } from "../sse.js";
 import { getGpuPrices } from "./gpuPrices.js";
-import { liveAwsRates, nodeAvailability, observedChange24h, type AwsOffer, type FleetRow, type LiveRate } from "./rentalData.js";
+import { configuredRentalRate, liveAwsRates, nodeAvailability, type AwsOffer, type FleetRow, type LiveRate, type OwnRentalRate } from "./rentalData.js";
 
 export interface RentalGpu {
   id: string; label: string; provider: string; card: string; vramGb: number;
   vcpu: number; ramGb: number; storageGb: number;
   location: { city: string | null; region: string | null };
-  model: string; status: "serving"; updatedAt: string;
-  prices: { rentalUsdPerHour: string | null; currency: "USD"; ourCost?: { usdPerHour: string; source: string; marginPct: string }; economy: LiveRate | null; awsSpot: LiveRate | null; awsOnDemand: LiveRate | null; change24hPct: string | null };
+  model: string; modelId?: string; status: "serving"; updatedAt: string;
+  prices: { rentalUsdPerHour: string | null; rental: OwnRentalRate | null; currency: "USD"; ourCost?: { usdPerHour: string; source: string; marginPct: string }; economy: LiveRate | null; awsSpot: LiveRate | null; awsOnDemand: LiveRate | null; change24hPct: string | null };
   nodes: ReturnType<typeof nodeAvailability>;
   utilization24h: { time: string; utilizationPct: number; t: string; pct: number }[];
   utilizationMetric: "observed_worker_busy_pct";
@@ -27,6 +27,21 @@ let pending: Promise<RentalCatalog> | null = null;
 let timer: ReturnType<typeof setInterval> | null = null;
 let lastAws = "";
 let awsSnapshot: { updatedAt: string | null; spot: LiveRate[]; onDemand: LiveRate[] } = { updatedAt: null, spot: [], onDemand: [] };
+
+function verifiedSpec(gpuId: string) {
+  const prefix = gpuId.toUpperCase().replace(/-/g, "_");
+  if (gpuId === "gpu-a") return { card: "NVIDIA T4", vramGb: 16, vcpu: 4, ramGb: 16, storageGb: 100,
+    modelId: process.env.GPU_A_MODEL_ID ?? "Qwen/Qwen2.5-1.5B-Instruct", provider: "Akash Network",
+    city: process.env.GPU_A_CITY?.trim() || "Lisbon (LIS)", region: process.env.GPU_A_REGION?.trim() || "eu-southwest, Portugal", rental: OWN_RATE };
+  const card = process.env[`${prefix}_CARD`]?.trim(), modelId = process.env[`${prefix}_MODEL_ID`]?.trim();
+  const specs = ["VRAM_GB", "VCPU", "RAM_GB", "STORAGE_GB"].map(key => Number(process.env[`${prefix}_${key}`]));
+  if (!card || !modelId || specs.some(value => !Number.isSafeInteger(value) || value <= 0)) return null;
+  return { card, modelId, vramGb: specs[0], vcpu: specs[1], ramGb: specs[2], storageGb: specs[3],
+    provider: process.env[`${prefix}_PROVIDER`]?.trim() || "Akash Network",
+    city: process.env[`${prefix}_CITY`]?.trim() || null, region: process.env[`${prefix}_REGION`]?.trim() || null,
+    rental: configuredRentalRate(process.env[`${prefix}_LEASE_USD_PER_HOUR`], process.env[`${prefix}_OWN_MARGIN`] ?? process.env.OWN_MARGIN ?? "0.25",
+      process.env[`${prefix}_PRICE_UPDATED_AT`] ?? "") };
+}
 
 export function cachedRentalCatalog(): RentalCatalog | null {
   if (!snapshot || Date.now() - Date.parse(snapshot.updatedAt) > 15_000) return null;
@@ -62,31 +77,32 @@ export function refreshRentalCatalog(): Promise<RentalCatalog> {
       // Kristian owns SseEventType; the event is supported by the wire protocol.
       broadcast("aws" as Parameters<typeof broadcast>[0], awsSnapshot);
     }
-    const online = gpuHealth().find(h => h.gpuId === "gpu-a" && h.kind === "real" && h.ok && h.checkedAt && Date.now() - Date.parse(h.checkedAt) < 120_000);
+    const online = gpuHealth().filter(h => h.kind === "real" && h.ok && h.checkedAt && Date.now() - Date.parse(h.checkedAt) < 120_000);
     const gpus: RentalGpu[] = [];
-    if (online && process.env.GPU_A_VLLM_URL?.trim()) {
-      const rate = market?.gpus.find(g => g.id === "t4" || /\bt4\b/i.test(g.name));
+    for (const health of online) {
+      const spec = verifiedSpec(health.gpuId);
+      if (!spec || health.model !== spec.modelId) continue;
+      const rate = market?.gpus.find(g => g.name.toLowerCase() === spec.card.toLowerCase() ||
+        (spec.card === "NVIDIA T4" && (g.id === "t4" || /\bt4\b/i.test(g.name))));
       const economy: LiveRate | null = market && !market.stale && rate?.rentalUsdPerHour ? {
         usdPerHour: rate.rentalUsdPerHour, updatedAt: market.sourceUpdatedAt,
         source: "GPU Economy median", sourceUrl: rate.sourceUrl,
       } : null;
-      const nodes = nodeAvailability("gpu-a", fleet, fleet ? now : null);
+      const nodes = nodeAvailability(health.gpuId, fleet, fleet ? now : null);
       if (nodes.busy !== null && nodes.reserved === 0) {
         db.prepare("INSERT OR IGNORE INTO rental_utilization_samples (gpu_id,observed_at,utilization_pct) VALUES (?,?,?)")
-          .run("gpu-a", now, nodes.busy * 100);
+          .run(health.gpuId, now, nodes.busy * 100);
       }
       const samples = (db.prepare("SELECT observed_at AS time, utilization_pct AS utilizationPct FROM rental_utilization_samples WHERE gpu_id=? AND observed_at>=? ORDER BY observed_at")
-        .all("gpu-a", new Date(Date.now() - 24 * 3600_000).toISOString()) as { time: string; utilizationPct: number }[])
+        .all(health.gpuId, new Date(Date.now() - 24 * 3600_000).toISOString()) as { time: string; utilizationPct: number }[])
         .map(sample => ({ ...sample, t: sample.time, pct: sample.utilizationPct }));
-      gpus.push({ id: "gpu-a", label: "GPU-A", provider: "Akash Network", card: "NVIDIA T4", vramGb: 16,
-        vcpu: 4, ramGb: 16, storageGb: 100,
-        // Read-only provider record verified 2026-10-25: city=LIS, country=PT,
-        // location-region=eu-southwest. Environment overrides support relocation.
-        location: { city: process.env.GPU_A_CITY?.trim() || "Lisbon (LIS)", region: process.env.GPU_A_REGION?.trim() || "eu-southwest, Portugal" },
-        model: "Qwen2.5-1.5B-Instruct", status: "serving", updatedAt: online.checkedAt!,
+      gpus.push({ id: health.gpuId, label: health.gpuId.toUpperCase(), provider: spec.provider, card: spec.card, vramGb: spec.vramGb,
+        vcpu: spec.vcpu, ramGb: spec.ramGb, storageGb: spec.storageGb,
+        location: { city: spec.city, region: spec.region },
+        model: spec.modelId.split("/").at(-1)!, modelId: spec.modelId, status: "serving", updatedAt: health.checkedAt!,
         // Our price: the real Akash lease plus our margin. The GPU market median and AWS stay beside it.
-        prices: { rentalUsdPerHour: OWN_RATE, currency: "USD", ourCost: { usdPerHour: AKASH_LEASE.toFixed(6), source: "Akash lease (GPU-A)", marginPct: (OWN_MARGIN * 100).toFixed(0) },
-          economy, awsSpot: aws.spot[0] ?? null, awsOnDemand: aws.onDemand[0] ?? null, change24hPct: null },
+        prices: { rentalUsdPerHour: spec.rental?.usdPerHour ?? null, rental: spec.rental, currency: "USD", ...(spec.rental ? { ourCost: { usdPerHour: spec.rental.costUsdPerHour, source: `Akash lease (${health.gpuId.toUpperCase()})`, marginPct: spec.rental.marginPct } } : {}),
+          economy, awsSpot: spec.card === "NVIDIA T4" ? aws.spot[0] ?? null : null, awsOnDemand: spec.card === "NVIDIA T4" ? aws.onDemand[0] ?? null : null, change24hPct: null },
         nodes, utilization24h: samples, utilizationMetric: "observed_worker_busy_pct" });
     }
     db.prepare("DELETE FROM rental_utilization_samples WHERE observed_at<?").run(new Date(Date.now() - 24 * 3600_000).toISOString());
@@ -97,9 +113,9 @@ export function refreshRentalCatalog(): Promise<RentalCatalog> {
 }
 
 // GPU-A's real cost (its Akash lease) and our margin: 0.160 x 1.25 = 0.200 an hour.
-const AKASH_LEASE = Number(process.env.AKASH_LEASE_USD_PER_HOUR ?? "0.160");
-const OWN_MARGIN = Number(process.env.OWN_MARGIN ?? "0.25");
-const OWN_RATE = (AKASH_LEASE * (1 + OWN_MARGIN)).toFixed(6);
+const OWN_RATE = configuredRentalRate(process.env.GPU_A_LEASE_USD_PER_HOUR ?? process.env.AKASH_LEASE_USD_PER_HOUR ?? "0.160",
+  process.env.GPU_A_OWN_MARGIN ?? process.env.OWN_MARGIN ?? "0.25",
+  process.env.GPU_A_PRICE_UPDATED_AT ?? process.env.OWN_PRICE_UPDATED_AT ?? "2026-10-25T13:32:21Z");
 
 export async function getRentalCatalog(): Promise<RentalCatalog> {
   const cached = cachedRentalCatalog();

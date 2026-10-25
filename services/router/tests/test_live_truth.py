@@ -51,7 +51,7 @@ def test_public_aws_feed_needs_no_credentials_and_keeps_real_provenance(monkeypa
     entry = service.entries[0]
     assert "Akash" in entry.hardware and entry.offer.region == "akash"
     assert entry.benchmark["awsComparison"]["spotPricePerGpuHourUsd"] == 0.17
-    assert entry.offer.priceSource == "live" and entry.offer.pricePerHourUsd == 0.55
+    assert entry.offer.priceSource == "live" and entry.offer.pricePerHourUsd == C.OWN_RATE_USD_PER_HOUR
 
 
 def test_stored_fixture_prices_cannot_become_live_benchmarks(monkeypatch):
@@ -62,8 +62,9 @@ def test_stored_fixture_prices_cannot_become_live_benchmarks(monkeypatch):
     service = Service()
     service.load_catalog(saved)
     assert service.offers == {}
-    assert not service.entries[0].offerFound
-    assert service.entries[0].offer.pricePerHourUsd == 0
+    assert service.entries[0].offerFound
+    assert service.entries[0].offer.pricePerHourUsd == C.OWN_RATE_USD_PER_HOUR
+    assert service.entries[0].benchmark["marketComparison"] is None
     assert not service.views()[0].available
 
 
@@ -136,16 +137,18 @@ async def test_shared_gpu_economy_snapshot_is_cached_and_aws_does_not_set_rental
     assert rates == {"cheapest": round(full * 0.5, 6), "balanced": round(full * 0.75, 6), "fastest": full}
     await service.refresh_economy(httpx.MockTransport(feed))
     assert requests == ["/gpu-prices"]
-    assert service.entries[0].benchmark["source"] == "GPU Economy"
+    assert service.entries[0].benchmark["source"] == "Akash lease plus margin"
+    assert service.entries[0].benchmark["marketComparison"]["source"] == "GPU Economy"
 
 
-async def test_stale_gpu_economy_snapshot_disables_pricing_without_aws_fallback(monkeypatch):
+async def test_stale_market_comparison_does_not_expire_the_configured_rental_policy(monkeypatch):
     service = live_service(monkeypatch)
     await service.refresh_economy(httpx.MockTransport(lambda request: httpx.Response(200,
         json={"source": {"name": "GPU Economy"}, "sourceUpdatedAt": iso(now_utc()),
               "checkedAt": iso(now_utc()), "stale": True, "gpus": []})))
     assert service.economy_rates == {}
-    assert not service.entries[0].offerFound and service.entries[0].offer.pricePerHourUsd == 0
+    assert service.entries[0].offerFound and service.entries[0].offer.pricePerHourUsd == C.OWN_RATE_USD_PER_HOUR
+    assert service.entries[0].benchmark["marketComparison"] is None
 
 
 async def test_order_pin_rejects_unknown_or_offline_gpu_and_never_replans_onto_another(monkeypatch, tmp_path):
@@ -179,3 +182,19 @@ async def test_order_pin_rejects_unknown_or_offline_gpu_and_never_replans_onto_a
     with pytest.raises(RouterError) as error:
         await orders.create(OrderCreate(**request, gpuId="gpu-a"))
     assert error.value.code == "GPU_OFFLINE"
+
+
+def test_expired_aws_comparison_is_not_reused_for_a_discount(monkeypatch):
+    from datetime import timedelta
+    from router.catalog import Availability, make_offer
+    snapshot = now_utc()
+    def priced(kind, price, age, model="T4"):
+        return make_offer(provider="aws", region="us-east-2", instance_type="fixture", gpu_model=model,
+                          gpu_count=1, capacity_type=kind, price_per_hour_usd=price, price_source="live",
+                          as_of=iso(snapshot-timedelta(seconds=age)), availability=Availability("likely"))
+    O.update_aws_prices([priced("spot", 0.25, 0), priced("on-demand", 0.5, 0)])
+    assert O.aws_spot_ratio() == 0.5
+    assert O.aws_spot_ratio("V100") is None
+    O.update_aws_prices([priced("spot", 0.25, 1801), priced("on-demand", 0.5, 0)])
+    assert O.aws_spot_ratio() is None
+    O.update_aws_prices([])

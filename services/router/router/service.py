@@ -33,6 +33,8 @@ class Service:
         if C.FLEET_SOURCE != "mock":
             self.offers = {key: offer for key, offer in self.offers.items() if offer.priceSource == "live"}
         self.errors = errors or {}
+        from router.optimizer import update_aws_prices
+        update_aws_prices(self.offers.values())
         self.catalog_as_of = max((o.asOf for o in self.offers.values() if o.priceSource != "static"), default="")
         self.entries = load_entries(self.offers, self.economy_rates)
         executable = {e.offer.key for e in self.entries if e.offerFound}

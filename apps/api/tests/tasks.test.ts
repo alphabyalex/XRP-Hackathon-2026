@@ -5,7 +5,7 @@ import { buildQuote, fallbackSizing, hourlyBlocks, parseEstimate, parseQuote, pa
 
 const now = Date.parse("2026-10-25T08:00:00Z");
 const offer: RentalOffer = { id: "gpu-a", vcpu: 4, ramGb: 16, storageGb: 50,
-  prices: { rentalUsdPerHour: "0.125", economy: { updatedAt: new Date(now - 1000).toISOString() } },
+  prices: { rentalUsdPerHour: "0.125", rental: { usdPerHour: "0.125", updatedAt: new Date(now - 1000).toISOString(), source: "Akash lease plus margin", priceBasis: "akash_lease_plus_margin", expiresAt: null, costUsdPerHour: "0.1", marginPct: "25" }, economy: { updatedAt: new Date(now - 1000).toISOString() } },
   nodes: { total: 1, free: 1 } };
 const input = { gpuId: "gpu-a", gpus: 1, vcpu: 2, ramGb: 4, storageGb: 10, durationSeconds: 3600, mode: "balanced" as const };
 
@@ -18,7 +18,7 @@ test("quotes derive the entire total and cap only from the live rate", () => {
   assert.equal(quote.pricePerHour, "0.125000");
   assert.equal(quote.totalPrice, "0.125000");
   assert.equal(quote.priceCap, "0.125000");
-  assert.equal(quote.updatedAt, offer.prices.economy!.updatedAt);
+  assert.equal(quote.updatedAt, offer.prices.rental!.updatedAt);
   assert.equal(buildQuote({ ...input, durationSeconds: 5400 }, [offer], now).totalPrice, "0.187500");
 });
 
@@ -44,8 +44,8 @@ test("quotes fail closed on absent, invalid, future, or stale live feed rates", 
   for (const rate of [null, "0", "-1", "not-a-number"]) {
     rejects("PRICING_UNAVAILABLE", () => buildQuote(input, [{ ...offer, prices: { ...offer.prices, rentalUsdPerHour: rate } }], now));
   }
-  for (const time of [now - 49 * 3600000, now + 6 * 60000]) {
-    rejects("PRICING_UNAVAILABLE", () => buildQuote(input, [{ ...offer, prices: { ...offer.prices, economy: { updatedAt: new Date(time).toISOString() } } }], now));
+  for (const time of [NaN, now + 6 * 60000]) {
+    rejects("PRICING_UNAVAILABLE", () => buildQuote(input, [{ ...offer, prices: { ...offer.prices, rental: { ...offer.prices.rental!, updatedAt: Number.isFinite(time) ? new Date(time).toISOString() : "invalid" } } }], now));
   }
 });
 
@@ -156,7 +156,7 @@ async function routeFixture(options: RouteOptions = {}) {
   database.exec(`CREATE TABLE bookings (id TEXT PRIMARY KEY,gpu_id TEXT,slot_start TEXT,slot_end TEXT,holder TEXT,redemption_id TEXT)`);
   const state = { charges: 0, reservations: 0, cancellations: 0, holder: "", amount: "", emitted: [] as string[] };
   const fresh = new Date().toISOString();
-  const catalog = { updatedAt: fresh, gpus: [{ ...offer, prices: { ...offer.prices, economy: { updatedAt: fresh } } }] } as RentalCatalog;
+  const catalog = { updatedAt: fresh, gpus: [{ ...offer, prices: { ...offer.prices, rental: { ...offer.prices.rental!, updatedAt: fresh }, economy: { updatedAt: fresh } } }] } as RentalCatalog;
   const db = options.pendingRecordFails ? new Proxy(database, {
     get(target, property) {
       if (property === "prepare") return (sql: string) => {
@@ -350,4 +350,21 @@ test("Express quote calendar and offline estimator preserve upstream truth", asy
     assert.deepEqual(schedule.blocks[0].refs, ["real-upstream-reservation"]);
     assert.equal(fixture.state.charges, 0);
   } finally { await fixture.close(); }
+});
+
+test("own 0.200 policy stays distinct from the 0.550 market comparison and matches all mode rates", () => {
+  const own = { ...offer, prices: { ...offer.prices, rentalUsdPerHour: "0.200000",
+    rental: { ...offer.prices.rental!, usdPerHour: "0.200000", costUsdPerHour: "0.160000" },
+    economy: { updatedAt: new Date(now - 49 * 3600_000).toISOString() },
+    awsSpot: { usdPerHour: "0.250000", updatedAt: new Date(now - 1000).toISOString() },
+    awsOnDemand: { usdPerHour: "0.500000", updatedAt: new Date(now - 1000).toISOString() } } };
+  const quote = buildQuote(input, [own], now);
+  assert.deepEqual(quote.options.map(item => item.pricePerHour), ["0.100000", "0.150000", "0.200000"]);
+  assert.equal(quote.priceSource, "Akash lease plus margin");
+  assert.equal(quote.priceBasis, "akash_lease_plus_margin");
+  assert(!quote.formula.includes("GPU Economy hourly median"));
+  const expiredSpot = { ...own, prices: { ...own.prices, awsSpot: { ...own.prices.awsSpot!, updatedAt: new Date(now - 31 * 60_000).toISOString() } } };
+  assert.deepEqual(buildQuote(input, [expiredSpot], now).options.map(item => item.pricePerHour), ["0.200000", "0.200000", "0.200000"]);
+  const future = { ...own, prices: { ...own.prices, awsSpot: { ...own.prices.awsSpot!, updatedAt: new Date(now + 5 * 60_000).toISOString() } } };
+  assert.equal(buildQuote(input, [future], now).awsDiscountRatio, null);
 });

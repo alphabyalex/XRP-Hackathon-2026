@@ -66,8 +66,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return UnavailableProvider()
         configured_endpoints.add(endpoint)
         scheduler.worker(gid).simulated = False
+        scheduler.worker(gid).model = settings.canonical_model(gid)
         return VllmProvider(
-            endpoint, settings.request_timeout_seconds, settings.upstream_model if gid == "gpu-a" else None
+            endpoint, settings.request_timeout_seconds, settings.wire_model(gid)
         )
 
     for gid in scheduler.workers:

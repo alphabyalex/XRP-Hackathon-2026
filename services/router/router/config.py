@@ -133,6 +133,28 @@ PRIORITY_PREMIUM = float(_env("PRIORITY_PREMIUM", "0.25"))  # Fastest: on-demand
 AKASH_LEASE_USD_PER_HOUR = float(_env("AKASH_LEASE_USD_PER_HOUR", "0.160"))
 OWN_MARGIN = float(_env("OWN_MARGIN", "0.25"))
 OWN_RATE_USD_PER_HOUR = round(AKASH_LEASE_USD_PER_HOUR * (1 + OWN_MARGIN), 6)
+OWN_PRICE_UPDATED_AT = _env("OWN_PRICE_UPDATED_AT", "2026-10-25T13:32:21Z")
+
+
+def own_rental_policy(gpu_id: str) -> dict[str, Any] | None:
+    """Per-lease verified cost and an explicit configured margin. No new lease inherits A's cost."""
+    import math
+    from datetime import datetime, UTC
+    prefix = gpu_id.upper().replace("-", "_")
+    try:
+        cost = float(_env(f"{prefix}_LEASE_USD_PER_HOUR", str(AKASH_LEASE_USD_PER_HOUR) if gpu_id == "gpu-a" else "nan"))
+        margin = float(_env(f"{prefix}_OWN_MARGIN", str(OWN_MARGIN)))
+        timestamp = _env(f"{prefix}_PRICE_UPDATED_AT", OWN_PRICE_UPDATED_AT if gpu_id == "gpu-a" else "")
+        updated = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        if updated.tzinfo is None or (datetime.now(UTC) - updated).total_seconds() < -300:
+            return None
+        rate = cost * (1 + margin)
+        if not all(math.isfinite(value) for value in (cost, margin, rate)) or cost <= 0 or margin < 0 or rate <= 0:
+            return None
+        return {"pricePerGpuHourUsd": round(rate, 6), "asOf": timestamp, "source": "Akash lease plus margin",
+                "priceBasis": "akash_lease_plus_margin", "costUsdPerHour": cost, "marginPct": margin * 100}
+    except (ValueError, TypeError):
+        return None
 MAX_TASK_DAYS = float(_env("MAX_TASK_DAYS", "7"))  # the largest task is what the fleet finishes in this time
 
 

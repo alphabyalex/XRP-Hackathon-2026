@@ -9,6 +9,42 @@ export interface LiveRate {
   publishedAt?: string | null;
 }
 
+export interface OwnRentalRate {
+  usdPerHour: string; updatedAt: string; source: "Akash lease plus margin";
+  priceBasis: "akash_lease_plus_margin"; expiresAt: null;
+  costUsdPerHour: string; marginPct: string;
+}
+export interface RentalPrices {
+  rentalUsdPerHour: string | null; rental?: OwnRentalRate | null;
+  awsSpot?: { usdPerHour: string; updatedAt?: string } | null;
+  awsOnDemand?: { usdPerHour: string; updatedAt?: string } | null;
+}
+export function configuredRentalRate(costValue: unknown, marginValue: unknown, updatedAt: string): OwnRentalRate | null {
+  const cost = Number(costValue), margin = Number(marginValue);
+  if (!Number.isFinite(cost) || cost <= 0 || !Number.isFinite(margin) || margin < 0 ||
+      !Number.isFinite(Date.parse(updatedAt)) || Date.parse(updatedAt) > Date.now() + 300_000) return null;
+  const hourly = cost * (1 + margin);
+  if (!Number.isFinite(hourly) || hourly <= 0) return null;
+  return { usdPerHour: hourly.toFixed(6), updatedAt, source: "Akash lease plus margin",
+    priceBasis: "akash_lease_plus_margin", expiresAt: null, costUsdPerHour: cost.toFixed(6), marginPct: (margin * 100).toFixed(2) };
+}
+export function rentalModePricing(prices: RentalPrices, now = Date.now()) {
+  const own = prices.rental;
+  if (!own || own.priceBasis !== "akash_lease_plus_margin" || own.source !== "Akash lease plus margin" ||
+      !Number.isFinite(Date.parse(own.updatedAt)) || Date.parse(own.updatedAt) > now + 300_000 ||
+      !Number.isFinite(Number(own.usdPerHour)) || Number(own.usdPerHour) <= 0 ||
+      Number(prices.rentalUsdPerHour) !== Number(own.usdPerHour)) return null;
+  const valid = (rate: RentalPrices["awsSpot"], age: number) => !!rate && Number.isFinite(Number(rate.usdPerHour)) && Number(rate.usdPerHour) > 0 &&
+    Number.isFinite(Date.parse(rate.updatedAt ?? "")) && now - Date.parse(rate.updatedAt!) < age && Date.parse(rate.updatedAt!) <= now + 60_000;
+  const pair = valid(prices.awsSpot, 30 * 60_000) && valid(prices.awsOnDemand, 48 * 3600_000);
+  const ratio = pair ? Math.min(1, Number(prices.awsSpot!.usdPerHour) / Number(prices.awsOnDemand!.usdPerHour)) : null;
+  const full = Number(own.usdPerHour);
+  const discountUpdatedAt = pair ? [own.updatedAt, prices.awsSpot!.updatedAt!, prices.awsOnDemand!.updatedAt!].sort().at(-1)! : own.updatedAt;
+  return { own, ratio, rates: { cheapest: full * (ratio ?? 1), balanced: full * (ratio === null ? 1 : (1 + ratio) / 2), fastest: full },
+    updatedAt: { cheapest: discountUpdatedAt, balanced: discountUpdatedAt, fastest: own.updatedAt },
+    discountExpiresAt: pair ? new Date(Math.min(Date.parse(prices.awsSpot!.updatedAt!) + 30 * 60_000, Date.parse(prices.awsOnDemand!.updatedAt!) + 48 * 3600_000)).toISOString() : null };
+}
+
 export interface FleetRow {
   id: string;
   moonshiftGpuId?: string | null;

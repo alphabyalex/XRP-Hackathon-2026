@@ -330,38 +330,44 @@ def service_fleet(views: Sequence[GpuView], order: OrderSpec) -> list[GpuView] |
     return pool
 
 
-_aws_cache: dict[str, Any] = {"at": 0.0, "ratio": None}
+_aws_cache: dict[str, list[tuple[float, str, str]]] = {"spot": [], "on-demand": []}
 
 
-def aws_spot_ratio() -> float | None:
-    """Live AWS spot / on-demand for the same card (api GET /catalog/aws), cached 60 s. None when the
-    feed has no fresh pair; then every mode is priced at our full rate rather than a made-up discount."""
-    import time
+def update_aws_prices(offers: Iterable[Any]) -> None:
+    """Collectors update this cache outside the request path. Never retry a feed in a quote."""
+    offers = tuple(offers)
+    for kind in ("spot", "on-demand"):
+        _aws_cache[kind] = [(offer.pricePerHourUsd / offer.gpuCount, offer.asOf, offer.gpuModel) for offer in offers
+                            if offer.provider == "aws" and offer.priceSource == "live"
+                            and offer.capacityType == kind and offer.gpuCount > 0
+                            and math.isfinite(offer.pricePerHourUsd) and offer.pricePerHourUsd > 0]
 
-    import httpx
 
-    now = time.monotonic()
-    if now - _aws_cache["at"] < 60:
-        return _aws_cache["ratio"]
-    ratio = None
-    try:
-        body = httpx.get(f"{C.API_URL}/catalog/aws", timeout=2.0).json()
-        spot = [float(r["usdPerHour"]) for r in body.get("spot", []) if float(r.get("usdPerHour") or 0) > 0]
-        od = [float(r["usdPerHour"]) for r in body.get("onDemand", []) if float(r.get("usdPerHour") or 0) > 0]
-        if spot and od:
-            ratio = min(1.0, min(spot) / min(od))
-    except (httpx.HTTPError, ValueError, KeyError, TypeError):
-        ratio = _aws_cache["ratio"]
-    _aws_cache.update(at=now, ratio=ratio)
-    return ratio
+def aws_spot_ratio(gpu_model: str = "T4") -> float | None:
+    """Fresh public AWS T4 comparison ratio. An expired pair restores the full configured rate."""
+    from router.catalog import now_utc, parse_time
+
+    now = now_utc()
+    def fresh(kind: str, seconds: int) -> list[float]:
+        values = []
+        for price, timestamp, model in _aws_cache[kind]:
+            try:
+                age = (now - parse_time(timestamp)).total_seconds()
+                if model == gpu_model and -60 <= age < seconds:
+                    values.append(price)
+            except (ValueError, TypeError):
+                continue
+        return values
+    spot, od = fresh("spot", 1800), fresh("on-demand", 48 * 3600)
+    return min(1.0, min(spot) / min(od)) if spot and od else None
 
 
 def level_rate(g: GpuView, mode: Mode) -> float:
     if C.FLEET_SOURCE != "mock":
         # Our GPUs: Fastest (Priority) is the full on-demand rate, the lease plus margin. Cheapest
         # (Pausable) carries the live AWS spot discount; Balanced (Guaranteed) sits halfway.
-        full = C.OWN_RATE_USD_PER_HOUR
-        ratio = aws_spot_ratio()
+        full = g.priceUsdcPerHour
+        ratio = aws_spot_ratio() if g.gpuModel == "T4" else aws_spot_ratio(g.gpuModel)
         if ratio is None or mode == "fastest":
             return full
         spot = full * ratio

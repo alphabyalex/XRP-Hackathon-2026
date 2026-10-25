@@ -22,7 +22,8 @@ export function observedOutputThroughput(rows: ThroughputObservation[], notBefor
 
 export function modelsForGpu(gpu: RentalGpu, measuredOutputTokensPerSecond: number | null = null) {
   return MODEL_SPECS.filter(model => model.vramGb <= gpu.vramGb).map(model => {
-    const serving = gpu.id === "gpu-a" && model.id === "Qwen/Qwen2.5-1.5B-Instruct" && gpu.status === "serving";
+    const deployed = gpu.modelId ?? (gpu.model ? `Qwen/${gpu.model}` : gpu.id === "gpu-a" ? "Qwen/Qwen2.5-1.5B-Instruct" : null);
+    const serving = model.id === deployed && gpu.status === "serving";
     const price = serving && gpu.prices.rentalUsdPerHour && measuredOutputTokensPerSecond && measuredOutputTokensPerSecond > 0
       ? (Number(gpu.prices.rentalUsdPerHour) * 1_000_000 / (3600 * measuredOutputTokensPerSecond)).toFixed(6) : null;
     return {

@@ -24,7 +24,8 @@ from compute.providers import Completion
 def catalog(rate="0.550000", age_seconds=0):
     updated = (datetime.now(UTC) - timedelta(seconds=age_seconds)).isoformat()
     return {"gpus": [{"id": "gpu-a", "status": "serving", "prices": {
-        "rentalUsdPerHour": rate, "economy": {"usdPerHour": rate, "updatedAt": updated},
+        "rentalUsdPerHour": rate, "rental": {"usdPerHour": rate, "updatedAt": updated, "source": "Akash lease plus margin", "priceBasis": "akash_lease_plus_margin"},
+        "economy": {"usdPerHour": "0.550000", "updatedAt": updated},
     }}]}
 
 
@@ -48,7 +49,7 @@ def test_live_rate_uses_authenticated_catalog_and_caches_published_rate():
         second = await rates.get("gpu-a")
         assert first == second
         assert first.hourly_usd == Decimal("0.550000")
-        assert first.source == "GPU Economy median" and first.updated_at
+        assert first.source == "Akash lease plus margin" and first.updated_at
         assert first.base_fee == first.input_per_mtok == first.output_per_mtok == 0
 
     asyncio.run(run())
@@ -57,7 +58,7 @@ def test_live_rate_uses_authenticated_catalog_and_caches_published_rate():
 
 @pytest.mark.parametrize("body", [
     {"gpus": []}, catalog(None), catalog("-1"), catalog("NaN"),
-    catalog(age_seconds=49 * 3600), catalog(age_seconds=-600),
+    catalog(age_seconds=-600),
 ])
 def test_missing_or_invalid_live_prices_never_become_default_token_rates(body):
     async def run():
@@ -171,3 +172,23 @@ def test_missing_wrong_owner_and_expired_bookings_cannot_become_public_requests(
                               json={"messages": [{"role": "user", "content": "Hello"}]})
         assert expired.status_code == 404
     assert provider.calls == 0
+
+
+def test_own_policy_accepts_point_two_while_external_median_is_point_five_five():
+    data = catalog("0.200000", age_seconds=72 * 3600)
+    # A configured rental policy has no invented market-feed expiry.
+    async def run():
+        for comparison in [data["gpus"][0]["prices"]["economy"], None]:
+            data["gpus"][0]["prices"]["economy"] = comparison
+            rate = await rate_client(lambda request: httpx.Response(200, json=data)).get("gpu-a")
+            assert rate.hourly_usd == Decimal("0.200000")
+            assert rate.source == "Akash lease plus margin"
+    asyncio.run(run())
+
+
+def test_per_gpu_canonical_and_wire_model_configuration(monkeypatch):
+    monkeypatch.setenv("GPU_B_MODEL_ID", "Qwen/Qwen2.5-3B-Instruct")
+    monkeypatch.setenv("GPU_B_WIRE_MODEL", "verified-b-wire-alias")
+    settings = Settings.from_env()
+    assert settings.canonical_model("gpu-b") == "Qwen/Qwen2.5-3B-Instruct"
+    assert settings.wire_model("gpu-b") == "verified-b-wire-alias"

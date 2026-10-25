@@ -75,3 +75,32 @@ test("historical rows from builds without reliable provenance cannot price curre
   assert.equal(observedOutputThroughput([old], boot), null);
   assert.equal(observedOutputThroughput([old, fresh], boot), 10);
 });
+
+test("distinct deployed models are serving only on their verified GPU", () => {
+  const gpu = { id: "gpu-b", vramGb: 32, status: "serving", modelId: "Qwen/Qwen2.5-3B-Instruct", prices: { rentalUsdPerHour: "0.2" }, updatedAt: offer.asOf } as RentalGpu;
+  const models = modelsForGpu(gpu);
+  assert.deepEqual(models.filter(m => m.acceptsRequests).map(m => m.modelId), ["Qwen/Qwen2.5-3B-Instruct"]);
+});
+
+test("health hides duplicate endpoint aliases and preserves a genuine distinct GPU-B", async () => {
+  const { refreshHealth, gpuHealth } = await import("../src/gpuHealth.js");
+  const originalFetch = globalThis.fetch;
+  const originalA = process.env.GPU_A_VLLM_URL, originalB = process.env.GPU_B_VLLM_URL;
+  process.env.GPU_A_VLLM_URL = "http://first/v1/";
+  process.env.GPU_B_VLLM_URL = "http://first/";
+  globalThis.fetch = async (url) => Response.json({ data: [{ id: "wire-name", root: String(url).includes("second") ? "Qwen/Qwen2.5-3B-Instruct" : "Qwen/Qwen2.5-1.5B-Instruct" }] });
+  try {
+    await refreshHealth();
+    assert.equal(gpuHealth().find(g => g.gpuId === "gpu-a")?.ok, true);
+    assert.equal(gpuHealth().find(g => g.gpuId === "gpu-b")?.error, "duplicate_endpoint");
+    assert.equal(gpuHealth().find(g => g.gpuId === "gpu-b")?.ok, false);
+    process.env.GPU_B_VLLM_URL = "http://second/";
+    await refreshHealth();
+    assert.equal(gpuHealth().find(g => g.gpuId === "gpu-b")?.ok, true);
+    assert.equal(gpuHealth().find(g => g.gpuId === "gpu-b")?.model, "Qwen/Qwen2.5-3B-Instruct");
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalA === undefined) delete process.env.GPU_A_VLLM_URL; else process.env.GPU_A_VLLM_URL = originalA;
+    if (originalB === undefined) delete process.env.GPU_B_VLLM_URL; else process.env.GPU_B_VLLM_URL = originalB;
+  }
+});

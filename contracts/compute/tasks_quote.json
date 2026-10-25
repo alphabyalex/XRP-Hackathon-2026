@@ -1,7 +1,54 @@
 {
   "endpoint": "POST /tasks/quote",
-  "request": {"gpuId": "gpu-a", "gpus": 1, "vcpu": 2, "ramGb": 4, "storageGb": 10, "durationSeconds": 3600, "mode": "balanced"},
-  "error_example": {"status": 503, "body": {"error": {"code": "PRICING_UNAVAILABLE", "message": "Live rental prices are not available yet."}}},
-  "success_shape": {"currency": "USD", "mode": "balanced", "pricePerHour": "decimal string", "totalPrice": "decimal string", "estimatedDurationSeconds": "integer", "priceCap": "decimal string", "updatedAt": "ISO timestamp from the live feed", "formula": "live GPU Economy hourly median multiplied by GPU count and duration; CPU, RAM and storage are included within the node limits", "options": [{"mode": "cheapest|balanced|fastest", "gpuId": "healthy serving GPU id", "pricePerHour": "decimal string", "totalPrice": "decimal string", "estimatedDurationSeconds": "integer", "priceCap": "decimal string", "updatedAt": "ISO timestamp from the live feed"}]},
-  "notes": ["The request uses a duration estimate. Mode rankings do not invent performance or shorten it.", "Only live cached rates are used. Requests fail closed when rates are absent or stale.", "GPU count, vCPU, RAM, storage and duration are validated against the serving hardware."]
+  "request": {
+    "gpuId": "gpu-a",
+    "gpus": 1,
+    "vcpu": 2,
+    "ramGb": 4,
+    "storageGb": 10,
+    "durationSeconds": 3600,
+    "mode": "balanced"
+  },
+  "error_example": {
+    "status": 503,
+    "body": {
+      "error": {
+        "code": "PRICING_UNAVAILABLE",
+        "message": "Live rental prices are not available yet."
+      }
+    }
+  },
+  "success_shape": {
+    "currency": "USD",
+    "mode": "balanced",
+    "pricePerHour": "decimal string",
+    "totalPrice": "decimal string",
+    "estimatedDurationSeconds": "integer",
+    "priceCap": "decimal string",
+    "updatedAt": "Actual configured rental policy timestamp, or newer AWS comparison timestamp for a discounted mode",
+    "formula": "Configured per-lease cost plus margin times GPU count and duration; fresh same-card AWS spot/on-demand ratios discount Cheapest and half-discount Balanced. Market medians are comparisons.",
+    "options": [
+      {
+        "mode": "cheapest|balanced|fastest",
+        "gpuId": "healthy serving GPU id",
+        "pricePerHour": "decimal string",
+        "totalPrice": "decimal string",
+        "estimatedDurationSeconds": "integer",
+        "priceCap": "decimal string",
+        "updatedAt": "Actual configured rental policy timestamp, or newer AWS comparison timestamp for a discounted mode",
+        "priceSource": "Akash lease plus margin",
+        "priceBasis": "akash_lease_plus_margin",
+        "awsDiscountRatio": "number or null",
+        "discountExpiresAt": "earliest actual comparison expiry or null"
+      }
+    ],
+    "priceSource": "Akash lease plus margin",
+    "priceBasis": "akash_lease_plus_margin"
+  },
+  "notes": [
+    "GPU count, vCPU, RAM, storage and duration are validated against the serving hardware.",
+    "Our configured rental rate is independently sourced from the external market median. Missing policy provenance fails closed.",
+    "Cheapest carries the fresh AWS spot ratio and an estimated 30 percent longer elapsed duration; Balanced receives half the discount; Fastest uses the full configured rate. These are configured policies, not benchmark measurements.",
+    "Expired or missing AWS comparison pairs restore the full configured rate for every mode. They do not expire an otherwise valid own-price policy."
+  ]
 }

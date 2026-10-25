@@ -32,7 +32,7 @@ def test_own_fleet_is_only_moonshift_gpus(monkeypatch):
     assert [(e.id, e.label, e.offer.provider) for e in entries] == [("gpu-a", "GPU-A", "moonshift")]
 
 
-def test_price_is_gpu_economy_median_and_aws_is_comparison_only(monkeypatch):
+def test_price_is_own_lease_policy_and_market_and_aws_are_comparisons(monkeypatch):
     monkeypatch.setattr(C, "FLEET_SOURCE", "own")
     entries = load_entries(
         catalog(
@@ -46,16 +46,17 @@ def test_price_is_gpu_economy_median_and_aws_is_comparison_only(monkeypatch):
                 "source": "GPU Economy", "offerKey": "gpu-economy#t4"}},
     )
     for e in entries:
-        assert e.offer.pricePerHourUsd == 0.55
-        assert e.offer.price_per_hour_usdc() == 0.55
-        assert e.benchmark and e.benchmark["offerKey"] == "gpu-economy#t4"
+        assert e.offer.pricePerHourUsd == C.OWN_RATE_USD_PER_HOUR
+        assert e.offer.price_per_hour_usdc() == C.OWN_RATE_USD_PER_HOUR
+        assert e.benchmark and e.benchmark["source"] == "Akash lease plus margin"
+        assert e.benchmark["marketComparison"]["offerKey"] == "gpu-economy#t4"
         assert e.benchmark["awsComparison"]["offerKey"] == "aws#us-east-1#g4dn.xlarge#on-demand"
 
 
-def test_gpu_is_unpriced_when_the_market_has_no_live_offer(monkeypatch):
+def test_configured_own_price_does_not_depend_on_an_external_comparison(monkeypatch):
     monkeypatch.setattr(C, "FLEET_SOURCE", "own")
     entries = load_entries(catalog())
-    assert all(e.offer.pricePerHourUsd == 0 and e.benchmark is None and not e.offerFound for e in entries)
+    assert all(e.offer.pricePerHourUsd == C.OWN_RATE_USD_PER_HOUR and e.benchmark["marketComparison"] is None and e.offerFound for e in entries)
 
 
 def test_gpus_apps_api_does_not_list_are_not_offered(monkeypatch):
@@ -68,3 +69,22 @@ def test_gpus_apps_api_does_not_list_are_not_offered(monkeypatch):
     state = FleetState(unlisted={"gpu-a"})
     views = {e.id: state.view(e, now_utc()) for e in entries}
     assert views["gpu-a"].available is False and views["gpu-a"].reason == "NOT_LISTED"
+
+
+def test_new_gpu_needs_its_own_verified_lease_cost(monkeypatch):
+    monkeypatch.delenv("GPU_B_LEASE_USD_PER_HOUR", raising=False)
+    monkeypatch.delenv("GPU_B_PRICE_UPDATED_AT", raising=False)
+    assert C.own_rental_policy("gpu-b") is None
+    monkeypatch.setenv("GPU_B_LEASE_USD_PER_HOUR", "0.230346")
+    monkeypatch.setenv("GPU_B_PRICE_UPDATED_AT", iso(now_utc()))
+    policy = C.own_rental_policy("gpu-b")
+    assert policy["pricePerGpuHourUsd"] == round(0.230346 * 1.25, 6)
+    assert policy["source"] == "Akash lease plus margin"
+
+
+def test_invalid_lease_cost_never_becomes_a_zero_dollar_offer(monkeypatch):
+    monkeypatch.setattr(C, "FLEET_SOURCE", "own")
+    monkeypatch.setenv("GPU_A_LEASE_USD_PER_HOUR", "nan")
+    entries = load_entries(catalog())
+    assert not entries[0].offerFound
+    assert entries[0].offer.pricePerHourUsd == 0

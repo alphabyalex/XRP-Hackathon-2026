@@ -135,8 +135,11 @@ def load_entries(catalog: dict[str, Offer], economy_rates: dict[str, dict] | Non
                     valid = (0 < economy["pricePerGpuHourUsd"]
                              and -300 <= (now - parse_time(economy["asOf"])).total_seconds() < 48 * 3600
                              and -300 <= (now - parse_time(economy["checkedAt"])).total_seconds() < 1800)
-                bench = {**economy, "awsComparison": comparison} if valid else None
-                price = float(economy["pricePerGpuHourUsd"]) if valid else 0.0
+                # A market benchmark does not authorize our rental rate. The
+                # configured lease-plus-margin policy remains valid until changed.
+                policy = C.own_rental_policy(g["id"])
+                bench = {**policy, "marketComparison": economy if valid else None, "awsComparison": comparison} if policy else None
+                price = float(policy["pricePerGpuHourUsd"]) if policy else 0.0
             offer = make_offer(
                 provider="moonshift",
                 region=m.get("region", "moonshift"),
@@ -307,7 +310,11 @@ class FleetState:
         # Fresh: within CATALOG_MAX_AGE. Last good snapshot: up to 4x that, still usable but degraded
         # (availability treated as unknown, the optimizer adds risk). Older: excluded.
         age = 0.0 if C.FLEET_SOURCE == "mock" and e.offer.provider == "moonshift" else e.offer.age_seconds(now)
-        if (e.benchmark or {}).get("source") == "GPU Economy":
+        if (e.benchmark or {}).get("priceBasis") == "akash_lease_plus_margin":
+            # This is a configured business policy, not a feed whose timestamp
+            # should be reset or aged out as though it were a market observation.
+            fresh, degraded = e.offerFound, False
+        elif (e.benchmark or {}).get("source") == "GPU Economy":
             checked_age = (now - parse_time(e.benchmark["checkedAt"])).total_seconds()
             fresh = age < 48 * 3600 and checked_age < 1800
             degraded = False
@@ -360,7 +367,7 @@ class FleetState:
             asOf=e.offer.asOf,
             reason=reason,
             degraded=degraded,
-            spotUsdcPerHour=(float(e.offer.pricePerHourUsd) if (e.benchmark or {}).get("source") == "GPU Economy"
+            spotUsdcPerHour=(float(e.offer.pricePerHourUsd) if (e.benchmark or {}).get("priceBasis") == "akash_lease_plus_margin" or (e.benchmark or {}).get("source") == "GPU Economy"
                             else float((e.benchmark or {}).get("spotPricePerGpuHourUsd", 0.0))),
         )
 

@@ -26,12 +26,21 @@
         "status": "serving",
         "updatedAt": "2026-10-25T08:42:50.190183Z",
         "prices": {
-          "rentalUsdPerHour": null,
+          "rentalUsdPerHour": "0.200000",
           "currency": "USD",
           "economy": null,
           "awsSpot": null,
           "awsOnDemand": null,
-          "change24hPct": null
+          "change24hPct": null,
+          "rental": {
+            "usdPerHour": "0.200000",
+            "updatedAt": "2026-10-25T13:32:21Z",
+            "source": "Akash lease plus margin",
+            "priceBasis": "akash_lease_plus_margin",
+            "expiresAt": null,
+            "costUsdPerHour": "0.160000",
+            "marginPct": "25.00"
+          }
         },
         "nodes": {
           "total": 1,
@@ -41,18 +50,21 @@
           "updatedAt": null
         },
         "utilization24h": [],
-        "utilizationMetric": "observed_worker_busy_pct"
+        "utilizationMetric": "observed_worker_busy_pct",
+        "modelId": "Qwen/Qwen2.5-1.5B-Instruct"
       }
     ]
   },
   "notes": [
-    "Only a configured GPU endpoint that passes its health check appears.",
+    "Only a unique configured endpoint with verified hardware and a matching healthy deployed model appears. Duplicate endpoint aliases never add physical capacity.",
     "Resources verified by read-only saved SDL for existing deployment 1792883508772 on 2026-10-25: 4 vCPU,16 GiB RAM,100 GiB storage. Provider record advertises city=LIS,country=PT,location-region=eu-southwest. Environment overrides support future relocation.",
-    "rentalUsdPerHour equals the fresh GPU Economy median. Null means unavailable, never free.",
+    "rentalUsdPerHour comes from the configured per-lease cost plus margin. rental records its own source, policy timestamp and price basis. The GPU Economy median is a separate comparison. Null means unavailable, never free.",
     "economy, awsSpot and awsOnDemand, when present, have {usdPerHour,updatedAt,source,sourceUrl}; AWS values also have region and instanceType.",
     "AWS comparisons accept live collector records only, not fixtures or static defaults.",
     "No 24-hour price change is returned until a real observation exists near 24 hours ago.",
     "Node counts are physical endpoints. Missing fleet data returns null counts. Utilization is sampled worker occupancy, not invented device telemetry.",
-    "Poll every 5 seconds. No history is backfilled."
+    "Poll every 5 seconds. No history is backfilled.",
+    "A configured rental policy remains active until changed; no external market-feed expiry is invented for it. AWS comparison discounts require fresh same-card spot and on-demand observations.",
+    "Additional GPUs require GPU_X_CARD, VRAM_GB, VCPU, RAM_GB, STORAGE_GB and MODEL_ID plus a healthy distinct VLLM_URL. Prices additionally require GPU_X_LEASE_USD_PER_HOUR and GPU_X_PRICE_UPDATED_AT. GPU_X_WIRE_MODEL configures a private wire alias."
   ]
 }

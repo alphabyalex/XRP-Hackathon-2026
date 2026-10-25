@@ -63,6 +63,15 @@ class Settings:
     gpu_nodes: tuple[str, ...] = ("gpu-a", "gpu-b")
     upstream_model: str = "Qwen/Qwen3-1.7B"
 
+    def canonical_model(self, gpu_id: str) -> str:
+        prefix = gpu_id.upper().replace("-", "_")
+        return os.getenv(f"{prefix}_MODEL_ID", self.model).strip()
+
+    def wire_model(self, gpu_id: str) -> str:
+        prefix = gpu_id.upper().replace("-", "_")
+        return os.getenv(f"{prefix}_WIRE_MODEL", os.getenv(f"{prefix}_VLLM_MODEL",
+            self.upstream_model if gpu_id == "gpu-a" else self.canonical_model(gpu_id))).strip()
+
     @classmethod
     def from_env(cls) -> "Settings":
         mock = _bool("MOCK", True)

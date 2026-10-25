@@ -69,23 +69,26 @@ class RateClient:
             gpu = next(item for item in body["gpus"] if item["id"] == gpu_id and item["status"] == "serving")
             prices = gpu["prices"]
             hourly = Decimal(str(prices["rentalUsdPerHour"]))
-            economy = prices["economy"]
-            source_hourly = Decimal(str(economy["usdPerHour"]))
-            updated_at = str(economy["updatedAt"])
+            rental = prices["rental"]
+            source_hourly = Decimal(str(rental["usdPerHour"]))
+            if rental["priceBasis"] != "akash_lease_plus_margin" or rental["source"] != "Akash lease plus margin":
+                raise ValueError("Own rental price provenance is missing")
+            updated_at = str(rental["updatedAt"])
             updated = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
             if updated.tzinfo is None:
                 raise ValueError("Price time has no offset")
             age = (datetime.now(UTC) - updated).total_seconds()
-            # hourly is our own rate (lease plus margin); the market median only proves the feed is fresh.
-            if not hourly.is_finite() or hourly <= 0 or not source_hourly.is_finite() or not -300 <= age < 48 * 3600:
+            # The rental policy is configured until changed. Market comparisons
+            # cannot authorize, expire, or replace this separately sourced rate.
+            if not hourly.is_finite() or hourly <= 0 or hourly != source_hourly or age < -300:
                 raise ValueError("Live rental rate is unavailable or stale")
             rate = RateCard(
                 input_per_mtok=Decimal("0"), output_per_mtok=Decimal("0"), base_fee=Decimal("0"),
-                hourly_usd=hourly, updated_at=updated_at, source="GPU Economy median",
+                hourly_usd=hourly, updated_at=updated_at, source="Akash lease plus margin",
             )
         except (httpx.HTTPError, KeyError, TypeError, ValueError, InvalidOperation, StopIteration) as error:
             raise ComputeError("PRICING_UNAVAILABLE", "Live rental prices are not available. No request was started.", 503) from error
-        # A cached rate must also expire when its publisher's observation becomes stale.
-        lifetime = min(max(0, self.ttl_seconds), max(0, 48 * 3600 - age))
+        # Cache only the configured TTL; no market-feed lifetime is invented for a business policy.
+        lifetime = max(0, self.ttl_seconds)
         self._cache[gpu_id] = (now + lifetime, rate)
         return rate

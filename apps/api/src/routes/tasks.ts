@@ -216,7 +216,7 @@ tasksRouter.post("/bookings", async (req: Request, res: Response) => {
         pending: hash => updateBooking(redemptionId, "payment_pending", bookingId, hash),
       });
       const result = { bookingId, redemptionId, gpuId, slotStart: start, slotEnd: end,
-        amount: quote.totalPrice, currency: "TDX", priceSource: "GPU Economy", priceUpdatedAt: quote.updatedAt, payment };
+        amount: quote.totalPrice, currency: "TDX", priceSource: quote.priceSource, priceBasis: quote.priceBasis, priceUpdatedAt: quote.updatedAt, payment };
       try {
         db.exec("BEGIN");
         db.prepare("INSERT INTO bookings (id,gpu_id,slot_start,slot_end,holder,redemption_id) VALUES (?,?,?,?,?,?)").run(bookingId, gpuId, start, end, holder, redemptionId);
