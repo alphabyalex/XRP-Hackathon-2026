@@ -1,0 +1,89 @@
+{
+  "gpuId": "gpu-e",
+  "dseq": "1792940820777",
+  "provider": "akash1p5qkxeu3hcxzx9nvfvva93pyvxcyqduly9udz9",
+  "providerName": "Overclock",
+  "modelRequested": "Qwen/Qwen3.5-4B",
+  "status": "model_loaded_inference_unavailable",
+  "verification": {
+    "leaseAccepted": true,
+    "hardwareVerified": true,
+    "modelProcessVerified": true,
+    "healthEndpointVerified": true,
+    "canonicalModelEndpointVerified": true,
+    "freshInferenceVerified": false,
+    "resumedInferenceVerified": false,
+    "throughputMeasured": false
+  },
+  "pricing": {
+    "denom": "uact",
+    "amountPerBlock": "265.753915000000000000",
+    "estimatedUsdPerHour": "0.1594523490000000000000",
+    "conversionAssumption": "600 six-second blocks per hour; 1000000 uact per USD",
+    "source": "akt accepted lease"
+  },
+  "listed": false,
+  "hardware": {
+    "name": "NVIDIA GeForce RTX 3090",
+    "usableVramMiB": 24576,
+    "driverVersion": "580.173.02",
+    "computeCapability": "8.6",
+    "physicalGpuUuidSha256": "aef99415208e13067b17f73c96c42fdf6bccc0d8b5093ff693869dfee10bc42c",
+    "visibleGpuCount": 1,
+    "cpuArchitecture": "x86_64",
+    "vllmVersion": "0.17.1",
+    "canonicalModelProcessVerified": true,
+    "downloadedModelConfigs": [
+      {
+        "modelType": "qwen3_5",
+        "architectures": [
+          "Qwen3_5ForConditionalGeneration"
+        ]
+      }
+    ],
+    "distinctFromVerifiedGpuIds": [
+      "gpu-a",
+      "gpu-b",
+      "gpu-c",
+      "gpu-d",
+      "gpu-f",
+      "gpu-g",
+      "gpu-h"
+    ],
+    "originalEHardwareHashUnchanged": true
+  },
+  "location": {
+    "city": "SFO",
+    "region": "na-us-west, US",
+    "source": "provider-advertised audited attributes, not independent physical geolocation"
+  },
+  "runtime": {
+    "vllmVersion": "0.17.1",
+    "image": "vllm/vllm-openai@sha256:116aa00ee0b68855616a56e1d7e1ae937e591a8bd6969ee45cbcedb246ddf355",
+    "modelId": "Qwen/Qwen3.5-4B",
+    "contextLength": 4096,
+    "dtype": "half",
+    "maxNumSeqs": 2,
+    "gpuMemoryUtilization": 0.8,
+    "languageModelOnly": true,
+    "eager": true,
+    "reasoningParser": "qwen3"
+  },
+  "observations": {
+    "healthyCanonicalApiObservedAt": "2026-10-25T16:06:00Z",
+    "freshProbeStartedAt": "2026-10-25T16:06:07Z",
+    "freshProbeFailedAt": "2026-10-25T16:08:11Z",
+    "freshProbeOutcome": "No valid answer within the provider adapter's two configured 60-second attempts. No throughput or successful resume claim is made.",
+    "hostMemoryOomEvents": 0,
+    "hostMemoryOomKills": 0,
+    "linkedBackendEnabled": false,
+    "cause": "Unresolved. Health and model identity do not establish generation readiness."
+  },
+  "fallback": {
+    "manifest": "infra/akash/history/node-e-rtx3090-legacy-baseline.yaml",
+    "modelId": "Qwen/Qwen2.5-3B-Instruct",
+    "verifiedServing": false,
+    "note": "Original baseline passed health and model identity but its first inference timed out. It is retained for operator review, not presented as a working fallback."
+  },
+  "operatorBoundary": "GPU-E remains isolated and excluded from the linked backend. No production rollout or enablement is authorized after the 2026-10-25T16:14:20Z freeze without a new user instruction."
+}

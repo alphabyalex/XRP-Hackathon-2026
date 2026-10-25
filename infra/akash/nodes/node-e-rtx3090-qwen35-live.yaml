@@ -1,0 +1,56 @@
+version: '2.0'
+
+# Same existing GPU-E lease and resource limits. No new lease is created.
+# ISOLATED AND UNLISTED: health passed; first generation timed out.
+# Fresh/resume and measured throughput must pass before any future enablement.
+services:
+  moonshift-gpu-e:
+    image: vllm/vllm-openai@sha256:116aa00ee0b68855616a56e1d7e1ae937e591a8bd6969ee45cbcedb246ddf355
+    expose:
+      - port: 8000
+        as: 8000
+        to:
+          - global: true
+    args:
+      - Qwen/Qwen3.5-4B
+      - --served-model-name
+      - Qwen/Qwen3.5-4B
+      - --dtype
+      - half
+      - --max-model-len
+      - '4096'
+      - --max-num-seqs
+      - '2'
+      - --enforce-eager
+      - --gpu-memory-utilization
+      - '0.8'
+      - --language-model-only
+      - --reasoning-parser
+      - qwen3
+profiles:
+  compute:
+    moonshift-gpu-e:
+      resources:
+        cpu:
+          units: 4
+        memory:
+          size: 16Gi
+        storage:
+          - size: 50Gi
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              nvidia:
+                - model: rtx3090
+  placement:
+    dcloud:
+      pricing:
+        moonshift-gpu-e:
+          denom: uact
+          amount: 500
+deployment:
+  moonshift-gpu-e:
+    dcloud:
+      profile: moonshift-gpu-e
+      count: 1
