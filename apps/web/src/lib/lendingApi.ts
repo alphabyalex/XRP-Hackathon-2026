@@ -113,6 +113,9 @@ export const bookStats = (grade?: string) =>
 // Explorer link for a hash on the loan's network; mock hashes have none.
 export function txUrl(network: string, hash?: string | null): string | null {
   if (!hash || hash.startsWith("MOCK") || network === "mock") return null;
+  // Some routes send the explorer link itself.
+  if (/^https:\/\/[a-z]+\.xrpl\.org\/transactions\/[0-9A-F]{64}$/i.test(hash)) return hash;
+  if (!/^[0-9A-F]{64}$/i.test(hash)) return null;
   const base = network === "mainnet" ? "https://livenet.xrpl.org" : network === "testnet" ? "https://testnet.xrpl.org" : "https://devnet.xrpl.org";
   return `${base}/transactions/${hash}`;
 }
