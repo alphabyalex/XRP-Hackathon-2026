@@ -1,16 +1,13 @@
-// Market making for the GPU share books, so each book is two-sided and its
-// midpoint reflects the GPU: the GPU's treasury offers its shares at NAV (from
-// its real treasury cash and utilization, via pricing), and CAROL (a system
-// account, not a user) keeps a resting bid 3% below. Both are re-quoted when
-// NAV moves more than 1%. Real devnet offers; users trade against them, and
-// any offer a user posts inside the spread moves the midpoint.
+// Market making for the GPU share books, so each book is two-sided around the GPU's one share
+// price (sharePrice.ts reference, which moves only with payouts): the GPU's treasury offers its
+// shares 1.5% above it and CAROL (a system account, not a user) keeps a resting bid 1.5% below.
+// Real devnet offers; a 1-share buy fills against the treasury's ask. Quoting no longer follows
+// NAV, whose treasury cash grows with every share the treasury sells (that made the price climb).
 
 import { GPUS, fix6, treasuryOf, type GpuId } from "@moonshift/shared";
 import * as xrpl from "./adapters/xrplAdapter.js";
-import * as pricing from "./adapters/pricingClient.js";
 import { logTx } from "./db/helpers.js";
-import { priceMoved, sharePrice } from "./sharePrice.js";
-import { navInputs } from "./marketHistory.js";
+import { priceMoved, referencePrice, sharePrice } from "./sharePrice.js";
 import * as lending from "./adapters/lendingAdapter.js";
 import { recordOracle } from "./lending/service.js";
 
@@ -27,8 +24,10 @@ export async function syncOracle(gpuId: GpuId): Promise<string | null> {
   return tx.hash;
 }
 
-const BID_DISCOUNT = 0.03;
+const SPREAD = 0.015;
 const BID_SHARES = "100";
+// Most of the treasury's shares stay off the book; this many are offered at a time.
+const ASK_SHARES = 200;
 
 let running: Promise<Record<string, unknown>> | null = null;
 
@@ -38,23 +37,17 @@ export function quoteMarket(): Promise<Record<string, unknown>> {
     const out: Record<string, unknown> = {};
     for (const g of GPUS) {
       try {
-        // A NAV without the treasury's cash (its balance not readable yet, e.g. right after a restart)
-        // is far too low: quoting it let the treasury's ask cross CAROL's standing bid and sell it 100
-        // shares, which raised the treasury's cash and the next NAV on every restart. Skip instead.
-        const inputs = await navInputs(g.id);
-        if (inputs.treasury_cash === undefined) {
-          out[g.id] = { skipped: "treasury cash not readable; quotes unchanged" };
-          continue;
-        }
-        const nav = Number((await pricing.getNav(g.id)).nav_per_share);
-        if (!(nav > 0)) continue;
-        const held = (await xrpl.getBalances(treasuryOf(g.id))).tokens[g.shareCode] ?? "0";
-        const quoteAsk = () => xrpl.requoteShareOffer({ account: treasuryOf(g.id), gpuId: g.id, side: "ask", price: fix6(nav), qty: held });
-        const quoteBid = () => xrpl.requoteShareOffer({ account: "CAROL", gpuId: g.id, side: "bid", price: fix6(nav * (1 - BID_DISCOUNT)), qty: BID_SHARES });
+        const ref = Number(await referencePrice(g.id));
+        if (!(ref > 0)) continue;
+        const held = Number((await xrpl.getBalances(treasuryOf(g.id))).tokens[g.shareCode] ?? "0");
+        const askQty = String(Math.floor(Math.min(held, ASK_SHARES)));
+        const askPx = ref * (1 + SPREAD);
+        const quoteAsk = () => xrpl.requoteShareOffer({ account: treasuryOf(g.id), gpuId: g.id, side: "ask", price: fix6(askPx), qty: askQty });
+        const quoteBid = () => xrpl.requoteShareOffer({ account: "CAROL", gpuId: g.id, side: "bid", price: fix6(ref * (1 - SPREAD)), qty: BID_SHARES });
         // The market maker never trades with itself: when the new ask would reach the standing bid
         // (NAV fell), move CAROL's bid down first; otherwise move the ask first.
         const book = await xrpl.getShareBook(g.id);
-        const bidFirst = book.bestBid !== null && nav <= Number(book.bestBid);
+        const bidFirst = book.bestBid !== null && askPx <= Number(book.bestBid);
         let ask: Awaited<ReturnType<typeof quoteAsk>>;
         let bid: Awaited<ReturnType<typeof quoteBid>>;
         if (bidFirst) {
@@ -69,7 +62,7 @@ export function quoteMarket(): Promise<Record<string, unknown>> {
             logTx({ hash, result: "tesSUCCESS", validated: true, explorerUrl: "" }, "marketMaker", who, `${who} quotes ${g.id} shares at ${r.price} USDC`);
           }
         }
-        out[g.id] = { nav: fix6(nav), ask: ask.action === "skipped" ? null : ask.price, bid: bid.price, actions: [ask.action, bid.action] };
+        out[g.id] = { reference: fix6(ref), ask: ask.action === "skipped" ? null : ask.price, bid: bid.price, actions: [ask.action, bid.action] };
       } catch (e) {
         out[g.id] = { error: (e as Error).message };
       } finally {

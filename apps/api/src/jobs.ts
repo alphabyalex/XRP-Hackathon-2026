@@ -10,11 +10,14 @@ import { quoteMarket } from "./marketMaker.js";
 import { oraclePrice, lendingAvailable } from "./adapters/lendingAdapter.js";
 
 export function startBackgroundJobs(): void {
-  // Re-quote the share books around NAV every 10 minutes (MARKET_MAKER=0 turns it off).
-  setInterval(() => {
+  // Keep both share books quoted around the reference price: 5 s after start, then every
+  // minute (an unchanged offer is left alone). MARKET_MAKER=0 turns it off.
+  const quote = () => {
     if (process.env.MARKET_MAKER === "0" || process.env.MOCK_XRPL !== "0") return;
     void quoteMarket().catch(() => {});
-  }, 10 * 60_000);
+  };
+  setTimeout(quote, 5_000);
+  setInterval(quote, 60_000);
 
   // Refresh pricing NAV, hook point for a future cache. Keeps the pricing
   // service warm and gives us a place to broadcast NAV changes later.

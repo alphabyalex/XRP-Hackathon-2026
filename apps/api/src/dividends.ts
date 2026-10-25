@@ -9,6 +9,7 @@ import * as pricing from "./adapters/pricingClient.js";
 import { db } from "./db/db.js";
 import { logTx, unassignedRevenue } from "./db/helpers.js";
 import { broadcast } from "./sse.js";
+import { payoutMade } from "./sharePrice.js";
 
 export async function proposeDividendRun(gpuId: GpuId) {
   const grossRevenue = unassignedRevenue(gpuId).toFixed(6);
@@ -96,6 +97,8 @@ export async function approveDividendRun(runId: string) {
 
   const allOk = results.every((r) => r.result === "tesSUCCESS");
   db.prepare(`UPDATE dividend_runs SET status = ? WHERE id = ?`).run(allOk ? "paid" : "failed", runId);
+  // The share's reference price rises by what each share was paid (sharePrice.ts).
+  if (allOk) await payoutMade(run.gpu_id as GpuId, String(run.per_share ?? "0")).catch(() => {});
 
   payoutRows.forEach((p, i) => {
     const tx = results[i];

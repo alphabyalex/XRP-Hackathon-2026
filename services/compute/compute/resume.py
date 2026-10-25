@@ -129,7 +129,34 @@ def continuation_prompt(messages: list[ChatMessage], partial: str, model: str) -
     return prompt + "<|im_start|>assistant\n" + partial
 
 
+# One request at a time per vLLM node (one T4 serves GPU-A): concurrent streams and the order's
+# own retry otherwise compete for the same small KV cache and fail together.
+_node_locks: dict[str, asyncio.Lock] = {}
+NODE_ATTEMPTS = 2
+
+
 async def vllm_tokens(provider: VllmProvider, req: StreamRequest, model: str) -> AsyncIterator[str]:
+    """Stream from the node, serialized per node, retrying once on the same node when the
+    failure came before any token was sent (a retry after a token would duplicate text)."""
+    lock = _node_locks.setdefault(provider.base_url, asyncio.Lock())
+    async with lock:
+        for attempt in range(1, NODE_ATTEMPTS + 1):
+            emitted = False
+            try:
+                async for piece in _vllm_once(provider, req, model):
+                    emitted = True
+                    yield piece
+                return
+            except ProviderError as error:
+                cause = error.__cause__
+                detail = getattr(cause, "detail", None) or (type(cause).__name__ if cause else str(error))
+                log.warning("vllm %s attempt %d of %d failed: %s", req.gpuId, attempt, NODE_ATTEMPTS, detail)
+                if emitted or attempt == NODE_ATTEMPTS:
+                    raise
+                await asyncio.sleep(1.0)
+
+
+async def _vllm_once(provider: VllmProvider, req: StreamRequest, model: str) -> AsyncIterator[str]:
     remaining = req.maxTokens - req.resume.tokens
     if remaining <= 0:
         return
@@ -151,7 +178,11 @@ async def vllm_tokens(provider: VllmProvider, req: StreamRequest, model: str) ->
     try:
         async with httpx.AsyncClient(timeout=provider.timeout_seconds, transport=provider.transport) as http:
             async with http.stream("POST", f"{provider.base_url}{path}", json=payload) as response:
-                response.raise_for_status()
+                if response.status_code >= 400:
+                    body = (await response.aread()).decode("utf-8", "replace")[:200]
+                    err = httpx.HTTPStatusError(f"HTTP {response.status_code}", request=response.request, response=response)
+                    err.detail = f"HTTP {response.status_code} {body}"  # type: ignore[attr-defined]
+                    raise err
                 async for line in response.aiter_lines():
                     if not line.startswith("data:"):
                         continue
