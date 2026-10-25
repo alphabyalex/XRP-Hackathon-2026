@@ -3,9 +3,9 @@ import { db } from "../db/db.js";
 import { getRentalCatalog } from "../marketData/rentalCatalog.js";
 import { modelsForGpu, observedOutputThroughput } from "../marketData/modelCatalog.js";
 
-// Older builds could mark generated responses as real. Only work observed after
-// this version starts is eligible to price tokens until durable provenance exists.
-const measurementStartedAt = Date.now();
+// Older builds could mark generated responses as real. Only work served by the verified build
+// (from 2026-10-25 12:45 UTC, when GPU-A tasks were run and settled end to end) prices tokens.
+const measurementStartedAt = Date.parse(process.env.MEASURED_SINCE ?? "2026-10-25T12:45:00Z");
 
 export const modelsRouter = Router();
 modelsRouter.get("/models", async (req, res) => {
