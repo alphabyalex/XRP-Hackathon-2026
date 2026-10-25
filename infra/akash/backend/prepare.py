@@ -35,7 +35,7 @@ def runtime_settings() -> dict[str, str]:
              "AKASH_LEASE_USD_PER_HOUR", "OWN_MARGIN", "OWN_PRICE_UPDATED_AT", "GPU_B_MODE"}
     result = {key: value for key, value in dotenv(ROOT / ".env").items() if value and
               (key in exact or re.fullmatch(r"DEVNET_[A-Z_]+_SEED", key) or
-               re.fullmatch(r"GPU_[A-Z]_(VLLM_URL|VLLM_MODEL|WIRE_MODEL|MODEL_ID|CARD|VRAM_GB|VCPU|RAM_GB|STORAGE_GB|CITY|REGION|LEASE_USD_PER_HOUR|PRICE_UPDATED_AT|OWN_MARGIN)", key))}
+               re.fullmatch(r"GPU_[A-Z]_(VLLM_URL|VLLM_MODEL|WIRE_MODEL|MODEL_ID|CARD|VRAM_GB|VCPU|RAM_GB|STORAGE_GB|CITY|REGION|PROVIDER|LEASE_USD_PER_HOUR|PRICE_UPDATED_AT|OWN_MARGIN)", key))}
     # Separate strong operator keys for the public backend. Preserve the account
     # encryption key so existing wallet accounts and sessions remain usable.
     previous = PRIVATE / "secrets.json"
@@ -54,7 +54,9 @@ def runtime_settings() -> dict[str, str]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--revision", required=True)
-    parser.add_argument("--create", action="store_true")
+    operation = parser.add_mutually_exclusive_group()
+    operation.add_argument("--create", action="store_true")
+    operation.add_argument("--update", metavar="DSEQ")
     args = parser.parse_args()
     if not re.fullmatch(r"[a-f0-9]{40}", args.revision):
         raise RuntimeError("Use a full verified commit SHA")
@@ -72,16 +74,22 @@ def main() -> None:
     sdl_path.write_text(template)
     os.chmod(sdl_path, 0o600)
     print("Rendered pinned SDL with secret references; no cloud deployment yet", flush=True)
-    if args.create:
-        result = subprocess.run(["akt", "console", "deployment", "create", str(sdl_path), "--yes", "--secrets-file", "-", "-o", "json"],
-                                input=json.dumps(settings), text=True, capture_output=True)
+    if args.create or args.update:
+        command = ["akt", "console", "deployment"] + (["create", str(sdl_path), "--yes"] if args.create else ["update", args.update, str(sdl_path)])
+        command += ["--secrets-file", "-", "-o", "json"]
+        credentials = dotenv(ROOT / ".env")
+        cli_env = dict(os.environ)
+        if credentials.get("AKT_CONSOLE_API_KEY"):
+            cli_env["AKT_CONSOLE_API_KEY"] = credentials["AKT_CONSOLE_API_KEY"]
+        result = subprocess.run(command, input=json.dumps(settings), text=True, capture_output=True, env=cli_env)
         # CLI errors can embed request payloads. Never print raw response bodies.
         if result.returncode:
             raise RuntimeError("Deployment creation failed; inspect the private operator response")
         payload = json.loads(result.stdout)
-        (PRIVATE / "create-response.json").write_text(json.dumps(payload))
-        os.chmod(PRIVATE / "create-response.json", 0o600)
-        print("Backend deployment order created; inspect its bids before accepting a lease", flush=True)
+        response = PRIVATE / ("create-response.json" if args.create else "update-response.json")
+        response.write_text(json.dumps(payload))
+        os.chmod(response, 0o600)
+        print("Backend deployment order created; inspect its bids before accepting a lease" if args.create else "Backend deployment updated to the pinned revision", flush=True)
 
 
 if __name__ == "__main__":
