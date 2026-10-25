@@ -42,7 +42,7 @@ Night run, 2026-10-25. Branch `lucy`, from origin/alex 5526a8c. Running on Alexa
 - The api still opens a counter-offer loan for an over-limit quote. The UI never sends one, but the 409 `OVER_LIMIT` guard in the api is Kristian's and is missing.
 - Inference on GPU-A was failing at 05:25: orders are paid, serve 0 tokens and are refunded. Try it on /models says "The GPU could not finish this task" and shows the refund.
 - Coverage chart: points from each live quote only (no coverage history route).
-- The final 07:25 visual pass was skipped: the shared api on 4000 was down (restarting for release) and the freeze was 5 minutes away. Last full pass at 06:31: every page of mine loaded with zero console errors and no horizontal scroll, at 1280 (signed in and out) and at 400.
+- The final 07:25 visual pass was skipped: the shared api on 4000 was down (restarting for release) and the freeze was 5 minutes away. Last pass at 06:31: every page of mine loaded with zero console errors and no horizontal scroll at 1280, signed in and out. The 400 px checks (05:00 to 05:35) showed no horizontal scroll; their only console errors were the 404s that are now gated off.
 
 ## Blockers
 
