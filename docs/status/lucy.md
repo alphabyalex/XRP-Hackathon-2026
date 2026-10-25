@@ -1,3 +1,5 @@
+DONE (07:27 ET, 2026-10-25). Final push on `lucy`; typecheck clean in all four workspaces after merging origin/alex at 471613a; 96 credit tests pass.
+
 # Lucy (UI: Lend, Borrow, Models, Docs, Footer; Quicknode credit)
 
 Night run, 2026-10-25. Branch `lucy`, from origin/alex 5526a8c. Running on Alexander's machine (Lucy's laptop is down), in a separate worktree, web dev server on 3001 against the shared api on 4000, credit copy on 7101 for testing.
@@ -25,8 +27,22 @@ Night run, 2026-10-25. Branch `lucy`, from origin/alex 5526a8c. Running on Alexa
 
 ## Next
 
-1. If Kristian's routes land before 7:15: set `LENDING_ROUTES_LIVE = true`, check the shapes, push.
-2. Final pass at 7:15, final push and DONE at 7:30.
+- Nothing: frozen at 07:30. For Alex at release:
+  1. Restart the credit service on 7100 so the Quicknode network status (ledger line on /borrow) and the obligations on the credit card go live.
+  2. When Kristian's routes exist, set `LENDING_ROUTES_LIVE = true` in `apps/web/src/lib/lendingApi.ts`. That one flag turns on collateral-options, /lending/markets, /lending/dashboard, /lending/loanbook, /lending/base-apr and the two request forms.
+
+## Degraded (what to know for the demo)
+
+- Kristian's lending routes never landed, so `LENDING_ROUTES_LIVE` is off:
+  - the GPU picker reads holdings from `/portfolio/me`;
+  - Lending markets are the vault rounds, with no GPU unit price or what each finances;
+  - the dashboard totals come from `/vault` and `/loans`; outstanding and utilization charts start from live points;
+  - the Home borrow card charts the APR of real loans, not a base APR;
+  - "Request access to capital" and "List a market" show "Requests open shortly" with submit disabled.
+- The api still opens a counter-offer loan for an over-limit quote. The UI never sends one, but the 409 `OVER_LIMIT` guard in the api is Kristian's and is missing.
+- Inference on GPU-A was failing at 05:25: orders are paid, serve 0 tokens and are refunded. Try it on /models says "The GPU could not finish this task" and shows the refund.
+- Coverage chart: points from each live quote only (no coverage history route).
+- The final 07:25 visual pass was skipped: the shared api on 4000 was down (restarting for release) and the freeze was 5 minutes away. Last full pass at 06:31: every page of mine loaded with zero console errors and no horizontal scroll, at 1280 (signed in and out) and at 400.
 
 ## Blockers
 
