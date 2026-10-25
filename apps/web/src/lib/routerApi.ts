@@ -94,6 +94,7 @@ export interface Order {
 
 export interface OrderRequest {
   kind: "inference" | "rental";
+  gpuId?: string;
   mode?: Mode;
   bufferPct?: 10 | 25 | 50;
   taskType?: TaskType;
@@ -181,10 +182,10 @@ export interface RoutedChat {
 
 // The api picks who pays (the signed-in account, or the developer playground account).
 // gpuId pins the request to one GPU (the Home showcase asks GPU-A only).
-export const chatRouted = (content: string, priority: Mode, gpuId?: string) =>
+export const chatRouted = (content: string, priority: Mode, gpuId?: string, modelId?: string) =>
   apiFetch<RoutedChat>("/v1/chat/completions", {
     method: "POST",
-    body: JSON.stringify({ model: "Qwen/Qwen3-1.7B", messages: [{ role: "user", content }], max_tokens: 160, priority, ...(gpuId ? { gpuId } : {}) }),
+    body: JSON.stringify({ ...(modelId ? { model: modelId } : {}), messages: [{ role: "user", content }], max_tokens: 160, priority, ...(gpuId ? { gpuId } : {}) }),
   });
 
 const PROVIDERS: Record<string, string> = {

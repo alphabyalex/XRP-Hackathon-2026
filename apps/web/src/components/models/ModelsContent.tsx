@@ -133,10 +133,10 @@ export function ModelsContent() {
   useEffect(() => () => es.current?.close(), []);
 
   const serving = (models ?? []).filter((m) => m.acceptsRequests);
-  const current = models?.find((m) => m.modelId === selected) ?? serving[0] ?? models?.[0] ?? null;
+  const current = models?.find((m) => `${m.gpuId}:${m.modelId}` === selected) ?? serving[0] ?? models?.[0] ?? null;
 
   async function tryIt() {
-    if (!current || run.status === "running" || !prompt.trim()) return;
+    if (!current?.acceptsRequests || run.status === "running" || !prompt.trim()) return;
     const my = ++runId.current;
     es.current?.close();
     setRun({ ...IDLE, status: "running" });
@@ -144,7 +144,7 @@ export function ModelsContent() {
     if (!wallet) {
       // Signed out: the developer account pays; the answer arrives whole.
       try {
-        const r = await chatRouted(prompt.trim(), priority);
+        const r = await chatRouted(prompt.trim(), priority, current.gpuId, current.modelId);
         if (my !== runId.current) return;
         setRun({
           ...IDLE,
@@ -162,7 +162,7 @@ export function ModelsContent() {
       return;
     }
     try {
-      const order = await createOrder({ kind: "inference", mode: priority, maxTokens: 160, requests: [messages] });
+      const order = await createOrder({ kind: "inference", gpuId: current.gpuId, mode: priority, maxTokens: 160, requests: [messages] });
       if (my !== runId.current) return;
       setRun((r) => ({ ...r, price: order.priceUsdc, payment: order.payment?.hash ?? null }));
       const src = new EventSource(orderEventsUrl(order.orderId));
@@ -288,8 +288,8 @@ export function ModelsContent() {
               models.map((m) => (
                 <tr
                   key={m.gpuId + m.modelId}
-                  className={current?.modelId === m.modelId ? "on" : undefined}
-                  onClick={() => setSelected(m.modelId)}
+                  className={current?.gpuId === m.gpuId && current.modelId === m.modelId ? "on" : undefined}
+                  onClick={() => setSelected(`${m.gpuId}:${m.modelId}`)}
                   style={{ cursor: "pointer" }}
                 >
                   <td>
