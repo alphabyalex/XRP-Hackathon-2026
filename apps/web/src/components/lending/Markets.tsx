@@ -150,8 +150,8 @@ function MarketCard({ m, children }: { m: Market; children?: React.ReactNode }) 
       </div>
       {m.history.length > 0 && (
         <div className="mkt-facts mkt-hist">
-          {m.history.map(([k, v]) => (
-            <div key={k}>
+          {m.history.map(([k, v], i) => (
+            <div key={`${i}-${k}`}>
               <span>{k}</span>
               <b>{v}</b>
             </div>

@@ -154,10 +154,9 @@ export function useApiEvents(types: string[], onEvent: (type: string, data: any)
 // are deployed, each returns null and the page reads /vault and /loans instead.
 // ---------------------------------------------------------------------------
 
-// Kristian's lending routes (collateral-options, /lending/*). Off until they are
-// deployed: a call to a missing route is a console 404 on every page view.
-// While off, the pages read /vault, /loans and /portfolio/me instead.
-export const LENDING_ROUTES_LIVE = false;
+// The lending routes (collateral-options, /lending/*, /applications) answer on the api.
+// Set to false only if they go away: the pages then read /vault, /loans and /portfolio/me.
+export const LENDING_ROUTES_LIVE = true;
 
 // A route that is not deployed yet answers 404 once; it is asked again a minute later.
 const missing = new Map<string, number>();
