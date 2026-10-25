@@ -570,10 +570,15 @@ class Orders:
         oid, done, reason = order["orderId"], 0.0, "PLANNED"
         while True:
             start = now_utc()
-            if entry.computeGpuId:
+            # An in-process worker runs rented minutes RENTAL_TIME_SCALE times faster than the clock, so it
+            # holds the GPU only for that real time; booking the full rented minutes on the compute calendar
+            # left a window no one used that made the next rental on this GPU drain and fail.
+            compressed = not entry.endpoint and C.RENTAL_TIME_SCALE > 1
+            if entry.computeGpuId and not compressed:
                 await self._book_compute(order, entry, start, minutes - done)
             else:
-                self.service.state.book(entry.id, start, start + timedelta(minutes=minutes - done), oid)
+                hold = (minutes - done) / C.RENTAL_TIME_SCALE if compressed else minutes - done
+                self.service.state.book(entry.id, start, start + timedelta(minutes=hold), oid)
             seg = self._segment(order, entry, part, reason)
             sig = self._register(entry.id, oid, part)
             self.emit(

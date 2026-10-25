@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 import json
 import secrets
 import time
@@ -133,6 +134,11 @@ async def test_rental_books_compute_slots_for_moonshift_gpus(orders, api):
         return httpx.Response(200, json=[])
 
     orders.compute_transport = httpx.MockTransport(compute)
+    # A worker that runs rented time in real time (a services/compute endpoint): the calendar gets the slots.
+    orders.service.entries = [
+        dataclasses.replace(e, endpoint="http://compute.test") if e.offer.provider == "moonshift" else e
+        for e in orders.service.entries
+    ]
     order = await run(orders, OrderCreate(kind="rental", mode="fastest", minutes=30))
     assert order["status"] == "settled"
     assert sum(s["served"] for s in order["segments"]) == pytest.approx(30)
@@ -142,6 +148,24 @@ async def test_rental_books_compute_slots_for_moonshift_gpus(orders, api):
         assert b["gpu_id"] in ("gpu-a", "gpu-b") and b["holder"] == "ALICE"
         assert b["redemption_id"].startswith(order["orderId"])
         assert b["slot_start"].endswith(("0:00Z", "5:00Z"))
+
+
+async def test_in_process_rental_holds_the_gpu_only_for_its_real_time(orders, api):
+    # The in-process worker runs rented minutes RENTAL_TIME_SCALE times faster: booking the full rented
+    # minutes on the compute calendar left an unused window that made the next rental there fail.
+    bookings = []
+
+    def compute(req: httpx.Request) -> httpx.Response:
+        if req.url.path == "/bookings":
+            bookings.append(json.loads(req.content))
+        return httpx.Response(200, json=[])
+
+    orders.compute_transport = httpx.MockTransport(compute)
+    first = await run(orders, OrderCreate(kind="rental", mode="fastest", minutes=30))
+    second = await run(orders, OrderCreate(kind="rental", mode="fastest", minutes=30))
+    assert first["status"] == second["status"] == "settled" and bookings == []
+    for o in (first, second):
+        assert sum(s["served"] for s in o["segments"]) == pytest.approx(30)
 
 
 def test_leases_never_double_book(tmp_path):
