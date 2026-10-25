@@ -139,6 +139,7 @@ class GpuSupervisor:
         self._history: list[dict[str, object]] = []
         self._usage: dict[str, UsageEvent] = {}
         self._offline = False
+        self._provider_available = True
 
         # This CPU fixture has no remote GPU telemetry or tensor backend. It is unavailable live.
         self.monte_carlo = (
@@ -149,6 +150,10 @@ class GpuSupervisor:
     def set_offline(self, offline: bool) -> None:
         """Order router hook (compute/resume.py): stop admitting work while a provider reclaims the GPU."""
         self._offline = offline
+
+    def set_provider_available(self, available: bool) -> None:
+        """Health gating is independent of an operator reclaim or drain."""
+        self._provider_available = available
 
     async def load_snapshot(self) -> None:
         """Restore future bookings after a service restart.
@@ -194,7 +199,7 @@ class GpuSupervisor:
         return min(upcoming, key=lambda booking: booking.start) if upcoming else None
 
     def _state_unlocked(self, now: datetime) -> GpuState:
-        if self._offline:
+        if self._offline or not self._provider_available:
             return "OFFLINE"
         if self._active_booking_unlocked(now):
             return "BOOKED"
@@ -206,7 +211,7 @@ class GpuSupervisor:
         return "READY"
 
     def _public_eligibility_unlocked(self, now: datetime, runtime_seconds: float) -> Eligibility:
-        if self._offline:
+        if self._offline or not self._provider_available:
             return Eligibility(False, "OFFLINE")
         if self._active_booking_unlocked(now):
             return Eligibility(False, "GPU_BOOKED")
@@ -256,7 +261,7 @@ class GpuSupervisor:
                     "The supplied booking is not active for this buyer and GPU slot.",
                     409,
                 )
-            if self._offline:
+            if self._offline or not self._provider_available:
                 raise ComputeError("NO_ELIGIBLE_GPU", "The booked GPU is offline.", 503)
             if self._inflight:
                 raise ComputeError("GPU_BUSY", "The booked GPU is completing another request.", 503)
@@ -506,21 +511,11 @@ class Scheduler:
     ) -> GpuSupervisor:
         if gpu_id in self.workers:
             return self.workers[gpu_id]
-        sim = (
-            simulated
-            if simulated is not None
-            else (
-                self.settings.mock
-                if gpu_id == "gpu-a"
-                else (self.settings.mock or self.settings.gpu_b_mode == "simulated")
-            )
-        )
-        tps = tokens_per_sec or (
-            self.settings.gpu_a_tokens_per_sec if gpu_id == "gpu-a" else self.settings.gpu_b_tokens_per_sec
-        )
+        sim = (simulated if simulated is not None else self.settings.mock) if self.settings.mock else False
+        tps = tokens_per_sec if tokens_per_sec is not None else self.settings.tokens_per_second(gpu_id)
         supervisor = GpuSupervisor(
             gpu_id=gpu_id,
-            model=model or self.settings.model,
+            model=model or (self.settings.model if self.settings.mock else self.settings.canonical_model(gpu_id)),
             simulated=sim,
             tokens_per_sec=tps,
             settings=self.settings,

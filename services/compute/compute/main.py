@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import os
+import asyncio
 import time
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime, timedelta
 
 from fastapi import FastAPI, Header, Query, Request
@@ -19,7 +19,7 @@ from .models import (
     WorkerRegisterRequest,
 )
 from .pricing import RateClient
-from .providers import ModelProvider, MockProvider, UnavailableProvider, VllmProvider
+from .providers import ModelProvider, MockProvider, UnavailableProvider, VllmProvider, normalize_endpoint
 from .resume import install as install_resume
 from .router import ComputeRouter, sse_events
 from .scheduler import Scheduler, parse_bucket
@@ -51,22 +51,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def provider_for(gid: str) -> ModelProvider:
         if settings.mock:
             return MockProvider(settings.mock_latency_seconds)
-        if gid == "gpu-a":
-            endpoint = settings.vllm_url
-        elif gid == "gpu-b":
-            endpoint = settings.gpu_b_vllm_url
-        else:
-            endpoint = os.getenv(f"{gid.upper().replace('-', '_')}_VLLM_URL", "")
-        if not endpoint:
-            scheduler.worker(gid).set_offline(True)
+        endpoint = settings.endpoint(gid)
+        worker = scheduler.worker(gid)
+        worker.set_provider_available(False)
+        if (not endpoint or not worker.model or worker.model != settings.canonical_model(gid)
+                or worker.tokens_per_sec <= 0 or settings.node_mode(gid) != "real"):
             return UnavailableProvider()
-        endpoint = endpoint.rstrip("/").removesuffix("/v1")
+        endpoint = normalize_endpoint(endpoint)
         if endpoint in configured_endpoints:
-            scheduler.worker(gid).set_offline(True)
             return UnavailableProvider()
         configured_endpoints.add(endpoint)
-        scheduler.worker(gid).simulated = False
-        scheduler.worker(gid).model = settings.canonical_model(gid)
         return VllmProvider(
             endpoint, settings.request_timeout_seconds, settings.wire_model(gid)
         )
@@ -90,16 +84,37 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ),
     )
 
+    async def refresh_worker_health() -> None:
+        async def check(gid: str, provider: ModelProvider) -> None:
+            worker = scheduler.worker(gid)
+            worker.set_provider_available(isinstance(provider, VllmProvider) and await provider.verify_model(worker.model))
+        if not settings.mock:
+            await asyncio.gather(*(check(gid, provider) for gid, provider in list(providers.items())))
+
+    async def monitor_worker_health() -> None:
+        while True:
+            await asyncio.sleep(30)
+            await refresh_worker_health()
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         await scheduler.load()
-        yield
-        await scheduler.close()
+        await refresh_worker_health()
+        monitor = asyncio.create_task(monitor_worker_health()) if not settings.mock else None
+        try:
+            yield
+        finally:
+            if monitor:
+                monitor.cancel()
+                with suppress(asyncio.CancelledError):
+                    await monitor
+            await scheduler.close()
 
     app = FastAPI(title="Moonshift Compute", version="0.1.0", lifespan=lifespan)
     app.state.settings = settings
     app.state.scheduler = scheduler
     app.state.router = router
+    app.state.refresh_worker_health = refresh_worker_health
 
     @app.exception_handler(ComputeError)
     async def compute_error_handler(_: Request, error: ComputeError) -> JSONResponse:
@@ -196,6 +211,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         if req.gpu_id not in providers:
             providers[req.gpu_id] = provider_for(req.gpu_id)
+        await refresh_worker_health()
         await supervisor.load_snapshot()
         if supervisor.monte_carlo is not None:
             supervisor.monte_carlo.start()

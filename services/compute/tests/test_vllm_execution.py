@@ -151,6 +151,8 @@ def test_live_workers_cannot_register_the_same_endpoint_twice(tmp_path):
     settings = replace(Settings.from_env(), state_dir=tmp_path, mock=False,
                        vllm_url="http://same-worker", gpu_b_vllm_url="http://same-worker/v1/")
     app = create_app(settings)
+    app.state.router.providers["gpu-a"].transport = httpx.MockTransport(lambda request: httpx.Response(200,
+        json={"data": [{"id": ALIAS, "root": app.state.scheduler.worker("gpu-a").model}]}))
     with TestClient(app) as client:
         workers = {gpu["id"]: gpu for gpu in client.get("/gpus").json()}
         assert workers["gpu-a"]["state"] == "READY"
@@ -165,6 +167,8 @@ def test_live_compute_omits_cpu_fixture_and_inference_still_works(tmp_path):
 
     def upstream(request):
         calls.append(request.url.path)
+        if request.url.path == "/v1/models":
+            return httpx.Response(200, json={"data": [{"id": ALIAS, "root": MODEL}]})
         return httpx.Response(200, json={"model": ALIAS, "choices": [{"message": {"content": "Real provider path"}}],
                                         "usage": {"prompt_tokens": 2, "completion_tokens": 3}})
 
@@ -182,11 +186,11 @@ def test_live_compute_omits_cpu_fixture_and_inference_still_works(tmp_path):
         disabled = client.post("/monte-carlo/switch-demo?gpu_id=gpu-a")
         assert disabled.status_code == 503
         assert disabled.json()["error"]["code"] == "FEATURE_UNAVAILABLE"
-        assert calls == []
+        assert calls == ["/v1/models"]
         reply = client.post("/v1/chat/completions", headers={"X-MS-Buyer": "DEV"},
                             json={"messages": [{"role": "user", "content": "Hi"}], "max_tokens": 10})
         assert reply.status_code == 200, reply.text
         assert reply.json()["choices"][0]["message"]["content"] == "Real provider path"
         assert reply.json()["x_ms"]["simulated"] is False
-        assert calls == ["/v1/chat/completions"]
+        assert calls == ["/v1/models", "/v1/chat/completions"]
         assert all(worker.monte_carlo is None for worker in app.state.scheduler.workers.values())

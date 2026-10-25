@@ -32,10 +32,10 @@ def dotenv(path: Path) -> dict[str, str]:
 def runtime_settings() -> dict[str, str]:
     exact = {"INTERNAL_API_KEY", "ADMIN_KEY", "MOONSHIFT_ACCOUNT_KEY", "DEVNET_WSS", "XRPL_WSS",
              "QUICKNODE_WSS", "QUICKNODE_XRPL_MAINNET_URL", "QUICKNODE_XRPL_TESTNET_URL", "SLOT_MINUTES",
-             "AKASH_LEASE_USD_PER_HOUR", "OWN_MARGIN", "OWN_PRICE_UPDATED_AT", "GPU_B_MODE"}
+             "AKASH_LEASE_USD_PER_HOUR", "OWN_MARGIN", "OWN_PRICE_UPDATED_AT", "GPU_NODES"}
     result = {key: value for key, value in dotenv(ROOT / ".env").items() if value and
               (key in exact or re.fullmatch(r"DEVNET_[A-Z_]+_SEED", key) or
-               re.fullmatch(r"GPU_[A-Z]_(VLLM_URL|VLLM_MODEL|WIRE_MODEL|MODEL_ID|CARD|VRAM_GB|VCPU|RAM_GB|STORAGE_GB|CITY|REGION|PROVIDER|LEASE_USD_PER_HOUR|PRICE_UPDATED_AT|OWN_MARGIN)", key))}
+               re.fullmatch(r"GPU_[A-H]_(MODE|VLLM_URL|VLLM_MODEL|WIRE_MODEL|MODEL_ID|CARD|VRAM_GB|VCPU|RAM_GB|STORAGE_GB|CITY|REGION|PROVIDER|LEASE_USD_PER_HOUR|PRICE_UPDATED_AT|OWN_MARGIN|TOKENS_PER_SEC|PLANNING_TOKENS_PER_SEC|PLANNING_OBSERVED_AT|PLANNING_MODEL_ID|PLANNING_SAMPLE_COUNT)", key))}
     # Separate strong operator keys for the public backend. Preserve the account
     # encryption key so existing wallet accounts and sessions remain usable.
     previous = PRIVATE / "secrets.json"
@@ -48,6 +48,22 @@ def runtime_settings() -> dict[str, str]:
         raise RuntimeError("Two distinct verified GPU endpoints are required")
     if result.get("GPU_B_MODE") != "real" or not result.get("GPU_B_MODEL_ID"):
         raise RuntimeError("The second GPU must be verified and configured")
+    result.setdefault("GPU_A_MODEL_ID", "Qwen/Qwen2.5-1.5B-Instruct")
+    nodes = result.get("GPU_NODES", "gpu-a,gpu-b").split(",")
+    nodes = [node.strip() for node in nodes]
+    if len(set(nodes)) != len(nodes) or any(not re.fullmatch(r"gpu-[a-h]", node) for node in nodes):
+        raise RuntimeError("GPU_NODES must name distinct supported workers")
+    endpoints: set[str] = set()
+    for node in nodes:
+        prefix = node.upper().replace("-", "_")
+        endpoint = result.get(f"{prefix}_VLLM_URL", "").strip().rstrip("/").removesuffix("/v1")
+        endpoint = re.sub(r"^(https?://)localhost(?=[:/]|$)", r"\g<1>127.0.0.1", endpoint)
+        if not endpoint or endpoint in endpoints:
+            raise RuntimeError("Every enabled worker requires its own verified endpoint")
+        if result.get(f"{prefix}_MODE", "real" if node == "gpu-a" else "") != "real" or not result.get(f"{prefix}_MODEL_ID"):
+            raise RuntimeError("Every enabled worker requires a verified canonical model and real mode")
+        endpoints.add(endpoint)
+    result["GPU_NODES"] = ",".join(nodes)
     return result
 
 

@@ -130,14 +130,15 @@ def test_closing_http_response_after_first_token_releases_gpu_and_upstream(tmp_p
     asyncio.run(run())
 
 
-def test_gpu_b_uses_its_own_wire_model_and_verified_qwen3b_template():
+@pytest.mark.parametrize("gpu_id", [f"gpu-{letter}" for letter in "bcdefgh"])
+def test_each_worker_uses_its_own_wire_model_and_verified_qwen3b_template(gpu_id):
     async def run():
         bodies = []
 
         def upstream(request):
             body = json.loads(request.content)
             bodies.append(body)
-            assert body["model"] == "gpu-b-wire-alias"
+            assert body["model"] == f"{gpu_id}-wire-alias"
             if not body["stream"]:
                 return completion()
             assert request.url.path == "/v1/completions"
@@ -146,10 +147,10 @@ def test_gpu_b_uses_its_own_wire_model_and_verified_qwen3b_template():
             return httpx.Response(200, content=b'data: {"choices":[{"text":" two.","finish_reason":"stop"}]}\n\ndata: [DONE]\n\n')
 
         model = "Qwen/Qwen2.5-3B-Instruct"
-        provider = VllmProvider("http://gpu-b", 5, "gpu-b-wire-alias", httpx.MockTransport(upstream))
+        provider = VllmProvider(f"http://{gpu_id}", 5, f"{gpu_id}-wire-alias", httpx.MockTransport(upstream))
         reply = await provider.complete(messages=MESSAGES, model=model, max_tokens=16, temperature=None)
         assert reply.model == model
-        request = StreamRequest(gpuId="gpu-b", messages=MESSAGES, maxTokens=16,
+        request = StreamRequest(gpuId=gpu_id, messages=MESSAGES, maxTokens=16,
                                 resume={"text": "The answer is", "tokens": 3})
         assert [piece async for piece in vllm_tokens(provider, request, model)] == [" two."]
         assert len(bodies) == 2

@@ -81,8 +81,12 @@ versioned.
 | `GPU_A_VLLM_URL` | `VLLM_URL`, then `http://127.0.0.1:8000` | Existing GPU-A OpenAI-compatible endpoint. |
 | `GPU_A_VLLM_MODEL` | `MODEL`, then the legacy endpoint alias | Model identifier accepted by the running server. This is separate from the real model name. |
 | `MODEL` | `Qwen/Qwen2.5-1.5B-Instruct` publicly | Real model identity. The legacy `Qwen/Qwen3-1.7B` server alias is normalized to Qwen2.5 for public responses. |
-| `GPU_B_MODE` | `simulated` | `simulated` or `real`; simulated status is exposed in every response. |
+| `GPU_B_MODE` | `simulated` | Set `real` for its verified endpoint. A simulated worker never accepts live work. |
 | `GPU_B_VLLM_URL` | empty | Required private vLLM endpoint when `GPU_B_MODE=real`; it is never a public URL. |
+| `GPU_NODES` | `gpu-a,gpu-b` | Distinct enabled worker IDs, from `gpu-a` through `gpu-h`. |
+| `GPU_X_MODE`, `GPU_X_MODEL_ID`, `GPU_X_WIRE_MODEL`, `GPU_X_VLLM_URL` | empty for C-H | Each new live worker needs `real` mode, its canonical model, its server's wire identifier, and a distinct endpoint. |
+| `GPU_X_PLANNING_TOKENS_PER_SEC` | empty | Measured full-request throughput for that worker and model. New live C-H workers stay offline without it. |
+| `GPU_X_PLANNING_MODEL_ID`, `GPU_X_PLANNING_OBSERVED_AT`, `GPU_X_PLANNING_SAMPLE_COUNT` | empty | Provenance for the throughput sample: matching canonical model, UTC observation time, and at least two real requests. |
 | `SLOT_MINUTES` | `5` | Minutes represented by one contract slot in the demo. |
 | `GPU_A_TOKENS_PER_SEC` | `30` | Conservative scheduling input. Replace after a real T4 benchmark. |
 | `GPU_B_TOKENS_PER_SEC` | `24` | Scheduler input for GPU B. |
@@ -93,6 +97,13 @@ versioned.
 
 Use a local `.env` file or your process manager for values. Never commit AWS
 keys, wallet seeds, or `INTERNAL_API_KEY` values.
+
+Live workers start offline until `/v1/models` confirms their canonical model.
+The check repeats every 30 seconds. A legacy wire alias is accepted only when
+the reported model root identifies the actual weights. A failed check or a
+duplicate normalized endpoint keeps that worker offline. Health recovery does
+not clear an operator reclaim. Qwen2.5 1.5B and 3B use the verified continuation
+template for resumed replies.
 
 ## Real GPU mode
 

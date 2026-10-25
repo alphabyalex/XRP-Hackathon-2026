@@ -18,7 +18,7 @@ from compute.config import Settings
 from compute.main import create_app
 from compute.models import ComputeError
 from compute.pricing import RateClient
-from compute.providers import Completion
+from compute.providers import Completion, VllmProvider
 
 
 def catalog(rate="0.550000", age_seconds=0):
@@ -86,8 +86,12 @@ def live_app(tmp_path):
     return create_app(settings)
 
 
-class RecordedProvider:
+class RecordedProvider(VllmProvider):
     calls = 0
+
+    def __init__(self):
+        super().__init__("http://worker", 3, transport=httpx.MockTransport(lambda request: httpx.Response(200,
+            json={"data": [{"id": "Qwen/Qwen2.5-1.5B-Instruct"}]})))
 
     async def complete(self, **kwargs):
         self.calls += 1

@@ -125,6 +125,18 @@ class VllmProvider:
         self.served_model = served_model
         self.transport = transport
 
+    async def verify_model(self, canonical_model: str) -> bool:
+        """A wire alias only identifies real weights when the server reports their canonical root."""
+        try:
+            async with httpx.AsyncClient(timeout=min(self.timeout_seconds, 4), transport=self.transport) as client:
+                response = await client.get(f"{self.base_url}/v1/models")
+                response.raise_for_status()
+                models = response.json().get("data", [])
+            return any(isinstance(model, dict) and model.get("id") in {self.served_model, canonical_model}
+                       and (model.get("root") or model.get("id")) == canonical_model for model in models)
+        except (httpx.HTTPError, ValueError, TypeError, AttributeError):
+            return False
+
     async def complete(
         self,
         *,
