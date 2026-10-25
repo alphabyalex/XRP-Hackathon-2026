@@ -36,7 +36,7 @@ test("unmetered revenue and synthetic GPU rows never appear as live measured res
   const original = globalThis.fetch;
   globalThis.fetch = async (input) => new Response(JSON.stringify(String(input).includes("/revenue?")
     ? [{ revenue: null, revenueAvailable: false, start: "2026-10-25T08:00:00Z", end: "2026-10-25T09:00:00Z" }]
-    : [{ id: "gpu-a", simulated: false }, { id: "gpu-b", simulated: true }]));
+    : [{ id: "gpu-a", simulated: false }, { id: "gpu-b", simulated: true }, { id: "gpu-c", simulated: false, state: "OFFLINE" }]));
   try {
     assert.deepEqual((await compute.getGpus()).map(gpu => gpu.id), ["gpu-a"]);
     assert.deepEqual(await compute.getRevenueHistory("gpu-a"), { buckets: [], source: "live" });

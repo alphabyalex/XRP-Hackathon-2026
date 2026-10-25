@@ -44,7 +44,7 @@ export function slotEndFor(slotStart: string, slots: number): string {
 
 export async function getGpus(): Promise<ComputeGpuStatus[]> {
   const rows = await computeJson<ComputeGpuStatus[]>("/gpus");
-  return rows.filter((row) => !row.simulated);
+  return rows.filter((row) => !row.simulated && row.state !== "OFFLINE");
 }
 
 export function getCalendar(gpuId: GpuId, from: string, to: string): Promise<CalendarEntry[]> {

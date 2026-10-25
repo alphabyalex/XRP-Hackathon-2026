@@ -6,6 +6,7 @@ export interface LiveRate {
   sourceUrl: string;
   region?: string;
   instanceType?: string;
+  publishedAt?: string | null;
 }
 
 export interface FleetRow {
@@ -26,6 +27,7 @@ export interface AwsOffer {
   asOf?: string;
   region?: string;
   instanceType?: string;
+  extra?: { source?: string; publishedAt?: string | null };
 }
 
 export function liveAwsRates(offers: AwsOffer[], now = Date.now()): { spot: LiveRate[]; onDemand: LiveRate[] } {
@@ -36,8 +38,10 @@ export function liveAwsRates(offers: AwsOffer[], now = Date.now()): { spot: Live
     Number.isFinite(o.pricePerHourUsd) && o.pricePerHourUsd > 0);
   const rates = (kind: string) => rows.filter(o => o.capacityType === kind).map(o => ({
     usdPerHour: (o.pricePerHourUsd! / o.gpuCount!).toFixed(6), updatedAt: o.asOf!,
-    source: kind === "spot" ? "AWS DescribeSpotPriceHistory" : "AWS Price List API",
-    sourceUrl: kind === "spot" ? "https://aws.amazon.com/ec2/spot/pricing/" : "https://aws.amazon.com/ec2/pricing/on-demand/",
+    source: o.extra?.source ? (kind === "spot" ? "AWS public spot price feed" : "AWS public on-demand price feed")
+      : kind === "spot" ? "AWS DescribeSpotPriceHistory" : "AWS Price List API",
+    sourceUrl: o.extra?.source ?? (kind === "spot" ? "https://aws.amazon.com/ec2/spot/pricing/" : "https://aws.amazon.com/ec2/pricing/on-demand/"),
+    publishedAt: o.extra?.publishedAt ?? null,
     region: o.region, instanceType: o.instanceType,
   })).sort((a, b) => Number(a.usdPerHour) - Number(b.usdPerHour));
   return { spot: rates("spot"), onDemand: rates("on-demand") };
