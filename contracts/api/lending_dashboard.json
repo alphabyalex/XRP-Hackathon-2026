@@ -1,0 +1,16 @@
+{
+  "method": "GET",
+  "path": "/lending/dashboard",
+  "notes": ["Totals now, plus series rebuilt from the loan and vault history (each loan open, repay, default and each deposit), not from when the page was opened. utilization and weightedApr are percents. outstanding equals the sum of open loans in /lending/loanbook."],
+  "response": {
+    "outstanding": "1154.000000",
+    "available": "19896.000000",
+    "utilization": "5.48",
+    "weightedApr": "14.76",
+    "defaults": 1,
+    "marginCalls": 1,
+    "cover": "500.000000",
+    "series": [{ "at": "2026-10-25T09:31:10Z", "outstanding": "1154.000000", "utilization": "5.48" }],
+    "updatedAt": "2026-10-25T12:40:00Z"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "method": "GET",
+  "path": "/lending/markets",
+  "notes": ["One entry per real vault round (XLS-65), newest first. size and filled are USDC decimals from the ledger. history is the round's real events with ledger links."],
+  "response": {
+    "markets": [
+      {
+        "id": "round-2",
+        "round": 2,
+        "title": "GPU-A and GPU-B working capital",
+        "phase": "subscription",
+        "acceptsDeposits": true,
+        "targetApr": "9.50",
+        "size": "60000.000000",
+        "filled": "21050.000000",
+        "useOfFunds": "Loans to GPU shareholders, secured by their shares",
+        "collateral": "GPU-A and GPU-B shares, locked on the ledger",
+        "opensAt": "2026-10-24T00:00:00Z",
+        "closesAt": "2026-11-01T00:00:00Z",
+        "maturesAt": "2026-12-01T00:00:00Z",
+        "explorerUrl": "https://devnet.xrpl.org/accounts/rsWQ...",
+        "history": [{ "label": "2026-10-25 09:31", "value": "Deposit 50 USDC" }]
+      }
+    ]
+  }
+}

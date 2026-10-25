@@ -1,0 +1,11 @@
+{
+  "method": "GET",
+  "path": "/lending/loanbook",
+  "notes": ["Every loan, newest first. outstandingTotal is the sum of outstanding over open loans. apr and LTVs are percents."],
+  "response": {
+    "outstandingTotal": "1154.000000",
+    "loans": [
+      { "id": "55A34E44", "borrowerAddress": "rDBN...", "gpuId": "gpu-a", "principal": "1154.000000", "outstanding": "1154.000000", "apr": "14.76", "ltv": "23.6", "marginCallLtv": "38.9", "liquidationLtv": "53.9", "state": "open", "network": "devnet", "txs": { "loanSet": "https://devnet.xrpl.org/transactions/..." }, "openedAt": "2026-10-25T09:31:10Z" }
+    ]
+  }
+}
