@@ -6,7 +6,8 @@ Money flow for one order (all TDX, shown as USDC):
                 External capacity: the margin goes to the pool's treasury; the provider's cost stays in
                 the order treasury, which is also the external-capacity treasury (no self-payment).
   3. MS_REFUND  order treasury -> buyer: whatever the served work did not use.
-The buyer never pays more than the quote: if moves made the served work dearer, Moonshift absorbs it.
+The buyer sets aside a cap (estimate x (1 + buffer)) and pays the actual cost of the served work,
+never more than the cap: the router keeps every move inside the remaining budget or pauses.
 """
 
 from __future__ import annotations
@@ -68,8 +69,8 @@ async def pay(
 
 
 def settlement_lines(order: dict[str, Any]) -> list[dict[str, Any]]:
-    """What each GPU earned for the work it actually served, capped at what the buyer paid."""
-    paid = float(order["priceUsdc"])
+    """What each GPU earned for the work it actually served, capped at what the buyer set aside."""
+    paid = cap(order)
     earned: dict[str, float] = defaultdict(float)
     info: dict[str, dict[str, Any]] = {}
     for seg in order["segments"]:
@@ -103,8 +104,18 @@ def settlement_lines(order: dict[str, Any]) -> list[dict[str, Any]]:
     return lines
 
 
+def cap(order: dict[str, Any]) -> float:
+    """What the buyer set aside (the price cap); orders from before caps used the quote."""
+    return float(order.get("capUsdc") or order["priceUsdc"])
+
+
+def spent(order: dict[str, Any]) -> float:
+    """Cost of the work served so far, at each GPU's unit price."""
+    return sum(float(s["served"]) * float(s["unitPriceUsdc"]) for s in order["segments"])
+
+
 def refund_amount(order: dict[str, Any], lines: list[dict[str, Any]]) -> float:
-    return max(0.0, float(order["priceUsdc"]) - sum(float(x["amountUsdc"]) for x in lines))
+    return max(0.0, cap(order) - sum(float(x["amountUsdc"]) for x in lines))
 
 
 def explorer(tx: dict[str, Any]) -> str | None:

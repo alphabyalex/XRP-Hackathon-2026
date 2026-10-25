@@ -1,6 +1,6 @@
 "use client";
 import clsx from "clsx";
-import { fmt } from "@/lib/format";
+import { usdc } from "@/lib/format";
 import { MODES, fmtEta, type Mode, type Quote } from "@/lib/routerApi";
 import "./router.css";
 
@@ -31,7 +31,7 @@ export function RouteOptions({
           >
             <b>{m.label}</b>
             <span className="ro-num">
-              <span>{ok ? `${fmt(Number(plan!.priceUsdc), 4)} USDC` : quote ? "Unavailable" : "…"}</span>
+              <span>{ok ? `${usdc(plan!.priceUsdc ?? 0)} USDC` : quote ? "Unavailable" : "…"}</span>
               <span className="ro-eta">{ok ? fmtEta(plan!.etaSeconds) : ""}</span>
             </span>
           </button>

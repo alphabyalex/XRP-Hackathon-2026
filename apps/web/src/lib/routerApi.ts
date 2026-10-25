@@ -59,12 +59,22 @@ export interface Move {
   reason: string;
 }
 
+export type TaskType = "inference" | "fine-tune" | "render" | "other";
+
 export interface Order {
   orderId: string;
   kind: "inference" | "rental";
   mode: Mode;
   status: string;
   priceUsdc: string;
+  // Price cap: the buyer set aside capUsdc (estimate x (1 + bufferPct)); charged is the actual cost.
+  estimateUsdc?: string;
+  capUsdc?: string;
+  bufferPct?: number;
+  taskType?: TaskType | null;
+  charged?: string | null;
+  pause?: { reason: string; spentUsdc: string; capUsdc: string; neededUsdc: string; at: string } | null;
+  topUps?: { amountUsdc: string; hash: string | null; explorerUrl: string | null }[];
   etaSeconds: number;
   plan: Plan;
   payment: { hash: string | null; explorerUrl: string | null } | null;
@@ -79,7 +89,9 @@ export interface Order {
 export interface OrderRequest {
   kind: "inference" | "rental";
   mode?: Mode;
-  buyer?: string;
+  bufferPct?: 10 | 25 | 50;
+  taskType?: TaskType;
+  deadlineSeconds?: number;
   minutes?: number;
   maxTokens?: number;
   tokens?: number;
@@ -95,6 +107,11 @@ export const createOrder = (o: OrderRequest) =>
 export const getOrder = (id: string) => apiFetch<Order>(`/router/orders/${id}`);
 
 export const listOrders = () => apiFetch<{ orders: Order[] }>("/router/orders?limit=20");
+
+// A paused order (its price cap was reached) continues once more is set aside, or is cancelled.
+export const raiseCap = (id: string, capUsdc: number) =>
+  apiFetch<Order>(`/router/orders/${id}/cap`, { method: "POST", body: JSON.stringify({ capUsdc }) });
+export const cancelOrder = (id: string) => apiFetch<Order>(`/router/orders/${id}/cancel`, { method: "POST", body: "{}" });
 
 export const orderEventsUrl = (id: string) => `${API_BASE}/router/orders/${id}/events`;
 

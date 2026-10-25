@@ -135,3 +135,10 @@ def live_source(collector: str) -> bool:
     if PRICE_SOURCES in {"", "none"}:
         return False
     return PRICE_SOURCES == "all" or collector in {s.strip() for s in PRICE_SOURCES.split(",")}
+
+# Price cap on every order: max price = estimate x (1 + buffer). The buyer sets the cap aside up
+# front; settlement charges the actual cost and refunds the rest. A paused order (cap reached)
+# waits this long for a higher cap, then is cancelled and refunded.
+BUFFER_CHOICES = (10, 25, 50)
+DEFAULT_BUFFER_PCT = 25
+PAUSE_TIMEOUT_SECONDS = float(os.getenv("PAUSE_TIMEOUT_SECONDS", "1800"))

@@ -53,7 +53,7 @@ export function TradePanel({
     <div className="trade">
       <Segmented
         options={[
-          { value: "time", label: "Rent compute" },
+          { value: "time", label: "Run a task" },
           { value: "shares", label: "Buy shares" },
         ]}
         value={tab}

@@ -85,13 +85,15 @@ async def test_inference_order_end_to_end_with_devnet_settlement(orders, api):
     kinds = [p["memoType"] for p in api.payments]
     assert kinds[0] == "MS_ORDER" and kinds[-1] == "MS_REFUND" and "MS_SETTLE" in kinds
     first = api.payments[0]
-    assert first["from"] == "ALICE" and first["to"] == "PROTOCOL_FEES" and first["amount"] == order["priceUsdc"]
-    assert first["memo"] == {"orderId": order["orderId"], "mode": "balanced"}
+    # The buyer sets aside the cap (estimate x 1.25 by default), not just the estimate.
+    assert first["from"] == "ALICE" and first["to"] == "PROTOCOL_FEES" and first["amount"] == order["capUsdc"]
+    assert float(order["capUsdc"]) == pytest.approx(float(order["estimateUsdc"]) * 1.25, abs=1e-6)
+    assert first["memo"] == {"orderId": order["orderId"], "mode": "balanced", "capUsdc": order["capUsdc"]}
     assert order["payment"]["hash"] and order["payment"]["explorerUrl"].startswith("https://devnet.xrpl.org/")
-    # Paid out never exceeds what the buyer paid; refund covers the rest exactly.
+    # Paid out never exceeds what the buyer set aside; refund covers the rest exactly.
     out = sum(float(p["amount"]) for p in api.payments if p["memoType"] == "MS_SETTLE")
     kept = sum(float(x["providerCostUsdc"]) for x in order["settlements"])
-    assert out + kept + float(order["refund"]["amountUsdc"]) == pytest.approx(float(order["priceUsdc"]), abs=2e-6)
+    assert out + kept + float(order["refund"]["amountUsdc"]) == pytest.approx(float(order["capUsdc"]), abs=2e-6)
     for line in order["settlements"]:
         if line.get("hash"):
             settle_tx = next(p for p in api.payments if p["memo"].get("gpuId") == line["gpuId"])

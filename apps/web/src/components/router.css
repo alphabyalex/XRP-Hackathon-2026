@@ -114,3 +114,25 @@
   color: var(--ink2);
   max-width: 720px;
 }
+
+/* Task price cap and settlement lines */
+.cap-line {
+  margin: 10px 0 14px;
+}
+.os-tx {
+  display: inline-flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.os-tx a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.os-pause {
+  margin-top: 12px;
+}
+.os-settled {
+  margin-top: 12px;
+  color: var(--ink);
+}

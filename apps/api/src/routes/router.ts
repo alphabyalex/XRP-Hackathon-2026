@@ -13,7 +13,7 @@ import * as realXrpl from "@moonshift/xrpl";
 import { networkName, txExplorerUrl } from "@moonshift/shared";
 import type { AccountName } from "@moonshift/shared";
 import { internalHeaders } from "../adapters/serviceFetch.js";
-import { asActor } from "../middleware/session.js";
+import { actorFor, asActor } from "../middleware/session.js";
 
 const ROUTER_URL = () => (process.env.ROUTER_URL ?? "http://localhost:7200").replace(/\/$/, "");
 const MAX_PAYMENT_TDX = 1000;
@@ -45,6 +45,32 @@ routerPublic.post("/router/quote", (req, res) => proxy(req, res, "/quote"));
 // The buyer is the signed-in account (never a name from the browser).
 routerPublic.post("/router/orders", asActor("body", "buyer"), (req, res) => proxy(req, res, "/orders"));
 routerPublic.get("/router/orders", (req, res) => proxy(req, res, `/orders${req.url.slice(req.path.length)}`));
+
+// Raise the cap of, or cancel, one of the signed-in account's own orders.
+async function ownOrder(req: Request, res: Response): Promise<boolean> {
+  let who: string;
+  try {
+    who = actorFor(req);
+  } catch (e) {
+    res.status(401).json({ error: { code: "NOT_CONNECTED", message: (e as Error).message } });
+    return false;
+  }
+  try {
+    const r = await fetch(`${ROUTER_URL()}/orders/${encodeURIComponent(req.params.id)}`, { headers: internalHeaders(true) });
+    const order = (await r.json()) as { buyer?: string };
+    if (r.ok && order.buyer === who) return true;
+    res.status(r.ok ? 403 : r.status).json({ error: { code: "NOT_YOURS", message: "This order belongs to another account." } });
+  } catch {
+    res.status(503).json({ error: { code: "ROUTER_UNAVAILABLE", message: "The order router is not reachable." } });
+  }
+  return false;
+}
+routerPublic.post("/router/orders/:id/cap", async (req, res) => {
+  if (await ownOrder(req, res)) await proxy(req, res, `/orders/${encodeURIComponent(req.params.id)}/cap`);
+});
+routerPublic.post("/router/orders/:id/cancel", async (req, res) => {
+  if (await ownOrder(req, res)) await proxy(req, res, `/orders/${encodeURIComponent(req.params.id)}/cancel`);
+});
 routerPublic.get("/router/orders/:id", (req, res) => proxy(req, res, `/orders/${encodeURIComponent(req.params.id)}`));
 
 // Reclaim is an operator action: gated by ADMIN_KEY when one is set.

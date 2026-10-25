@@ -30,12 +30,23 @@ from router.state import LeaseTaken, StateStore
 
 log = logging.getLogger("router.orders")
 
-PERSISTED = {"quoted", "paid", "running", "progress", "checkpointed", "moved", "completed", "settled", "failed"}
+PERSISTED = {
+    "quoted", "paid", "running", "progress", "checkpointed", "moved", "completed", "settled", "failed",
+    "paused", "resumed", "capRaised", "cancelled",
+}
+FINAL = ("settled", "failed", "cancelled")
+
+
+class Cancelled(Exception):
+    """The buyer cancelled (or a pause timed out): stop, settle what was served, refund the rest."""
 
 
 class OrderCreate(OrderIn):
     mode: str = "balanced"
     buyer: str = C.DEFAULT_BUYER
+    # Max price = estimate x (1 + bufferPct / 100); the buyer sets it aside up front.
+    bufferPct: int = C.DEFAULT_BUFFER_PCT  # noqa: N815
+    taskType: str | None = None  # noqa: N815 (inference batch, fine-tune, render, other)
 
 
 def unit_price(entry: FleetEntry, kind: str) -> float:
@@ -54,6 +65,7 @@ class Orders:
         self.subscribers: dict[str, set[asyncio.Queue[tuple[str, dict[str, Any]]]]] = {}
         self.signals: dict[str, dict[tuple[str, int], Signal]] = {}  # gpuId -> {(orderId, part): signal}
         self.compute_transport: httpx.AsyncBaseTransport | None = None
+        self.waiters: dict[str, asyncio.Event] = {}  # paused orders wait here for a higher cap or a cancel
 
     # ---- records and events ----
 
@@ -81,7 +93,7 @@ class Orders:
         try:
             for ev in order.get("events", []):
                 yield ev["type"], ev["data"]
-            if order["status"] in ("settled", "failed"):
+            if order["status"] in FINAL:
                 return
             while True:
                 try:
@@ -90,7 +102,7 @@ class Orders:
                     yield "ping", {}
                     continue
                 yield kind, data
-                if kind in ("settled", "failed"):
+                if kind in FINAL:
                     return
         finally:
             self.subscribers.get(order_id, set()).discard(q)
@@ -100,6 +112,8 @@ class Orders:
     async def create(self, req: OrderCreate) -> dict[str, Any]:
         if req.mode not in O.MODES:
             raise RouterError(422, "INVALID_ORDER", "mode must be cheapest, balanced or fastest")
+        if req.bufferPct not in C.BUFFER_CHOICES:
+            raise RouterError(422, "INVALID_ORDER", "bufferPct must be 10, 25 or 50")
         if req.kind == "inference" and not isinstance(req.requests, list):
             raise RouterError(422, "INVALID_ORDER", "inference orders need requests: a list of message lists")
         await self.service.state.refresh_compute(self.service.entries, self.compute_transport)
@@ -134,7 +148,15 @@ class Orders:
             "mode": req.mode,
             "buyer": req.buyer,
             "status": "created",
-            "priceUsdc": plan["priceUsdc"],
+            "priceUsdc": plan["priceUsdc"],  # the estimate
+            "estimateUsdc": plan["priceUsdc"],
+            "bufferPct": req.bufferPct,
+            "capUsdc": S.money(float(plan["priceUsdc"]) * (1 + req.bufferPct / 100)),
+            "taskType": req.taskType,
+            "cancelled": False,
+            "pause": None,
+            "topUps": [],
+            "charged": None,
             "etaSeconds": plan["etaSeconds"],
             "createdAt": iso(now),
             "completesAt": plan["completesAt"],
@@ -180,12 +202,13 @@ class Orders:
         if order.get("payment"):
             return order
         try:
+            # The cap is set aside on the ledger: provable before any work runs.
             tx = await S.pay(
                 order["buyer"],
                 S.ORDER_TREASURY,
-                order["priceUsdc"],
+                order["capUsdc"],
                 "MS_ORDER",
-                {"orderId": order_id, "mode": order["mode"]},
+                {"orderId": order_id, "mode": order["mode"], "capUsdc": order["capUsdc"]},
             )
         except S.PaymentFailed as e:
             await self.release(order_id)
@@ -195,16 +218,89 @@ class Orders:
         order["payment"] = {
             "from": order["buyer"],
             "to": S.ORDER_TREASURY,
-            "amountUsdc": order["priceUsdc"],
+            "amountUsdc": order["capUsdc"],
             "hash": tx.get("hash"),
             "explorerUrl": S.explorer(tx),
             "validated": tx.get("validated"),
         }
         order["status"] = "paid"
         self.emit(
-            order, "paid", {"amountUsdc": order["priceUsdc"], "hash": tx.get("hash"), "explorerUrl": S.explorer(tx)}
+            order, "paid", {"amountUsdc": order["capUsdc"], "hash": tx.get("hash"), "explorerUrl": S.explorer(tx)}
         )
         return order
+
+    # ---- price cap: pause, raise, cancel ----
+
+    async def _await_budget(self, order: dict[str, Any], needed: float, reason: str) -> None:
+        """The cap would be passed: pause until the buyer raises it (or cancels). Never runs over."""
+        if order.get("cancelled"):
+            raise Cancelled()
+        ev = self.waiters.setdefault(order["orderId"], asyncio.Event())
+        ev.clear()
+        order["status"] = "paused"
+        order["pause"] = {
+            "reason": reason,
+            "spentUsdc": S.money(S.spent(order)),
+            "capUsdc": order["capUsdc"],
+            "neededUsdc": S.money(needed),
+            "at": iso(now_utc()),
+        }
+        self.emit(order, "paused", dict(order["pause"]))
+        try:
+            await asyncio.wait_for(ev.wait(), timeout=C.PAUSE_TIMEOUT_SECONDS)
+        except TimeoutError:
+            order["cancelled"] = True
+        if order.get("cancelled"):
+            raise Cancelled()
+        order["status"] = "running"
+        order["pause"] = None
+        self.emit(order, "resumed", {"capUsdc": order["capUsdc"]})
+
+    async def raise_cap(self, order_id: str, cap_usdc: float) -> dict[str, Any]:
+        """Set aside more (the difference is paid now, MS_ORDER) and let a paused order continue."""
+        order = self.get(order_id)
+        if order is None:
+            raise RouterError(404, "UNKNOWN_ORDER", f"no order {order_id}")
+        if order["status"] in FINAL or order["status"] == "completed" or order.get("cancelled"):
+            raise RouterError(409, "ORDER_CLOSED", "this order is no longer running")
+        old = S.cap(order)
+        if not cap_usdc > old:
+            raise RouterError(422, "INVALID_CAP", "the new cap must be higher than the current one")
+        delta = S.money(cap_usdc - old)
+        try:
+            tx = await S.pay(
+                order["buyer"], S.ORDER_TREASURY, delta, "MS_ORDER",
+                {"orderId": order_id, "capUsdc": S.money(cap_usdc), "topUp": True},
+            )
+        except S.PaymentFailed as e:
+            raise RouterError(502, "PAYMENT_FAILED", str(e)) from None
+        order["capUsdc"] = S.money(cap_usdc)
+        order["topUps"].append({"amountUsdc": delta, "hash": tx.get("hash"), "explorerUrl": S.explorer(tx)})
+        self.emit(order, "capRaised", {"capUsdc": order["capUsdc"], "amountUsdc": delta, "hash": tx.get("hash")})
+        if ev := self.waiters.get(order_id):
+            ev.set()
+        return order
+
+    def cancel(self, order_id: str) -> dict[str, Any]:
+        """Stop the order: running parts checkpoint and stop; settlement refunds everything not spent."""
+        order = self.get(order_id)
+        if order is None:
+            raise RouterError(404, "UNKNOWN_ORDER", f"no order {order_id}")
+        if order["status"] in FINAL or order["status"] == "completed":
+            raise RouterError(409, "ORDER_CLOSED", "this order is already finished")
+        order["cancelled"] = True
+        self.save(order)
+        if ev := self.waiters.get(order_id):
+            ev.set()
+        for sigs in self.signals.values():
+            for (oid, _), sig in list(sigs.items()):
+                if oid == order_id:
+                    sig.fire("CANCELLED", True)
+        return order
+
+    def _over_cap(self, order: dict[str, Any], extra: float) -> bool:
+        """Would `extra` more cost (the live part of a segment) pass the cap?"""
+        return S.spent(order) + extra > S.cap(order) + 1e-9
 
     async def release(self, order_id: str) -> None:
         order = self.get(order_id)
@@ -234,6 +330,12 @@ class Orders:
                 jobs.append(self._run_rental(order, idx, entry, float(part["work"])))
         results = await asyncio.gather(*jobs, return_exceptions=True)
         await self.release(order_id)
+        self.waiters.pop(order_id, None)
+        if order.get("cancelled") or any(isinstance(r, Cancelled) for r in results):
+            order["status"] = "cancelled"
+            order["pause"] = None
+            self.emit(order, "cancelled", {"spentUsdc": S.money(S.spent(order)), "at": iso(now_utc())})
+            return order
         errors = [r for r in results if isinstance(r, Exception)]
         if errors:
             order["status"] = "failed"
@@ -295,12 +397,27 @@ class Orders:
             minutes=spec.minutes,
             constraints=O.Constraints(c.get("gpuModel"), c.get("region"), tuple(c.get("excludeProviders", ()))),
         )
-        choice = O.best_for(spec, order["mode"], views)  # type: ignore[arg-type]
-        if choice.plan is None:
-            relaxed = O.OrderSpec(spec.kind, tokens=spec.tokens, requests=spec.requests, minutes=spec.minutes)
-            choice = O.best_for(relaxed, "fastest", views)
-        if choice.plan is None:
-            raise RouterError(503, "NO_CAPACITY", "no GPU can take the remaining work")
+        # Only a GPU that can finish the rest inside the remaining budget (cap minus what was spent).
+        while True:
+            budget = max(0.0, S.cap(order) - S.spent(order))
+            bounded = O.OrderSpec(
+                spec.kind, tokens=spec.tokens, requests=spec.requests, minutes=spec.minutes,
+                budgetUsdc=budget, constraints=spec.constraints,
+            )
+            choice = O.best_for(bounded, order["mode"], views)  # type: ignore[arg-type]
+            if choice.plan is None:
+                relaxed = O.OrderSpec(spec.kind, tokens=spec.tokens, requests=spec.requests, minutes=spec.minutes, budgetUsdc=budget)
+                choice = O.best_for(relaxed, "cheapest", views)
+            if choice.plan is not None:
+                break
+            unbounded = O.best_for(
+                O.OrderSpec(spec.kind, tokens=spec.tokens, requests=spec.requests, minutes=spec.minutes), "cheapest", views
+            )
+            if unbounded.plan is None:
+                raise RouterError(503, "NO_CAPACITY", "no GPU can take the remaining work")
+            # Something could finish it, just not within the cap: ask the buyer.
+            await self._await_budget(order, unbounded.plan.cost - budget, "CAP_REACHED")
+            views = [v for v in self.service.views(now_utc()) if v.id != current.id]
         nxt = self.service.entry(choice.plan.parts[0].gpu.id)
         assert nxt is not None
         self.state.acquire(nxt.id, nxt.maxConcurrent, order["orderId"], C.LEASE_SECONDS + choice.plan.eta_s)
@@ -346,9 +463,15 @@ class Orders:
             )
             start_tokens = tokens
             interrupted: GenEvent | None = None
+            unit = float(seg["unitPriceUsdc"])
             try:
                 async for ev in engine_for(entry).stream(entry, messages, max_tokens, text, tokens, sig):
                     if ev.kind == "token":
+                        if self._over_cap(order, (ev.tokens - start_tokens) * unit) and not sig.event.is_set():
+                            sig.fire("CAP_REACHED", True)  # checkpoint here; the token past the cap is not kept
+                            continue
+                        if sig.event.is_set() and sig.reason == "CAP_REACHED":
+                            continue
                         text += ev.text
                         tokens = ev.tokens
                         order["output"][r] = text
@@ -380,6 +503,14 @@ class Orders:
             if interrupted is None:
                 self.emit(order, "progress", dict(order["progress"]))
                 return entry
+            if order.get("cancelled") or interrupted.reason == "CANCELLED":
+                raise Cancelled()
+            if interrupted.reason == "CAP_REACHED":
+                # Same GPU, after the buyer raises the cap (or the order is cancelled).
+                self.state.put_checkpoint(ckpt_key, {"text": text, "tokens": tokens, "gpuId": entry.id, "messages": messages})
+                await self._await_budget(order, max(0.0, (max_tokens - tokens) * unit), "CAP_REACHED")
+                reason = "CAP_RAISED"
+                continue
             # Resume, don't restart: the next GPU continues from the checkpoint (prompt + partial answer).
             started = asyncio.get_running_loop().time()
             self._note_worker_reclaim(entry, interrupted.reason)
@@ -441,8 +572,12 @@ class Orders:
             )
             seg_start = done
             moved_reason = None
+            unit = float(seg["unitPriceUsdc"])
             try:
                 while done < minutes - 1e-9:
+                    step_next = min(C.RENTAL_TIME_SCALE / 60.0, minutes - done)
+                    if not sig.event.is_set() and self._over_cap(order, (done - seg_start + step_next) * unit):
+                        sig.fire("CAP_REACHED", True)
                     if sig.event.is_set():
                         self.state.put_checkpoint(f"{oid}#rental{part}", {"minutes": done, "gpuId": entry.id})
                         self.emit(
@@ -465,6 +600,12 @@ class Orders:
             if moved_reason is None:
                 self.service.state.end_job(entry.id, oid)
                 return
+            if order.get("cancelled") or moved_reason == "CANCELLED":
+                raise Cancelled()
+            if moved_reason == "CAP_REACHED":
+                await self._await_budget(order, max(0.0, (minutes - done) * unit), "CAP_REACHED")
+                reason = "CAP_RAISED"
+                continue
             started = asyncio.get_running_loop().time()
             self.state.release(entry.id, oid)
             self.service.state.end_job(entry.id, oid)
@@ -592,7 +733,8 @@ class Orders:
                 "hash": tx.get("hash"),
                 "explorerUrl": S.explorer(tx),
             }
-        order["status"] = "settled"
+        order["charged"] = S.money(sum(float(x["amountUsdc"]) for x in lines))
+        order["status"] = "cancelled" if order.get("cancelled") else "settled"
         actual = sum(float(x["served"]) * float(x["unitPriceUsdc"]) for x in order["segments"])
         metrics.settled(order_id, order["mode"], float(order["priceUsdc"]), actual)
         await self._report_usage(order, done_lines)
@@ -600,6 +742,7 @@ class Orders:
             order,
             "settled",
             {
+                "chargedUsdc": order["charged"],
                 "settlements": [
                     {"gpuId": x["gpuId"], "amountUsdc": x["toPoolUsdc"], "hash": x.get("hash")} for x in done_lines
                 ],

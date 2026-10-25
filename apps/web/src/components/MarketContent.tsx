@@ -28,7 +28,7 @@ export function MarketContent() {
             <MarketTable views={views} />
           </div>
         </AppWindow>
-        <h3 className="sub-h">Rent compute</h3>
+        <h3 className="sub-h">Run a task</h3>
         <div className="trade rent-card" style={{ marginTop: 20 }}>
           <ComputeCheckout />
         </div>

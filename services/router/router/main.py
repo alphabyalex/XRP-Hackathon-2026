@@ -160,6 +160,22 @@ async def post_order(req: OrderCreate) -> dict:
     return public(order)
 
 
+class CapRequest(BaseModel):
+    capUsdc: float  # noqa: N815
+
+
+# Price cap: a paused order continues after the buyer sets aside more (the difference is paid now).
+@app.post("/orders/{order_id}/cap", dependencies=[Depends(internal_key)])
+async def raise_cap(order_id: str, req: CapRequest) -> dict:
+    return public(await app.state.orders.raise_cap(order_id, req.capUsdc))
+
+
+# Cancel: running parts stop; settlement charges what was served and refunds everything else.
+@app.post("/orders/{order_id}/cancel", dependencies=[Depends(internal_key)])
+def cancel_order(order_id: str) -> dict:
+    return public(app.state.orders.cancel(order_id))
+
+
 @app.get("/orders", dependencies=[Depends(internal_key)])
 def list_orders(limit: int = 20) -> dict:
     return {"orders": [public(o) for o in app.state.orders.state.list_orders(limit)]}
