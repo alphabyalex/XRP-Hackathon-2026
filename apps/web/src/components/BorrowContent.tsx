@@ -430,7 +430,9 @@ export function BorrowContent({
   useEffect(() => {
     const s = Number(shares);
     const p = Number(principal);
-    if (!(s > 0) || !(p > 0) || overMax) {
+    // Above the known max the quote is still asked: the api answers 409 OVER_LIMIT with the
+    // message shown under the field, and nothing is opened.
+    if (!(s > 0) || !(p > 0)) {
       ++seq.current;
       setQuote(null);
       setQuoting(false);
@@ -447,13 +449,17 @@ export function BorrowContent({
           setQuoteErr(null);
         }
       } catch (e) {
-        if (mine === seq.current) setQuoteErr((e as Error).message);
+        if (mine !== seq.current) return;
+        if (e instanceof ApiCodeError && e.code === "OVER_LIMIT") {
+          setQuote(null);
+          setRefused(e.message);
+        } else setQuoteErr((e as Error).message);
       } finally {
         if (mine === seq.current) setQuoting(false);
       }
     }, 450);
     return () => clearTimeout(t);
-  }, [shares, principal, gpuId, requote, overMax]);
+  }, [shares, principal, gpuId, requote]);
 
   // Each live quote adds a coverage point.
   useEffect(() => {
@@ -858,13 +864,14 @@ export function BorrowContent({
                     />
                     <span>USDC</span>
                   </div>
-                  {overLimit && limit !== null ? (
-                    <span className="note dn">
-                      You can borrow up to {fmt(limit, 2)} USDC against these
-                      shares
-                    </span>
-                  ) : refused ? (
+                  {refused ? (
                     <span className="note dn">{refused}</span>
+                  ) : overLimit && limit !== null ? (
+                    <span className="note dn">
+                      {limit > 0
+                        ? `You can borrow up to ${fmt(limit, 2)} USDC against these shares`
+                        : "No approved amount for these shares"}
+                    </span>
                   ) : max && Number(max.maxPrincipal) > 0 ? (
                     <button
                       type="button"

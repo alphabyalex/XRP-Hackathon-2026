@@ -23,8 +23,9 @@ export const deposit = (amount: string) => post<{ round: number; tx: TxResult }>
 export const withdraw = (amount: string) => post<{ round: number; tx: TxResult }>("/vault/withdraw", { amount });
 
 // principal "max" quotes the largest amount risk approves.
-export const quoteLoan = (gpuId: string, collateralShares: string, principal: string, init?: RequestInit) =>
-  apiFetch<LoanQuoteApiResponse>("/loans/quote", { ...init, method: "POST", body: JSON.stringify({ gpuId, collateralShares, principal }) });
+// 409 OVER_LIMIT (with the api's own message) when principal is above what these shares can borrow.
+export const quoteLoan = (gpuId: string, collateralShares: string, principal: string) =>
+  postCoded<LoanQuoteApiResponse>("/loans/quote", { gpuId, collateralShares, principal });
 export const creditStats = () => apiFetch<CreditStats>("/credit/stats");
 // The borrower's cached credit profile, so the score can show before the quote.
 export const borrowerProfile = (init?: RequestInit) => apiFetch<CreditProfile & { dataSource: string }>("/loans/profile/me", init);
