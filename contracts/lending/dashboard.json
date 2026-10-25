@@ -1,0 +1,28 @@
+{
+  "method": "GET",
+  "path": "/lending/dashboard",
+  "request": {},
+  "responseShape": {
+    "asOf": "ISO timestamp",
+    "totals": {
+      "outstanding": "decimal USDC",
+      "available": "decimal USDC",
+      "utilization": "fraction",
+      "weightedApr": "fraction",
+      "defaults": "integer",
+      "marginCalls": "integer",
+      "cover": "decimal USDC"
+    },
+    "series": [
+      {
+        "time": "ISO timestamp",
+        "outstanding": "decimal",
+        "available": "decimal",
+        "utilization": "fraction",
+        "weightedApr": "fraction",
+        "cover": "decimal"
+      }
+    ]
+  },
+  "note": "Shape contract, not runtime seed data. Decimal values are strings. Empty collections are returned when there is no recorded activity."
+}

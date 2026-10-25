@@ -1,0 +1,19 @@
+{
+  "method": "GET",
+  "path": "/lending/markets/:id",
+  "request": {},
+  "responseShape": {
+    "market": "same market shape as /lending/markets",
+    "history": [
+      {
+        "txHash": "validated hash",
+        "round": "integer",
+        "kind": "deposit, loan or repayment",
+        "account": "public account",
+        "amount": "decimal or null",
+        "time": "ISO timestamp"
+      }
+    ]
+  },
+  "note": "Shape contract, not runtime seed data. Decimal values are strings. Empty collections are returned when there is no recorded activity."
+}

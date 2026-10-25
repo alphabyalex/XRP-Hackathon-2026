@@ -1,0 +1,27 @@
+{
+  "method": "GET",
+  "path": "/market/:gpuId/candles?interval=1m",
+  "request": {
+    "interval": [
+      "1m",
+      "5m",
+      "1h",
+      "1d"
+    ]
+  },
+  "responseShape": {
+    "gpuId": "gpu-a",
+    "interval": "1m",
+    "candles": [
+      {
+        "time": "ISO bucket start",
+        "open": "decimal",
+        "high": "decimal",
+        "low": "decimal",
+        "close": "decimal",
+        "volume": "decimal shares"
+      }
+    ]
+  },
+  "note": "Shape contract, not runtime seed data. Decimal values are strings. Empty collections are returned when there is no recorded activity."
+}

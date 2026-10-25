@@ -1,0 +1,26 @@
+{
+  "method": "GET",
+  "path": "/market/:gpuId/orderbook",
+  "request": {},
+  "responseShape": {
+    "gpuId": "gpu-a",
+    "asOf": "ISO timestamp",
+    "ledgerIndex": "integer",
+    "bids": [
+      {
+        "price": "decimal USDC/share",
+        "size": "decimal shares",
+        "total": "decimal USDC"
+      }
+    ],
+    "asks": [
+      {
+        "price": "decimal USDC/share",
+        "size": "decimal shares",
+        "total": "decimal USDC"
+      }
+    ],
+    "spread": "decimal USDC/share or null"
+  },
+  "note": "Shape contract, not runtime seed data. Decimal values are strings. Empty collections are returned when there is no recorded activity."
+}

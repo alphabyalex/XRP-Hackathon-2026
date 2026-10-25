@@ -1,0 +1,23 @@
+{
+  "method": "POST",
+  "path": "/market/:gpuId/order",
+  "request": {
+    "account": "me (session; scripts use internal key)",
+    "side": "buy or sell",
+    "size": "positive decimal shares",
+    "price": "positive decimal USDC/share"
+  },
+  "responseShape": {
+    "gpuId": "gpu-a",
+    "side": "buy or sell",
+    "size": "requested shares",
+    "price": "limit price",
+    "tx": {
+      "hash": "validated transaction hash",
+      "result": "tesSUCCESS",
+      "validated": true,
+      "explorerUrl": "public transaction URL"
+    }
+  },
+  "note": "Shape contract, not runtime seed data. Decimal values are strings. Empty collections are returned when there is no recorded activity."
+}

@@ -1,0 +1,22 @@
+{
+  "method": "GET",
+  "path": "/loans/collateral-options",
+  "request": {
+    "query": {
+      "account": "me (session; internal scripts may name DEV)"
+    }
+  },
+  "responseShape": {
+    "account": "account name",
+    "options": [
+      {
+        "gpuId": "gpu-a",
+        "label": "GPU A",
+        "holding": "decimal free shares",
+        "price": "decimal USDC/share",
+        "maxBorrow": "decimal USDC"
+      }
+    ]
+  },
+  "note": "Shape contract, not runtime seed data. Decimal values are strings. Empty collections are returned when there is no recorded activity."
+}

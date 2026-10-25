@@ -1,0 +1,12 @@
+{
+  "method": "GET",
+  "path": "/lending/base-apr",
+  "request": {},
+  "responseShape": {
+    "baseApr": "fraction",
+    "baseAprPct": "decimal percent",
+    "source": "Risk Desk",
+    "grades": "grade to decimal fraction mapping"
+  },
+  "note": "Shape contract, not runtime seed data. Decimal values are strings. Empty collections are returned when there is no recorded activity."
+}

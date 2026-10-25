@@ -1,0 +1,26 @@
+{
+  "method": "GET",
+  "path": "/lending/loanbook",
+  "request": {},
+  "responseShape": {
+    "asOf": "ISO timestamp",
+    "loans": [
+      {
+        "id": "ledger loan ID",
+        "borrower": "short public address",
+        "gpuId": "GPU id",
+        "principal": "decimal",
+        "outstanding": "decimal",
+        "apr": "fraction",
+        "ltv": "fraction",
+        "state": "healthy, watch or margin call",
+        "grade": "A-E or null",
+        "nextPayment": {
+          "amount": "decimal",
+          "dueAt": "ISO timestamp or null"
+        }
+      }
+    ]
+  },
+  "note": "Shape contract, not runtime seed data. Decimal values are strings. Empty collections are returned when there is no recorded activity."
+}

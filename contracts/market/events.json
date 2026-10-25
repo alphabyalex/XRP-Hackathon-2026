@@ -1,0 +1,16 @@
+{
+  "method": "SSE",
+  "path": "/events",
+  "request": {
+    "event": "market"
+  },
+  "responseShape": {
+    "gpuId": "gpu-a",
+    "asOf": "ISO timestamp",
+    "price": "decimal",
+    "bookChanged": true,
+    "trades": [],
+    "orderbook": "optional orderbook snapshot"
+  },
+  "note": "Shape contract, not runtime seed data. Decimal values are strings. Empty collections are returned when there is no recorded activity."
+}
