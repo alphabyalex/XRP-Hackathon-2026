@@ -29,6 +29,14 @@ export function PortfolioReturns() {
   useApiEvents(["dividend", "tx", "loan"], () => void refresh());
   const selected = data?.series.filter(s => gpu === "All" || s.gpuId === gpu) ?? [];
   const total = selected.reduce((sum, s) => sum + Number(s.totalEarned), 0);
+  // No payout yet in the window: one line instead of a flat zero chart.
+  const none = data !== null && !data.series.some(s => Number(s.totalEarned) > 0);
+  if (none) return <section aria-labelledby="returns-heading" data-testid="portfolio-returns">
+    <div className="account-section-head"><h2 id="returns-heading">Your returns</h2>
+      <Segmented options={[{ value: "7", label: "7D" }, { value: "30", label: "30D" }, { value: "90", label: "90D" }]} value={days} onChange={setDays}/>
+    </div>
+    <p className="account-muted">No dividends yet</p>
+  </section>;
   return <section aria-labelledby="returns-heading" data-testid="portfolio-returns">
     <div className="account-section-head"><h2 id="returns-heading">Your returns</h2>
       <Segmented options={[{ value: "7", label: "7D" }, { value: "30", label: "30D" }, { value: "90", label: "90D" }]} value={days} onChange={setDays}/>
