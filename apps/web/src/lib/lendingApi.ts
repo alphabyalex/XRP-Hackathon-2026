@@ -143,3 +143,32 @@ export function useApiEvents(types: string[], onEvent: (type: string, data: any)
     return () => es?.close();
   }, [key]);
 }
+
+// ---------------------------------------------------------------------------
+// Lend page: markets, dashboard, loan book (GET /lending/*). Until those routes
+// are deployed, each returns null and the page reads /vault and /loans instead.
+// ---------------------------------------------------------------------------
+
+// A route that is not deployed yet answers 404 once; it is asked again a minute later.
+const missing = new Map<string, number>();
+async function optional<T>(path: string): Promise<T | null> {
+  const since = missing.get(path);
+  if (since && Date.now() - since < 60_000) return null;
+  try {
+    const r = await apiFetch<T>(path);
+    missing.delete(path);
+    return r;
+  } catch {
+    missing.set(path, Date.now());
+    return null;
+  }
+}
+
+export const lendingMarkets = () => optional<any>("/lending/markets");
+export const lendingDashboard = () => optional<any>("/lending/dashboard");
+export const lendingLoanbook = () => optional<any>("/lending/loanbook");
+
+// POST /applications: "capital" (borrowers) or "market" (GPU operators who want a vault funded).
+export type ApplicationKind = "capital" | "market";
+export const submitApplication = (body: { kind: ApplicationKind; name: string; email: string; company?: string; details: string; [k: string]: unknown }) =>
+  postCoded<{ id: string; status: string; createdAt: string }>("/applications", body);

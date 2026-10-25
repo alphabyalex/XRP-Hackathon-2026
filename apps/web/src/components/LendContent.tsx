@@ -1,109 +1,126 @@
 "use client";
-// /lend: XLS-65 vault rounds, deposit and withdraw, the loan book, simulated
-// loan-book stats from the risk desk, and the stress test.
-import { useCallback, useEffect, useState } from "react";
-import type { BookStats, VaultOverview, VaultState, XlsLoanRecord } from "@moonshift/shared";
-import { fmt, typedAmount, usdc } from "@/lib/format";
-import { bookStats, deposit, getPositions, getVault, listLoans, pct, useApiEvents, withdraw } from "@/lib/lendingApi";
+// /lend: two subtabs. Lending markets (the rounds lenders fund, deposit into
+// the open one, how risk is priced) and the Lending dashboard (book totals,
+// live charts, the loan book). Everything refreshes every 5 s and on the api's
+// vault, loan and risk events.
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { VaultOverview, XlsLoanRecord } from "@moonshift/shared";
+import { usdc } from "@/lib/format";
+import { deposit, getPositions, getVault, lendingDashboard, lendingLoanbook, lendingMarkets, listLoans, useApiEvents, withdraw } from "@/lib/lendingApi";
 import { useWallet } from "@/lib/wallet";
-import { ConnectPrompt } from "./ConnectPrompt";
-import { Button } from "./Button";
 import { useToast } from "./Toast";
-import { StatusChip, TxLink } from "./LendingBits";
+import { Segmented } from "./Segmented";
+import type { LinePoint } from "./charts";
+import { Markets, marketsFromApi, marketsFromVault } from "./lending/Markets";
+import { Dashboard, rowFromLoan, type BookRow, type Totals } from "./lending/Dashboard";
+import "./lending/lending.css";
 
-function dateStr(iso: string) {
-  return iso ? new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+type Tab = "markets" | "dashboard";
+const TABS: { value: Tab; label: string }[] = [
+  { value: "markets", label: "Lending markets" },
+  { value: "dashboard", label: "Lending dashboard" },
+];
+const MAX_POINTS = 720;
+
+const n = (v: unknown) => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
+const asPct = (v: unknown) => {
+  const x = n(v);
+  return x === null ? null : x > 0 && x <= 1 ? x * 100 : x;
+};
+
+function seriesFrom(raw: any, key: string, percent = false): LinePoint[] | null {
+  const s = raw?.series;
+  if (!Array.isArray(s) || s.length === 0) return null;
+  return s
+    .map((p: any) => ({ t: new Date(p.at ?? p.t).getTime(), v: percent ? asPct(p[key]) : n(p[key]) }))
+    .filter((p: any): p is LinePoint => Number.isFinite(p.t) && p.v !== null);
 }
 
-function RoundCard({ v, title, network, children }: { v: VaultState; title: string; network: string; children?: React.ReactNode }) {
-  return (
-    <div className="trade card">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-        <span className="lbl" style={{ margin: 0 }}>
-          {title} · round {v.round}
-        </span>
-        <span className={`chip chip-${v.phase === "investment" ? "open" : "phase"}`}>{v.phase}</span>
-      </div>
-      <div className="bignum" style={{ marginTop: 10 }}>
-        {v.targetApyPct ?? v.lenderApyPct}% <small>target APY</small>
-      </div>
-      <p className="note" style={{ marginTop: 4 }}>Earned so far {v.earnedApyPct ?? v.lenderApyPct}% APY</p>
-      <div className="facts" style={{ marginTop: 14 }}>
-        <div>
-          <span>Deposits</span>
-          <b>{fmt(Number(v.assetsTotal), 2)} USDC</b>
-        </div>
-        <div>
-          <span>Lent out</span>
-          <b>
-            {fmt(Number(v.debtTotal), 2)} ({v.utilizationPct}%)
-          </b>
-        </div>
-        <div>
-          <span>Available</span>
-          <b>{fmt(Number(v.assetsAvailable), 2)}</b>
-        </div>
-        <div>
-          <span>First-loss cover</span>
-          <b>{fmt(Number(v.coverAvailable), 2)}</b>
-        </div>
-        <div>
-          <span>Share price</span>
-          <b>{Number(v.sharePrice).toFixed(4)}</b>
-        </div>
-        <div>
-          <span>{v.phase === "subscription" ? "Deposits close" : "Lending until"}</span>
-          <b>{dateStr(v.phase === "subscription" ? v.subscriptionDate : v.redemptionDate)}</b>
-        </div>
-      </div>
-      {v.explorerUrl && network !== "mock" && (
-        <a className="txl" href={v.explorerUrl} target="_blank" rel="noreferrer">
-          View vault account
-        </a>
-      )}
-      {children}
-    </div>
-  );
+function rowFromApi(r: any): BookRow {
+  return {
+    id: String(r.id ?? r.loanId),
+    borrower: String(r.borrowerAddress ?? r.borrower ?? ""),
+    gpuId: String(r.gpuId ?? ""),
+    principal: Number(r.principal ?? 0),
+    outstanding: n(r.outstanding),
+    apr: (asPct(r.apr) ?? 0) / 100,
+    ltv: n(r.ltv),
+    marginCallLtv: n(r.marginCallLtv),
+    liquidationLtv: n(r.liquidationLtv),
+    state: String(r.state ?? r.status ?? ""),
+    network: String(r.network ?? "devnet"),
+    tx: r.txs?.loanSet ?? r.tx ?? null,
+    openedAt: r.openedAt ?? null,
+  };
 }
 
 export function LendContent() {
+  const [tab, setTab] = useState<Tab>("markets");
   const [vault, setVault] = useState<VaultOverview | null>(null);
-  const [loans, setLoans] = useState<XlsLoanRecord[]>([]);
-  const [stats, setStats] = useState<(BookStats & { dataSource: string }) | null>(null);
+  const [loans, setLoans] = useState<XlsLoanRecord[] | null>(null);
+  const [marketsRaw, setMarketsRaw] = useState<any>(null);
+  const [dashRaw, setDashRaw] = useState<any>(null);
+  const [bookRaw, setBookRaw] = useState<any>(null);
   const [positions, setPositions] = useState<{ round: number; phase: string; shares: string; value: string }[]>([]);
-  const [amount, setAmount] = useState("100");
+  const [liveOut, setLiveOut] = useState<LinePoint[]>([]);
+  const [liveUtil, setLiveUtil] = useState<LinePoint[]>([]);
+  const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const toast = useToast();
-  // Deposits and positions are the signed-in account's; the vault and the loan book are public.
   const { wallet } = useWallet();
   const signedIn = !!wallet;
+  const inflight = useRef(false);
 
-  // Each piece renders as soon as it arrives; the vault numbers do not wait on positions.
+  useEffect(() => {
+    if (window.location.hash === "#dashboard") setTab("dashboard");
+  }, []);
+  function pickTab(t: Tab) {
+    setTab(t);
+    try {
+      history.replaceState(null, "", t === "dashboard" ? "#dashboard" : window.location.pathname);
+    } catch {
+      // ignore
+    }
+  }
+
   const refresh = useCallback(async () => {
-    const fail = (e: unknown) => setErr((e as Error).message);
-    await Promise.all([
-      getVault()
-        .then((v) => {
-          setVault(v);
-          setErr(null);
-        })
-        .catch(fail),
-      listLoans()
-        .then((l) => setLoans(l.loans))
-        .catch(fail),
-      signedIn
-        ? getPositions()
-            .then((p) => setPositions(p.positions))
-            .catch(fail)
-        : Promise.resolve(setPositions([])),
-    ]);
+    if (inflight.current) return;
+    inflight.current = true;
+    try {
+      await Promise.all([
+        getVault()
+          .then((v) => {
+            setVault(v);
+            setErr(null);
+            const r = v.investing;
+            if (r) {
+              const t = Date.now();
+              setLiveOut((p) => [...p, { t, v: Number(r.debtTotal) }].slice(-MAX_POINTS));
+              setLiveUtil((p) => [...p, { t, v: Number(r.utilizationPct) }].slice(-MAX_POINTS));
+            }
+          })
+          .catch((e) => setErr((e as Error).message)),
+        listLoans()
+          .then((l) => setLoans(l.loans))
+          .catch(() => {}),
+        lendingMarkets().then(setMarketsRaw),
+        lendingDashboard().then(setDashRaw),
+        lendingLoanbook().then(setBookRaw),
+        signedIn
+          ? getPositions()
+              .then((p) => setPositions(p.positions))
+              .catch(() => {})
+          : Promise.resolve(setPositions([])),
+      ]);
+    } finally {
+      inflight.current = false;
+    }
   }, [signedIn]);
 
   useEffect(() => {
     void refresh();
-    bookStats().then(setStats).catch(() => {});
-    const t = setInterval(() => void refresh(), 20_000);
+    const t = setInterval(() => void refresh(), 5000);
     return () => clearInterval(t);
   }, [refresh]);
 
@@ -114,6 +131,7 @@ export function LendContent() {
     try {
       const r = kind === "deposit" ? await deposit(amount) : await withdraw(amount);
       toast(kind === "deposit" ? `Deposited ${usdc(amount)} USDC` : `Withdrew ${usdc(amount)} USDC`, `Round ${r.round}`, r.tx.hash);
+      setAmount("");
       await refresh();
     } catch (e) {
       toast(kind === "deposit" ? "Deposit failed" : "Withdraw failed", (e as Error).message);
@@ -122,160 +140,50 @@ export function LendContent() {
     }
   }
 
-  const net = vault?.network ?? "devnet";
-  const active = loans.filter((l) => l.status === "open" || l.status === "margin_call");
-  const defaults = loans.filter((l) => l.status === "liquidated" || l.status === "defaulted").length;
-  const calls = loans.filter((l) => l.marginCallAt).length;
-  const pos = positions.filter((p) => Number(p.shares) > 0);
+  const markets = marketsFromApi(marketsRaw) ?? (vault ? marketsFromVault(vault) : null);
+
+  const rowsApi = Array.isArray(bookRaw?.loans) ? (bookRaw.loans as any[]).map(rowFromApi) : null;
+  const rows: BookRow[] | null = rowsApi ?? (loans ? loans.map(rowFromLoan) : null);
+  const openRows = (rows ?? []).filter((r) => r.state === "open" || r.state === "margin_call");
+  const weighted = (() => {
+    const p = openRows.reduce((s, r) => s + r.principal, 0);
+    return p > 0 ? (openRows.reduce((s, r) => s + r.principal * r.apr, 0) / p) * 100 : null;
+  })();
+  const inv = vault?.investing;
+  const totals: Totals = {
+    outstanding: n(dashRaw?.outstanding) ?? n(inv?.debtTotal),
+    available: n(dashRaw?.available) ?? n(inv?.assetsAvailable),
+    utilization: asPct(dashRaw?.utilization) ?? n(inv?.utilizationPct),
+    weightedApr: asPct(dashRaw?.weightedApr) ?? weighted,
+    defaults: n(dashRaw?.defaults) ?? (rows ? rows.filter((r) => r.state === "liquidated" || r.state === "defaulted").length : null),
+    marginCalls: n(dashRaw?.marginCalls) ?? (loans ? loans.filter((l) => l.marginCallAt).length : null),
+    cover: n(dashRaw?.cover) ?? n(inv?.coverAvailable),
+  };
 
   return (
-    <main className="s">
+    <main className="s lend-page">
       <div className="wrap">
-        <div className="shead">
-          <h2>Lend USDC to GPU owners.</h2>
+        <div className="shead lend-head">
+          <h2>Lend USDC against GPU cash flow.</h2>
           <p>
-            Your deposit funds loans to GPU shareholders. Every loan is backed by locked GPU shares and a first-loss cover. You deposit into the
-            next round while the current one is lending.
+            Lenders fund rounds. Each round lends to holders of GPU shares, secured by the shares and a first-loss cover. Every deposit, loan and
+            repayment is on the ledger.
           </p>
         </div>
+        <div className="lend-tabs">
+          <Segmented options={TABS} value={tab} onChange={pickTab} />
+        </div>
         {err && <p className="note dn">{err}</p>}
-        {vault && (
-          <div className="lend-grid">
-            {vault.investing ? (
-              <RoundCard v={vault.investing} title="Lending now" network={net} />
-            ) : (
-              <div className="trade card">
-                <p className="note">No round is lending right now. The next round opens shortly.</p>
-              </div>
-            )}
-            {vault.subscribing ? (
-              <RoundCard v={vault.subscribing} title="Open for deposits" network={net}>
-                {!signedIn ? (
-                  <ConnectPrompt />
-                ) : (
-                  <>
-                <label className="lbl" htmlFor="dep" style={{ marginTop: 18 }}>
-                  Amount
-                </label>
-                <div className="inp">
-                  <input id="dep" type="text" autoComplete="off" value={amount} inputMode="decimal" onChange={(e) => setAmount(typedAmount(e.target.value))} />
-                  <span>USDC</span>
-                </div>
-                <div className="two">
-                  <Button disabled={!!busy || !(Number(amount) > 0)} onClick={() => move("deposit")}>
-                    {busy === "deposit" ? "Depositing..." : "Deposit"}
-                  </Button>
-                  <Button variant="ghost" disabled={!!busy || !(Number(amount) > 0)} onClick={() => move("withdraw")}>
-                    {busy === "withdraw" ? "Withdrawing..." : "Withdraw"}
-                  </Button>
-                </div>
-                {pos.length > 0 && (
-                  <p className="note">
-                    Your position:{" "}
-                    {pos.map((p) => `round ${p.round} ${fmt(Number(p.value), 2)} USDC`).join(", ")}
-                  </p>
-                )}
-                  </>
-                )}
-              </RoundCard>
-            ) : (
-              <div className="trade card">
-                <p className="note">No round is open for deposits.</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        <h3 className="sub-h" style={{ marginTop: 64 }}>
-          Loan book
-        </h3>
-        <div className="proof" style={{ marginTop: 8, marginBottom: 24 }}>
-          <div>
-            <b>{active.length}</b>active loans
-          </div>
-          <div>
-            <b>{fmt(active.reduce((s, l) => s + Number(l.ledger?.totalValueOutstanding ?? 0), 0), 2)}</b>outstanding USDC
-          </div>
-          <div>
-            <b>{calls}</b>margin calls
-          </div>
-          <div>
-            <b>{defaults}</b>liquidations
-          </div>
-        </div>
-        {loans.length > 0 ? (
-          <div className="tbl">
-            <table>
-              <thead>
-                <tr>
-                  <th>Loan</th>
-                  <th>Borrower</th>
-                  <th>Status</th>
-                  <th>Owed</th>
-                  <th>APR</th>
-                  <th>LTV</th>
-                  <th>Lines</th>
-                  <th>Ledger</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loans.slice(0, 12).map((l) => (
-                  <tr key={l.id}>
-                    <td>{l.id.slice(0, 8)}</td>
-                    <td>{l.borrower}</td>
-                    <td>
-                      <StatusChip status={l.status} />
-                    </td>
-                    <td className="num">{fmt(Number(l.ledger?.totalValueOutstanding ?? 0), 2)}</td>
-                    <td className="num">{pct(l.apr, 2)}</td>
-                    <td className="num">{l.health ? pct(l.health.ltv) : ""}</td>
-                    <td className="num">
-                      {pct(l.marginCallLtv, 0)} / {pct(l.liquidationLtv, 0)}
-                    </td>
-                    <td>
-                      <TxLink network={l.network} hash={l.txs.seize ?? l.txs.release ?? l.txs.loanSet} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {tab === "markets" ? (
+          <Markets markets={markets} signedIn={signedIn} amount={amount} setAmount={setAmount} busy={busy} onMove={move} positions={positions} />
         ) : (
-          <p className="note">No loans yet. Open one on the Borrow page.</p>
+          <Dashboard
+            totals={totals}
+            outstandingSeries={seriesFrom(dashRaw, "outstanding") ?? liveOut}
+            utilizationSeries={seriesFrom(dashRaw, "utilization", true) ?? liveUtil}
+            rows={rows}
+          />
         )}
-
-        <div style={{ marginTop: 48 }}>
-          <div className="trade card">
-            <span className="lbl">Loan book by credit grade, 30 days (model estimate)</span>
-            {stats ? (
-              <div className="tbl">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Grade</th>
-                      <th>Defaults</th>
-                      <th>Margin calls</th>
-                      <th>Cured</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stats.grades.map((g) => (
-                      <tr key={g.grade}>
-                        <td>{g.grade}</td>
-                        <td className="num">{pct(g.defaultRate)}</td>
-                        <td className="num">{pct(g.marginCallRate)}</td>
-                        <td className="num">{pct(g.cureRate)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="note">Loading...</p>
-            )}
-            <p className="note">Model estimate from the Moonshift risk desk across {stats?.borrowers ?? 0} modeled borrowers.</p>
-          </div>
-        </div>
       </div>
     </main>
   );
