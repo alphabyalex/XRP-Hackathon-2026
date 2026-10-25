@@ -199,6 +199,45 @@ export async function getShareBook(gpuId: GpuId): Promise<ShareBook> {
   };
 }
 
+export interface ShareDepth {
+  // TDX per share and shares, funded amounts only, best first
+  bids: { price: string; qty: string }[];
+  asks: { price: string; qty: string }[];
+}
+
+// Every funded offer on both sides of one GPU's share book (the order book and depth chart).
+export async function getShareDepth(gpuId: GpuId): Promise<ShareDepth> {
+  const gpu = GPUS.find((g) => g.id === gpuId);
+  if (!gpu) throw new Error(`Unknown gpuId: ${gpuId}`);
+  const client = await getClient();
+  type Issue = { currency: string; issuer: string };
+  const share: Issue = { currency: gpu.shareCode, issuer: getAccountAddress("SHARE_ISSUER") };
+  const tdx: Issue = { currency: "TDX", issuer: getAccountAddress("TDX_ISSUER") };
+  const side = async (takerGets: Issue, takerPays: Issue) =>
+    ((await client.request({ command: "book_offers", taker_gets: takerGets, taker_pays: takerPays, ledger_index: "validated", limit: 50 } as any)).result as any)
+      .offers as any[];
+  const [asks, bids] = await Promise.all([side(share, tdx), side(tdx, share)]);
+  const fix = (n: number) => n.toFixed(6);
+  const askLevels = asks
+    .map((o) => {
+      const price = amountValue(o.TakerPays) / amountValue(o.TakerGets);
+      return { price, qty: amountValue(o.taker_gets_funded ?? o.TakerGets) };
+    })
+    .filter((l) => l.qty > 1e-6 && Number.isFinite(l.price))
+    .sort((x, y) => x.price - y.price);
+  const bidLevels = bids
+    .map((o) => {
+      const price = amountValue(o.TakerGets) / amountValue(o.TakerPays);
+      return { price, qty: amountValue(o.taker_gets_funded ?? o.TakerGets) / price };
+    })
+    .filter((l) => l.qty > 1e-6 && Number.isFinite(l.price))
+    .sort((x, y) => y.price - x.price);
+  return {
+    asks: askLevels.map((l) => ({ price: fix(l.price), qty: fix(l.qty) })),
+    bids: bidLevels.map((l) => ({ price: fix(l.price), qty: fix(l.qty) })),
+  };
+}
+
 // Keep one resting offer for `account` on one side of a GPU's share book at
 // `price` TDX per share: kept when within `tolerance`, otherwise cancelled
 // and placed again. Passive, so it rests instead of consuming an offer at the

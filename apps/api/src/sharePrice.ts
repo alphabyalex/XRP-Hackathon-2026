@@ -48,13 +48,20 @@ export async function referencePrice(gpuId: GpuId): Promise<string> {
   const row = db.prepare(`SELECT price FROM share_reference WHERE gpu_id = ?`).get(gpuId) as { price: string } | undefined;
   if (row) return row.price;
   const start = OPENING[gpuId] ?? (await oraclePrice(gpuId)).price;
-  db.prepare(`INSERT OR IGNORE INTO share_reference (gpu_id, price, updated_at, reason) VALUES (?, ?, ?, ?)`).run(gpuId, start, new Date().toISOString(), "opening");
+  const at = new Date().toISOString();
+  db.prepare(`INSERT OR IGNORE INTO share_reference (gpu_id, price, updated_at, reason, reset_at) VALUES (?, ?, ?, ?, ?)`).run(gpuId, start, at, "opening", at);
   return start;
 }
 
 // Set the reference (operator reset). Records a price point so charts and the 24 h change follow.
+// A reset (reason "reset") also starts the day's open and the high/low window over.
 export function setReference(gpuId: GpuId, price: string, reason: string): void {
-  db.prepare(`INSERT OR REPLACE INTO share_reference (gpu_id, price, updated_at, reason) VALUES (?, ?, ?, ?)`).run(gpuId, Number(price).toFixed(6), new Date().toISOString(), reason);
+  const at = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO share_reference (gpu_id, price, updated_at, reason, reset_at) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(gpu_id) DO UPDATE SET price = excluded.price, updated_at = excluded.updated_at, reason = excluded.reason,
+       reset_at = CASE WHEN excluded.reason = 'reset' THEN excluded.reset_at ELSE share_reference.reset_at END`
+  ).run(gpuId, Number(price).toFixed(6), at, reason, reason === "reset" ? at : null);
   priceMoved(gpuId);
 }
 
@@ -121,10 +128,18 @@ export function openPrice(gpuId: GpuId, price: string): string {
   const day = new Date();
   day.setUTCHours(0, 0, 0, 0);
   // A reset of the reference today starts the day over from the reset price.
-  const reset = db.prepare(`SELECT updated_at FROM share_reference WHERE gpu_id = ? AND reason IN ('opening', 'reset')`).get(gpuId) as { updated_at: string } | undefined;
+  const reset = db.prepare(`SELECT reset_at AS updated_at FROM share_reference WHERE gpu_id = ? AND reset_at IS NOT NULL`).get(gpuId) as { updated_at: string } | undefined;
   const from = reset && reset.updated_at > day.toISOString() ? reset.updated_at : day.toISOString();
   const first = db.prepare(`SELECT price FROM share_prices WHERE gpu_id = ? AND ts >= ? ORDER BY ts LIMIT 1`).get(gpuId, from) as { price: string } | undefined;
   return first && Number(first.price) > 0 ? Number(first.price).toFixed(6) : Number(price).toFixed(6);
+}
+
+// Start of the 24 h window for high and low: 24 hours ago, or the last price reset if later
+// (prices before a reset belong to the old price).
+export function priceWindowStart(gpuId: GpuId): string {
+  const since = new Date(Date.now() - 86400e3).toISOString();
+  const reset = db.prepare(`SELECT reset_at AS updated_at FROM share_reference WHERE gpu_id = ? AND reset_at IS NOT NULL`).get(gpuId) as { updated_at: string } | undefined;
+  return reset && reset.updated_at > since ? reset.updated_at : since;
 }
 
 // Percent change since today's opening price.

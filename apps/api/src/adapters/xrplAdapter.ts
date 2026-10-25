@@ -164,6 +164,12 @@ export async function getShareBook(gpuId: GpuId): Promise<realXrpl.ShareBook> {
   return { bestBid: null, bestAsk: Number(SHARE_PRICE).toFixed(6) };
 }
 
+// Every funded offer on both sides of the book (none on the mock ledger).
+export async function getShareDepth(gpuId: GpuId): Promise<realXrpl.ShareDepth> {
+  if (!MOCK) return realXrpl.getShareDepth(gpuId);
+  return { bids: [], asks: [] };
+}
+
 export async function shareFill(hash: string, address: string, gpuId: GpuId) {
   if (!MOCK) return realXrpl.shareFill(hash, address, gpuId);
   return null;
