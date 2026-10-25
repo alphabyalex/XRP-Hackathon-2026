@@ -150,13 +150,16 @@ type RouteOptions = {
   paymentResult?: string; paymentValidated?: boolean; paymentThrows?: boolean;
   reserveRejects?: boolean; reserveResponseLost?: boolean; cancelFails?: boolean;
   paidRecordFails?: boolean; pendingRecordFails?: boolean;
+  catalogGpuId?: string; catalogModelId?: string;
 };
 async function routeFixture(options: RouteOptions = {}) {
   const database = new DatabaseSync(":memory:");
   database.exec(`CREATE TABLE bookings (id TEXT PRIMARY KEY,gpu_id TEXT,slot_start TEXT,slot_end TEXT,holder TEXT,redemption_id TEXT)`);
   const state = { charges: 0, reservations: 0, cancellations: 0, holder: "", amount: "", emitted: [] as string[] };
   const fresh = new Date().toISOString();
-  const catalog = { updatedAt: fresh, gpus: [{ ...offer, prices: { ...offer.prices, rental: { ...offer.prices.rental!, updatedAt: fresh }, economy: { updatedAt: fresh } } }] } as RentalCatalog;
+  const catalog = { updatedAt: fresh, gpus: [{ ...offer, id: options.catalogGpuId ?? offer.id,
+    modelId: options.catalogModelId,
+    prices: { ...offer.prices, rental: { ...offer.prices.rental!, updatedAt: fresh }, economy: { updatedAt: fresh } } }] } as RentalCatalog;
   const db = options.pendingRecordFails ? new Proxy(database, {
     get(target, property) {
       if (property === "prepare") return (sql: string) => {
@@ -367,4 +370,17 @@ test("own 0.200 policy stays distinct from the 0.550 market comparison and match
   assert.deepEqual(buildQuote(input, [expiredSpot], now).options.map(item => item.pricePerHour), ["0.200000", "0.200000", "0.200000"]);
   const future = { ...own, prices: { ...own.prices, awsSpot: { ...own.prices.awsSpot!, updatedAt: new Date(now + 5 * 60_000).toISOString() } } };
   assert.equal(buildQuote(input, [future], now).awsDiscountRatio, null);
+});
+
+test("inference estimates identify the model actually deployed on the priced physical node", async () => {
+  const fixture = await routeFixture({ catalogGpuId: "gpu-c", catalogModelId: "Qwen/Qwen2.5-3B-Instruct" });
+  try {
+    const response = await fixture.post("/tasks/estimate", { description: "Summarize this report", type: "inference" });
+    assert.equal(response.status, 200);
+    const estimate = await response.json();
+    assert.equal(estimate.sizing.model, "Qwen/Qwen2.5-3B-Instruct");
+    assert.equal(estimate.pricing.gpuId, "gpu-c");
+    assert.deepEqual(estimate.suggestedModels, [{ gpuId: "gpu-c", modelId: "Qwen/Qwen2.5-3B-Instruct" }]);
+    assert.equal(fixture.state.charges, 0);
+  } finally { await fixture.close(); }
 });

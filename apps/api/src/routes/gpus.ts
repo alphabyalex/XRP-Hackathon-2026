@@ -9,6 +9,7 @@ import { change24hPct, priceHistory, sharePrice } from "../sharePrice.js";
 import { gpuHealth, isListed, listedGpus } from "../gpuHealth.js";
 import { gpuStats, payoutYield } from "../gpuStats.js";
 import { verifiedGpuResources, verifiedGpuSpec } from "../marketData/rentalCatalog.js";
+import { canSignGpuTreasury } from "../treasuryCapabilities.js";
 
 export const gpusRouter = Router();
 
@@ -34,6 +35,7 @@ async function buildSummary(gpuId: GpuId) {
     location: verified ? { city: verified.city, region: verified.region } : { city: null, region: null },
     state: computeState?.state ?? "OFFLINE",
     simulated: false,
+    capabilities: { rental: Boolean(verified?.rental), treasuryPayments: canSignGpuTreasury(gpuId) },
     // The one share price (sharePrice.ts reference).
     sharePrice: market.price,
     priceSource: market.source,

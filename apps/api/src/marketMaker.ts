@@ -10,6 +10,7 @@ import { logTx } from "./db/helpers.js";
 import { priceMoved, referencePrice, sharePrice } from "./sharePrice.js";
 import * as lending from "./adapters/lendingAdapter.js";
 import { recordOracle, stressActive } from "./lending/service.js";
+import { canSignGpuTreasury } from "./treasuryCapabilities.js";
 
 // The on-ledger oracle (the loans' collateral price) tracks the market price,
 // so /borrow shows the same share price as the market, GPU and portfolio pages.
@@ -37,6 +38,10 @@ export function quoteMarket(): Promise<Record<string, unknown>> {
   running = (async () => {
     const out: Record<string, unknown> = {};
     for (const g of GPUS) {
+      if (!canSignGpuTreasury(g.id)) {
+        out[g.id] = { unavailable: "Treasury signing is not available for this GPU." };
+        continue;
+      }
       try {
         const ref = Number(await referencePrice(g.id));
         if (!(ref > 0)) continue;

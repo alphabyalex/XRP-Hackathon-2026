@@ -10,8 +10,10 @@ import { db } from "./db/db.js";
 import { logTx, unassignedRevenue } from "./db/helpers.js";
 import { broadcast } from "./sse.js";
 import { payoutMade } from "./sharePrice.js";
+import { canSignGpuTreasury } from "./treasuryCapabilities.js";
 
 export async function proposeDividendRun(gpuId: GpuId) {
+  if (!canSignGpuTreasury(gpuId)) throw new DividendRunError(409, "TREASURY_UNAVAILABLE", "Treasury payments are not available for this GPU.");
   const grossRevenue = unassignedRevenue(gpuId).toFixed(6);
   const holders = await xrpl.getHolders(gpuId);
   const oldestRow = db
@@ -87,6 +89,7 @@ export async function approveDividendRun(runId: string) {
   const run = db.prepare(`SELECT * FROM dividend_runs WHERE id = ?`).get(runId) as any;
   if (!run) throw new DividendRunError(404, "NOT_FOUND", "unknown dividend run");
   if (run.status !== "proposed") throw new DividendRunError(409, "ALREADY_SETTLED", `run is already ${run.status}`);
+  if (!canSignGpuTreasury(run.gpu_id)) throw new DividendRunError(409, "TREASURY_UNAVAILABLE", "Treasury payments are not available for this GPU.");
 
   const payoutRows = db.prepare(`SELECT * FROM payouts WHERE dividend_run_id = ?`).all(runId) as any[];
   const results = await xrpl.payDividends({

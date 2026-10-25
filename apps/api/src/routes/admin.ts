@@ -21,7 +21,8 @@ adminRouter.post("/dividends/propose", async (req, res) => {
   try {
     res.json(await proposeDividendRun(gpuId));
   } catch (err) {
-    res.status(500).json({ error: { code: "INTERNAL", message: (err as Error).message } });
+    const e = err as any;
+    res.status(e instanceof DividendRunError ? e.status : 500).json({ error: { code: e.code ?? "INTERNAL", message: e.message } });
   }
 });
 

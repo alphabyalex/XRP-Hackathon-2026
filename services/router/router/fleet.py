@@ -85,6 +85,60 @@ def _expand(s: str) -> str:
 FLEET_FILES = {"live": "fleet.live.json", "own": "fleet.own.json"}
 
 
+def configured_own_nodes(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Enroll additional physical workers only from their verified runtime settings.
+
+    Registry letters are identities, not hardware claims. Missing cost, model,
+    capacity or measured model-specific throughput never inherits another node.
+    """
+    rows = list(raw)
+    known = {row["id"] for row in rows}
+    seen: set[str] = set()
+    for letter in "abcdefgh":
+        gpu_id = f"gpu-{letter}"
+        prefix = gpu_id.upper().replace("-", "_")
+        endpoint = os.getenv(f"{prefix}_VLLM_URL", "").strip().rstrip("/").removesuffix("/v1")
+        if gpu_id in known:
+            if endpoint:
+                seen.add(endpoint)
+            continue
+        if not endpoint or endpoint in seen or os.getenv(f"{prefix}_MODE", "") != "real":
+            continue
+        card = os.getenv(f"{prefix}_CARD", "").strip()
+        model = os.getenv(f"{prefix}_MODEL_ID", "").strip()
+        try:
+            resources = [int(os.getenv(f"{prefix}_{key}", "0")) for key in ("VRAM_GB", "VCPU", "RAM_GB", "STORAGE_GB")]
+            if not card or not model or min(resources) <= 0 or C.own_rental_policy(gpu_id) is None:
+                continue
+        except ValueError:
+            continue
+        # Every newly admitted node needs its own observations, including cards
+        # that happen to have a legacy hardware-wide planning estimate.
+        moonshift: dict[str, Any] = {
+            "gpuModel": gpu_key(card) or card,
+            "hardware": f"{card} {resources[0]}GB (Akash Network)",
+            "region": os.getenv(f"{prefix}_REGION", "akash"),
+            "planningTokensPerSec": os.getenv(f"{prefix}_PLANNING_TOKENS_PER_SEC", "0"),
+            "planningObservation": {
+                "modelId": os.getenv(f"{prefix}_PLANNING_MODEL_ID", ""),
+                "observedAt": os.getenv(f"{prefix}_PLANNING_OBSERVED_AT", ""),
+                "source": "minimum_observed_end_to_end",
+                "sampleCount": os.getenv(f"{prefix}_PLANNING_SAMPLE_COUNT", "0"),
+                "receipt": f"contracts/compute/observed_gpu_{letter}_throughput.json",
+                "scope": "Minimum of actual full-request observations including prefill and network time; a planning sample, not pure decoder throughput.",
+            },
+        }
+        # Only a same-card AWS pair can affect service mode prices.
+        key = gpu_key(card)
+        if key:
+            moonshift["benchmark"] = {"gpuModel": key, "provider": "aws"}
+        rows.append({"id": gpu_id, "label": gpu_id.upper(), "moonshift": moonshift,
+                     "maxConcurrent": 2, "moonshiftGpuId": gpu_id,
+                     "computeGpuId": gpu_id, "endpoint": "${COMPUTE_URL}"})
+        seen.add(endpoint)
+    return rows
+
+
 def benchmark_offer(
     catalog: dict[str, Offer], gpu_model: str, capacity: str = "on-demand", provider: str | None = None
 ) -> Offer | None:
@@ -111,6 +165,8 @@ def per_gpu(o: Offer) -> float:
 def load_entries(catalog: dict[str, Offer], economy_rates: dict[str, dict] | None = None) -> list[FleetEntry]:
     path = C.CONFIG_DIR / FLEET_FILES.get(C.FLEET_SOURCE, "fleet.json")
     raw = json.loads(path.read_text())["gpus"]
+    if C.FLEET_SOURCE == "own":
+        raw = configured_own_nodes(raw)
     out: list[FleetEntry] = []
     for g in raw:
         bench: dict[str, Any] | None = None
@@ -168,6 +224,7 @@ def load_entries(catalog: dict[str, Offer], economy_rates: dict[str, dict] | Non
                     valid_sample = (math.isfinite(measured) and measured > 0
                                     and record["modelId"] == canonical and bool(canonical)
                                     and record["source"] == "minimum_observed_end_to_end"
+                                    and int(record.get("sampleCount", 0)) >= 2
                                     and (now_utc() - parse_time(record["observedAt"])).total_seconds() >= -300)
                     if not valid_sample:
                         raise ValueError("Planning sample does not describe the deployed model")

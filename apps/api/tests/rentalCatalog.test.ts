@@ -86,6 +86,8 @@ test("health hides duplicate endpoint aliases and preserves a genuine distinct G
   const { refreshHealth, gpuHealth } = await import("../src/gpuHealth.js");
   const originalFetch = globalThis.fetch;
   const originalA = process.env.GPU_A_VLLM_URL, originalB = process.env.GPU_B_VLLM_URL;
+  const originalModelB = process.env.GPU_B_MODEL_ID;
+  process.env.GPU_B_MODEL_ID = "Qwen/Qwen2.5-3B-Instruct";
   process.env.GPU_A_VLLM_URL = "http://first/v1/";
   process.env.GPU_B_VLLM_URL = "http://first/";
   globalThis.fetch = async (url) => Response.json({ data: [{ id: "wire-name", root: String(url).includes("second") ? "Qwen/Qwen2.5-3B-Instruct" : "Qwen/Qwen2.5-1.5B-Instruct" }] });
@@ -102,5 +104,29 @@ test("health hides duplicate endpoint aliases and preserves a genuine distinct G
     globalThis.fetch = originalFetch;
     if (originalA === undefined) delete process.env.GPU_A_VLLM_URL; else process.env.GPU_A_VLLM_URL = originalA;
     if (originalB === undefined) delete process.env.GPU_B_VLLM_URL; else process.env.GPU_B_VLLM_URL = originalB;
+    if (originalModelB === undefined) delete process.env.GPU_B_MODEL_ID; else process.env.GPU_B_MODEL_ID = originalModelB;
+  }
+});
+
+test("all eight physical IDs require their own matching canonical serving model", async () => {
+  const { refreshHealth, gpuHealth } = await import("../src/gpuHealth.js");
+  const originalFetch = globalThis.fetch;
+  const previous = new Map<string, string | undefined>();
+  for (const letter of "ABCDEFGH") {
+    for (const suffix of ["VLLM_URL", "MODEL_ID"]) {
+      const key = `GPU_${letter}_${suffix}`;
+      previous.set(key, process.env[key]);
+      process.env[key] = suffix === "VLLM_URL" ? `http://verified-${letter.toLowerCase()}` : "Qwen/Qwen2.5-3B-Instruct";
+    }
+  }
+  globalThis.fetch = async url => Response.json({ data: [{ id: "Qwen/Qwen2.5-3B-Instruct",
+    root: String(url).includes("verified-h") ? "other-model" : "Qwen/Qwen2.5-3B-Instruct" }] });
+  try {
+    await refreshHealth();
+    assert.deepEqual(gpuHealth().filter(g => g.ok).map(g => g.gpuId), [..."abcdefg"].map(l => `gpu-${l}`));
+    assert.equal(gpuHealth().find(g => g.gpuId === "gpu-h")?.ok, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [key, value] of previous) if (value === undefined) delete process.env[key]; else process.env[key] = value;
   }
 });

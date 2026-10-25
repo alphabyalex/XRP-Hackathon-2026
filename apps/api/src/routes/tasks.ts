@@ -101,8 +101,12 @@ tasksRouter.post("/tasks/estimate", async (req, res) => {
     if (suggestedGpus.length) {
       try { pricing = buildQuote({ ...sizing, mode: "balanced" }, (catalog?.gpus ?? []).filter(gpu => suggestedGpus.includes(gpu.id))); } catch { /* No live rate means no price. */ }
     }
+    const suggestedModels = (catalog?.gpus ?? []).filter(gpu => suggestedGpus.includes(gpu.id))
+      .map(gpu => ({ gpuId: gpu.id, modelId: gpu.modelId ?? null }));
+    const actualModel = suggestedModels.find(gpu => gpu.gpuId === pricing?.gpuId)?.modelId ?? suggestedModels[0]?.modelId;
+    if (taskType === "inference" && actualModel) sizing = { ...sizing, model: actualModel };
     res.json({ source, taskType, modelId, region: "us-east-2", latencyMs: Date.now() - started,
-      sizing, suggestedGpus, pricing, availability: suggestedGpus.length ? "available" : taskType === "inference" ? "offline" : "unsupported" });
+      sizing, suggestedGpus, suggestedModels, pricing, availability: suggestedGpus.length ? "available" : taskType === "inference" ? "offline" : "unsupported" });
   } catch (error) { fail(res, error); }
 });
 

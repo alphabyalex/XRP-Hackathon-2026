@@ -1,0 +1,88 @@
+{
+  "description": "Read-only verification of existing rental revenue destinations. No accounts or trustlines were created.",
+  "verifiedAt": "2026-10-25T14:35:10.018Z",
+  "network": "devnet",
+  "method": "account_lines",
+  "ledgerIndex": "validated",
+  "signingCapability": "Receiving revenue needs no destination signing key. Outgoing treasury actions require their own configured key and remain unavailable when missing.",
+  "accounts": [
+    {
+      "gpuId": "gpu-c",
+      "accountName": "TREASURY_GPU_C",
+      "publicAddressReference": "contracts/accounts.devnet.json#TREASURY_GPU_C",
+      "exists": true,
+      "tokenTrustline": {
+        "currency": "TDX",
+        "issuerAccount": "TDX_ISSUER",
+        "exists": true
+      },
+      "validatedLedgerIndex": 6407325,
+      "validatedLedgerHash": "5913880E086D2A2EB4DB63D0FFF75FFD336DA4DE6106199D5A01C3DBE7D3E048"
+    },
+    {
+      "gpuId": "gpu-d",
+      "accountName": "TREASURY_GPU_D",
+      "publicAddressReference": "contracts/accounts.devnet.json#TREASURY_GPU_D",
+      "exists": true,
+      "tokenTrustline": {
+        "currency": "TDX",
+        "issuerAccount": "TDX_ISSUER",
+        "exists": true
+      },
+      "validatedLedgerIndex": 6407325,
+      "validatedLedgerHash": "5913880E086D2A2EB4DB63D0FFF75FFD336DA4DE6106199D5A01C3DBE7D3E048"
+    },
+    {
+      "gpuId": "gpu-e",
+      "accountName": "TREASURY_GPU_E",
+      "publicAddressReference": "contracts/accounts.devnet.json#TREASURY_GPU_E",
+      "exists": true,
+      "tokenTrustline": {
+        "currency": "TDX",
+        "issuerAccount": "TDX_ISSUER",
+        "exists": true
+      },
+      "validatedLedgerIndex": 6407325,
+      "validatedLedgerHash": "5913880E086D2A2EB4DB63D0FFF75FFD336DA4DE6106199D5A01C3DBE7D3E048"
+    },
+    {
+      "gpuId": "gpu-f",
+      "accountName": "TREASURY_GPU_F",
+      "publicAddressReference": "contracts/accounts.devnet.json#TREASURY_GPU_F",
+      "exists": true,
+      "tokenTrustline": {
+        "currency": "TDX",
+        "issuerAccount": "TDX_ISSUER",
+        "exists": true
+      },
+      "validatedLedgerIndex": 6407325,
+      "validatedLedgerHash": "5913880E086D2A2EB4DB63D0FFF75FFD336DA4DE6106199D5A01C3DBE7D3E048"
+    },
+    {
+      "gpuId": "gpu-g",
+      "accountName": "TREASURY_GPU_G",
+      "publicAddressReference": "contracts/accounts.devnet.json#TREASURY_GPU_G",
+      "exists": true,
+      "tokenTrustline": {
+        "currency": "TDX",
+        "issuerAccount": "TDX_ISSUER",
+        "exists": true
+      },
+      "validatedLedgerIndex": 6407325,
+      "validatedLedgerHash": "5913880E086D2A2EB4DB63D0FFF75FFD336DA4DE6106199D5A01C3DBE7D3E048"
+    },
+    {
+      "gpuId": "gpu-h",
+      "accountName": "TREASURY_GPU_H",
+      "publicAddressReference": "contracts/accounts.devnet.json#TREASURY_GPU_H",
+      "exists": true,
+      "tokenTrustline": {
+        "currency": "TDX",
+        "issuerAccount": "TDX_ISSUER",
+        "exists": true
+      },
+      "validatedLedgerIndex": 6407325,
+      "validatedLedgerHash": "5913880E086D2A2EB4DB63D0FFF75FFD336DA4DE6106199D5A01C3DBE7D3E048"
+    }
+  ]
+}

@@ -39,6 +39,9 @@ async function check(gpuId: GpuId): Promise<GpuHealth> {
     const body = (await res.json()) as { data?: { id: string; root?: string }[] };
     const m = body.data?.[0];
     if (!m?.id) throw new Error("No served model reported");
+    const canonical = process.env[`${gpuId.toUpperCase().replace(/-/g, "_")}_MODEL_ID`]?.trim()
+      || (gpuId === "gpu-a" ? "Qwen/Qwen2.5-1.5B-Instruct" : "");
+    if (!canonical || (m.root ?? m.id) !== canonical) throw new Error("Served model does not match verified model");
     // vLLM reports the real weights in `root` when they are served under another name.
     return { gpuId, kind: "real", ok: true, model: m?.root ?? m?.id ?? null, latencyMs: Date.now() - t0, checkedAt: new Date().toISOString(), error: null };
   } catch (e) {
