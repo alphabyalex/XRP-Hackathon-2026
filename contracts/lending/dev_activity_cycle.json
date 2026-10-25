@@ -1,0 +1,172 @@
+{
+  "recordedAt": "2026-10-25T15:31:30.535153Z",
+  "network": "XRPL devnet",
+  "source": "One real cloud API loan lifecycle with independently validated public ledger transactions",
+  "borrower": "DEV",
+  "gpuId": "gpu-a",
+  "loanId": "FCD5F49A52A0991C2620778E3B591FCC86FCFBD650AA1AD04A85F74D312F1A7B",
+  "startedAt": "2026-10-25T15:29:24.924781Z",
+  "openedAt": "2026-10-25T15:29:36.675680Z",
+  "paidAt": "2026-10-25T15:29:54.503600Z",
+  "finishedAt": "2026-10-25T15:29:59.696040Z",
+  "writeAttempts": {
+    "open": 1,
+    "repay": 1
+  },
+  "preconditions": {
+    "existingActiveDevLoans": 0,
+    "freeGpuAShares": "100.000000",
+    "lockedGpuAShares": "0.000000",
+    "availableCapital": "4558.699434",
+    "sufficientRepaymentBalance": true
+  },
+  "quote": {
+    "principal": "1.000000",
+    "collateralShares": "1.000000",
+    "collateralPrice": "20.000000",
+    "collateralValue": "20.000000",
+    "quote": {
+      "decision": "approve",
+      "ltv": "0.050000",
+      "maxLtv": "0.243839",
+      "apr": "0.147600",
+      "marginCallLtv": "0.393839",
+      "liquidationLtv": "0.543839",
+      "termSeconds": 3600,
+      "paymentIntervalSeconds": 120,
+      "pd": "0.131000",
+      "pdLabel": "estimate",
+      "expectedLoss": "0.000000",
+      "coverageRatio": "6.999898",
+      "reasons": [
+        "HIGH_COLLATERAL_VOLATILITY"
+      ]
+    },
+    "terms": {
+      "interestRateTenthBps": 14760,
+      "paymentTotal": 30,
+      "paymentIntervalSeconds": 120,
+      "gracePeriodSeconds": 60,
+      "termSeconds": 3600
+    },
+    "sources": {
+      "credit": "live",
+      "risk": "live",
+      "memo": "pending",
+      "revenue": "live",
+      "oracle": "live"
+    }
+  },
+  "transactions": {
+    "escrow": {
+      "hash": "BC3B8389396E5EA87474ADDCD55BC7C8D6B69E6F601E0247BA7CC4EB4741BE4C",
+      "validated": true,
+      "result": "tesSUCCESS",
+      "ledgerIndex": 6408350,
+      "transactionType": "EscrowCreate",
+      "amount": {
+        "currency": "GPA",
+        "issuer": "rB29QejupDfDp3ZobaM26Frs6Q3RWBQswS",
+        "value": "1"
+      }
+    },
+    "loanSet": {
+      "hash": "4C5EB66B230DBEDB34F646A5F001498229C2DF0A6DA8461706E5D980F4769A43",
+      "validated": true,
+      "result": "tesSUCCESS",
+      "ledgerIndex": 6408352,
+      "transactionType": "LoanSet",
+      "amount": null
+    },
+    "pay": {
+      "hash": "75B0B3779B598235C51687EE0B89DDFF41038F616E650EA4B4921D63B0D54935",
+      "validated": true,
+      "result": "tesSUCCESS",
+      "ledgerIndex": 6408355,
+      "transactionType": "LoanPay",
+      "amount": {
+        "currency": "TDX",
+        "issuer": "r3jvZbjo4PKok6Yz3Xfv2yx8aKkjfSXjz5",
+        "value": "1.000009"
+      }
+    },
+    "release": {
+      "hash": "524743B32356F13EE6A037E767CCD7A46CDC3CFD9C0EF5C7CC6E35854F42189A",
+      "validated": true,
+      "result": "tesSUCCESS",
+      "ledgerIndex": 6408357,
+      "transactionType": "Batch",
+      "amount": null
+    },
+    "delete": {
+      "hash": "559DB8F59A0DC3745C960E7DE60C7B3D26D5CDC60C5E08625FD7B09CACC7FF75",
+      "validated": true,
+      "result": "tesSUCCESS",
+      "ledgerIndex": 6408358,
+      "transactionType": "LoanDelete",
+      "amount": null
+    }
+  },
+  "ledgerEffects": {
+    "principalReceivedUsdc": "1",
+    "actualRepaymentDebitUsdc": "1",
+    "repaymentAmountLimitUsdc": "1.000009",
+    "earlyRepaymentNote": "The full-payment transaction allowed up to 1.000009 USDC. Validated balance changes show 1 USDC was paid; future unearned interest was not charged.",
+    "beforeVault": {
+      "round": 1,
+      "assetsTotal": "6806.699434",
+      "assetsAvailable": "4558.699434",
+      "debtTotal": "2248.000000",
+      "coverAvailable": "988.500000",
+      "utilizationPct": "33.03"
+    },
+    "openVault": {
+      "round": 1,
+      "assetsTotal": "6806.699434",
+      "assetsAvailable": "4557.699434",
+      "debtTotal": "2249.000000",
+      "coverAvailable": "988.500000",
+      "utilizationPct": "33.04"
+    },
+    "afterVault": {
+      "round": 1,
+      "assetsTotal": "6806.699434",
+      "assetsAvailable": "4558.699434",
+      "debtTotal": "2248.000000",
+      "coverAvailable": "988.500000",
+      "utilizationPct": "33.03"
+    },
+    "beforeAccount": {
+      "usdc": "1435.286651941206",
+      "xrp": "99.999913",
+      "gpuAShares": {
+        "gpuId": "gpu-a",
+        "free": "100.000000",
+        "locked": "0.000000"
+      }
+    },
+    "afterAccount": {
+      "usdc": "1435.286651941206",
+      "xrp": "99.999911",
+      "gpuAShares": {
+        "gpuId": "gpu-a",
+        "free": "100.000000",
+        "locked": "0.000000"
+      }
+    },
+    "finalValidatedUsdc": {
+      "validated": true,
+      "ledgerIndex": 6408371,
+      "balance": "1435.286651941206"
+    }
+  },
+  "result": {
+    "status": "repaid",
+    "simulated": false,
+    "loanLedgerEntry": null,
+    "collateralFullyReturned": true,
+    "vaultPrincipalRestored": true,
+    "noOtherBorrowerActions": true
+  },
+  "historyNote": "These snapshots were read around the actual lifecycle on the prior cloud build. They are evidence, not an invented time series. No historical dashboard backfill was performed."
+}
