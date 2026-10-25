@@ -5,6 +5,7 @@
 GPUs make money renting out compute. Moonshift splits real GPUs into shares on XRPL, so anyone can own one, earn from the work it does, and borrow against it without selling.
 
 **Live app:** https://moonshift-protocol.vercel.app
+
 Built for the XRPL Commons AI & Fintech Hackathon, New York, October 2026 (Lending & Borrowing track).
 
 ## How it works
