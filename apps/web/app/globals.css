@@ -1488,9 +1488,22 @@ footer .wrap {
   font-family: var(--mono);
   font-weight: 500;
 }
-.factors .ev {
-  min-width: 88px;
-  text-align: right;
+.factors > div {
+  grid-template-columns: 1fr auto;
+}
+.factors .factor-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--rule2);
+  text-underline-offset: 3px;
+}
+.factors .factor-link:hover {
+  color: var(--ink);
+  text-decoration-color: currentColor;
+}
+.linkish.more {
+  justify-self: start;
+  margin-top: 8px;
 }
 .note {
   font-size: 13px;
