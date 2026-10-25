@@ -175,6 +175,13 @@
       "owner": "rpSt2eKyuauA654685tN12QEqUBqugLtz7",
       "escrowSequence": 6390888,
       "nonce": "12F91A2251A2CA1367264E3D"
+    },
+    "F8B9579FF99557E30167AC2E9173C8ECBD8F350A396CE5E581699F75CDBE4BFA": {
+      "gpuId": "gpu-a",
+      "shares": "100.000000",
+      "owner": "rEM2sfeL9Fixco7HNeowNP2SGeP9U6GKaM",
+      "escrowSequence": 6390918,
+      "nonce": "C4D718F33BDB03209AE0B01C"
     }
   }
 }

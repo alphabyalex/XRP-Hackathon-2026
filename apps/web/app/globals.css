@@ -330,7 +330,7 @@ button:hover .arrow {
   grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
   align-items: center;
   gap: 48px;
-  padding-block: 72px 64px;
+  padding-block: clamp(32px, 4vw, 56px) 64px;
   animation: heroIn 1s var(--ease-out) both;
 }
 .hero h1 {
@@ -413,7 +413,7 @@ button:hover .arrow {
 @media (max-width: 900px) {
   .hero-in {
     grid-template-columns: 1fr;
-    padding-block: 40px 48px;
+    padding-block: 32px 48px;
   }
   .stage3d {
     max-width: 320px;

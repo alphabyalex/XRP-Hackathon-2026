@@ -309,7 +309,7 @@ export function BorrowContent({
     setBusy("open");
     try {
       const loan = await openFromQuote(quote.quoteId);
-      toast(`Borrowed ${usdc(loan.principal)} USDC`, `${fmt(Number(loan.collateralShares), 0)} ${code} shares locked`, loan.txs.loanSet);
+      toast(`Borrowed ${usdc(loan.principal)} USDC`, `${fmt(Number(loan.collateralShares), 0)} ${code} locked`, loan.txs.loanSet);
       setPrincipal(""); // a quote opens one loan; the next one starts from a fresh amount
       setRequote((n) => n + 1); // the profile and the max change after a loan
       await refresh();
@@ -324,7 +324,7 @@ export function BorrowContent({
     setBusy(loan.id + (full ? "full" : "next"));
     try {
       const r = full ? await payOff(loan.id) : await payNext(loan.id);
-      if (full) toast("Loan paid off", `${fmt(Number(r.collateralShares), 0)} ${code} shares back in your wallet`, r.txs.release);
+      if (full) toast("Loan paid off", `${fmt(Number(r.collateralShares), 0)} ${code} back in your wallet`, r.txs.release);
       else toast("Installment paid", "", r.txs.pay);
       await refresh();
     } catch (e) {
@@ -594,7 +594,7 @@ export function BorrowContent({
                         <div className="line" style={{ marginTop: 16 }}>
                           <span>Collateral</span>
                           <b>
-                            {l.collateralShares} {code} at {h ? fmt(Number(h.collateralPrice), 2) : "..."} USDC
+                            {fmt(Number(l.collateralShares), 0)} {code} at {h ? fmt(Number(h.collateralPrice), 2) : "..."} USDC
                           </b>
                         </div>
                         <div className="line">
@@ -651,7 +651,7 @@ export function BorrowContent({
                       </td>
                       <td className="num">{fmt(Number(l.principal), 2)}</td>
                       <td className="num">
-                        {l.collateralShares} {code}
+                        {fmt(Number(l.collateralShares), 0)} {code}
                       </td>
                       <td>
                         <TxLink network={l.network} hash={l.txs.release ?? l.txs.seize ?? l.txs.loanSet} />
