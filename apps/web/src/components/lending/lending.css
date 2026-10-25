@@ -508,3 +508,6 @@
   padding-bottom: 8px;
   font-size: 14px;
 }
+
+/* An unavailable action remains legible without looking like a filled placeholder. */
+.bw-borrow-action:disabled {background:transparent;color:var(--ink2);border:1px solid var(--rule2);opacity:1;box-shadow:none}

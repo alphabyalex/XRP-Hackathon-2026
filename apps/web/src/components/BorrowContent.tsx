@@ -185,6 +185,7 @@ export function BorrowContent({
   const [max, setMax] = useState<MaxAmount | null>(initialMax);
   const [quote, setQuote] = useState<LoanQuoteApiResponse | null>(null);
   const [profile, setProfile] = useState<CreditProfile | null>(initialProfile);
+  const [profileError, setProfileError] = useState(false);
   // The site-wide wallet (header pill). Until the api answers, the server-rendered one stands in.
   const site = useWallet();
   const wallet = site.loaded ? site.wallet : (site.wallet ?? initialWallet);
@@ -307,17 +308,20 @@ export function BorrowContent({
     // Signed out there is no profile to read (the api answers 401).
     if (!walletKey || (initialProfile && requote === 0)) return;
     let alive = true;
-    // A new wallet's first score can take a few seconds: retry rather than give up.
+    setProfileError(false);
+    // Bound the wait, then offer an explicit retry without inventing a score.
     (async () => {
-      for (let i = 0; i < 5 && alive; i++) {
+      for (let i = 0; i < 3 && alive; i++) {
+        let timer: ReturnType<typeof setTimeout> | undefined;
         try {
-          const p = await borrowerProfile();
-          if (alive) setProfile(p);
+          const p = await Promise.race([borrowerProfile(), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("History read timed out")), 6000); })]);
+          if (alive) { setProfile(p); setProfileError(false); }
           return;
         } catch {
-          await new Promise((r) => setTimeout(r, 1500));
-        }
+          if (i < 2 && alive) await new Promise((resolve) => setTimeout(resolve, 500));
+        } finally { clearTimeout(timer); }
       }
+      if (alive) setProfileError(true);
     })();
     return () => {
       alive = false;
@@ -771,7 +775,7 @@ export function BorrowContent({
                 )}
               </>
             ) : (
-              <p className="note">{"Reading your payment history..."}</p>
+              profileError ? <div role="status"><p className="note">Your payment history is unavailable right now.</p><button type="button" className="btn ghost sm" onClick={() => setRequote(value => value + 1)}>Retry history</button></div> : <p className="note">Reading your payment history...</p>
             )}
           </div>
 
@@ -950,7 +954,10 @@ export function BorrowContent({
               {quoteErr && !q && !overLimit && (
                 <p className="note dn">{quoteErr}</p>
               )}
+              {!(Number(principal) > 0) && <p className="note">Enter a USDC amount to check your loan terms.{typeof limit === "number" && Number.isFinite(limit) && limit > 0 ? ` Your current limit is ${fmt(limit, 2)} USDC.` : ""}</p>}
               <Button
+                className="bw-borrow-action"
+                variant={!q || q.decision !== "approve" || !!busy || quoting || blocked ? "ghost" : "ink"}
                 disabled={
                   !q || q.decision !== "approve" || !!busy || quoting || blocked
                 }
@@ -966,7 +973,7 @@ export function BorrowContent({
                         ? "Not approved"
                         : Number(principal) > 0
                           ? `Lock ${fmt(Number(shares) || 0, 0)} ${code}, borrow ${fmt(Number(principal), 2)} USDC`
-                          : "Enter an amount"}
+                          : "Borrow USDC"}
               </Button>
             </div>
             {/* Before a quote, the collateral's price fills the column under the panel. */}
