@@ -165,6 +165,8 @@ class VllmProvider:
             "max_tokens": max_tokens,
             "stream": False,
         }
+        if model == "Qwen/Qwen3.5-4B":
+            payload["chat_template_kwargs"] = {"enable_thinking": False}
         if temperature is not None:
             payload["temperature"] = temperature
 

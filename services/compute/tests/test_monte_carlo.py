@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import replace
-import pytest
 
 from compute.config import Settings
 from compute.main import create_app
@@ -10,8 +9,11 @@ from compute.monte_carlo import MonteCarloRiskEngine
 from fastapi.testclient import TestClient
 
 
-@pytest.mark.asyncio
-async def test_monte_carlo_engine_math_and_preemption() -> None:
+def test_monte_carlo_engine_math_and_preemption() -> None:
+    asyncio.run(_monte_carlo_engine_math_and_preemption())
+
+
+async def _monte_carlo_engine_math_and_preemption() -> None:
     engine = MonteCarloRiskEngine(
         gpu_id="gpu-a",
         resident_model="Qwen/Qwen2.5-1.5B-Instruct",

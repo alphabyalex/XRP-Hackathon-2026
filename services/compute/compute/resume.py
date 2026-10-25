@@ -132,6 +132,29 @@ def continuation_prompt(messages: list[ChatMessage], partial: str, model: str) -
     return prompt + "<|im_start|>assistant\n" + partial
 
 
+async def modern_continuation_tokens(provider: VllmProvider, req: StreamRequest, model: str) -> list[int]:
+    """Use the serving node's own tokenizer and template, preserving special tokens.
+
+    vLLM 0.17.1 TokenizeChatRequest supports continue_final_message. The old
+    0.6.2 endpoints never receive this option. /completions accepts token IDs.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=provider.timeout_seconds, transport=provider.transport) as client:
+            response = await client.post(f"{provider.base_url}/tokenize", json={
+                "model": provider.served_model or model,
+                "messages": [message.model_dump() for message in req.messages] + [{"role": "assistant", "content": req.resume.text}],
+                "add_generation_prompt": False, "continue_final_message": True,
+                "chat_template_kwargs": {"enable_thinking": False},
+            })
+            response.raise_for_status()
+            tokens = response.json().get("tokens")
+            if not isinstance(tokens, list) or not tokens or len(tokens) > 131072 or any(isinstance(t, bool) or not isinstance(t, int) or t < 0 for t in tokens):
+                raise ProviderError("The model endpoint returned invalid continuation tokens")
+            return tokens
+    except (httpx.HTTPError, ValueError, TypeError, AttributeError) as error:
+        raise ProviderError("The model endpoint could not apply its continuation template") from error
+
+
 async def vllm_tokens(provider: VllmProvider, req: StreamRequest, model: str) -> AsyncIterator[str]:
     """Stream from the node, serialized per node, retrying once on the same node when the
     failure came before any token was sent (a retry after a token would duplicate text)."""
@@ -165,10 +188,13 @@ async def _vllm_once(provider: VllmProvider, req: StreamRequest, model: str) -> 
     }
     if req.resume.text:
         path = "/v1/completions"
-        payload.update(prompt=continuation_prompt(req.messages, req.resume.text, model), stop=["<|im_end|>", "<|endoftext|>"])
+        prompt = await modern_continuation_tokens(provider, req, model) if model == "Qwen/Qwen3.5-4B" else continuation_prompt(req.messages, req.resume.text, model)
+        payload.update(prompt=prompt, stop=["<|im_end|>", "<|endoftext|>"])
     else:
         path = "/v1/chat/completions"
         payload["messages"] = [message.model_dump() for message in req.messages]
+        if model == "Qwen/Qwen3.5-4B":
+            payload["chat_template_kwargs"] = {"enable_thinking": False}
     # continue_final_message is deliberately absent. vLLM 0.6.2 rejects even false, and
     # /completions already continues the open assistant prefix without any chat-only options.
     finished = False
