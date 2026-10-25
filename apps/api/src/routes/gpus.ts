@@ -7,6 +7,7 @@ import { db } from "../db/db.js";
 import { historyCalendar } from "../marketHistory.js";
 import { change24hPct, priceHistory, sharePrice } from "../sharePrice.js";
 import { gpuHealth, isListed, listedGpus } from "../gpuHealth.js";
+import { gpuStats } from "../gpuStats.js";
 
 export const gpusRouter = Router();
 
@@ -30,7 +31,7 @@ async function buildSummary(gpuId: GpuId) {
     provider: gpuHealth().some((h) => h.gpuId === gpuId && h.kind === "real") ? (gpu as any).provider ?? null : null,
     state: computeState?.state ?? "OFFLINE",
     simulated: false,
-    // Market price: DEX best bid/ask midpoint, else the last trade, else the oracle NAV.
+    // The one share price (sharePrice.ts reference).
     sharePrice: market.price,
     priceSource: market.source,
     bestBid: market.bestBid,
@@ -79,6 +80,21 @@ gpusRouter.get("/gpus", async (_req, res) => {
     // Only GPUs whose endpoint passed its health check, plus the mock GPU (gpuHealth.ts).
     const summaries = await Promise.all(listedGpus().map((g) => buildSummary(g.id)));
     res.json(summaries);
+  } catch (err) {
+    res.status(500).json({ error: { code: "INTERNAL", message: (err as Error).message } });
+  }
+});
+
+// One GPU's market and earnings (contracts/api/gpu_stats.json).
+gpusRouter.get("/gpus/:id/stats", async (req, res) => {
+  const gpuId = req.params.id as GpuId;
+  const gpu = GPUS.find((g) => g.id === gpuId);
+  if (!gpu || !isListed(gpuId)) {
+    res.status(404).json({ error: { code: "NOT_FOUND", message: gpu ? "GPU not online" : "unknown gpuId" } });
+    return;
+  }
+  try {
+    res.json(await gpuStats(gpuId));
   } catch (err) {
     res.status(500).json({ error: { code: "INTERNAL", message: (err as Error).message } });
   }

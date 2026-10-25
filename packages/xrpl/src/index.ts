@@ -11,9 +11,11 @@ export {
   listContractOffers,
   buyContracts,
   getShareBook,
+  getShareDepth,
   requoteShareOffer,
   shareFill,
   type ShareBook,
+  type ShareDepth,
 } from "./dex.js";
 export { redeemContracts } from "./contracts.js";
 export { payForInference } from "./inference.js";

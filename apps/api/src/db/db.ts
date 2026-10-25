@@ -15,7 +15,7 @@ db.exec("PRAGMA journal_mode = WAL");
 const schema = fs.readFileSync(path.join(__dirname, "schema.sql"), "utf8");
 db.exec(schema);
 // Columns added after the first release (ALTER fails harmlessly once they exist).
-for (const sql of ["ALTER TABLE dividend_runs ADD COLUMN per_share TEXT"]) {
+for (const sql of ["ALTER TABLE dividend_runs ADD COLUMN per_share TEXT", "ALTER TABLE share_reference ADD COLUMN reset_at TEXT"]) {
   try {
     db.exec(sql);
   } catch {
