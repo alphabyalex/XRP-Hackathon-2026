@@ -124,7 +124,7 @@ async def test_payment_failure_releases_leases(orders, monkeypatch):
     assert orders.get(order["orderId"])["status"] == "failed"
 
 
-async def test_rental_books_compute_slots_for_moonshift_gpus(orders, api):
+async def test_rental_books_compute_slots_for_moonshift_gpus(orders, api, monkeypatch):
     bookings = []
 
     def compute(req: httpx.Request) -> httpx.Response:
@@ -134,11 +134,9 @@ async def test_rental_books_compute_slots_for_moonshift_gpus(orders, api):
         return httpx.Response(200, json=[])
 
     orders.compute_transport = httpx.MockTransport(compute)
-    # A worker that runs rented time in real time (a services/compute endpoint): the calendar gets the slots.
-    orders.service.entries = [
-        dataclasses.replace(e, endpoint="http://compute.test") if e.offer.provider == "moonshift" else e
-        for e in orders.service.entries
-    ]
+    # Rented time at the clock's own speed: the compute calendar gets the slots.
+    monkeypatch.setattr(C, "RENTAL_TIME_SCALE", 1.0)
+    monkeypatch.setattr(C, "RENTAL_TICK_SECONDS", 0.0001)
     order = await run(orders, OrderCreate(kind="rental", mode="fastest", minutes=30))
     assert order["status"] == "settled"
     assert sum(s["served"] for s in order["segments"]) == pytest.approx(30)
@@ -151,8 +149,8 @@ async def test_rental_books_compute_slots_for_moonshift_gpus(orders, api):
 
 
 async def test_in_process_rental_holds_the_gpu_only_for_its_real_time(orders, api):
-    # The in-process worker runs rented minutes RENTAL_TIME_SCALE times faster: booking the full rented
-    # minutes on the compute calendar left an unused window that made the next rental there fail.
+    # Rented minutes run RENTAL_TIME_SCALE times faster than the clock: booking the full rented minutes on
+    # the compute calendar left an unused window that made the next rental there fail.
     bookings = []
 
     def compute(req: httpx.Request) -> httpx.Response:

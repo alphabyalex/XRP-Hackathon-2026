@@ -67,7 +67,11 @@ await step("collateral", async () => {
   const held = Number(p.shares.find((x) => x.gpuId === "gpu-a")?.qty ?? 0);
   if (held < 200) {
     const tx = await call("POST", "/shares/buy", { buyer: BORROWER, gpuId: "gpu-a", qty: String(200 - held) });
-    console.log(`    ${BORROWER} bought ${200 - held} GPU-A shares (${tx.result})`);
+    // The buy fills what is on offer (immediate or cancel): check what actually arrived.
+    const after = Number((await call("GET", `/portfolio/${BORROWER}`)).shares.find((x) => x.gpuId === "gpu-a")?.qty ?? 0);
+    console.log(`    ${BORROWER} bought ${(after - held).toFixed(2)} GPU-A shares, holds ${after.toFixed(2)} (${tx.result})`);
+    // Loan 1 locks 100 (seized in the liquidation step), loan 2 locks 80.
+    if (after < 180) throw new Error(`${BORROWER} holds ${after.toFixed(2)} GPU-A shares, needs 180 for both loans (too few on offer)`);
   }
 });
 

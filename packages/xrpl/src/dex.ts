@@ -227,7 +227,12 @@ export async function requoteShareOffer(p: {
   const target = Number(p.price);
   const priceOf = (o: any) => (isAsk ? amountValue(o.taker_pays) / amountValue(o.taker_gets) : amountValue(o.taker_gets) / amountValue(o.taker_pays));
   const tol = p.tolerance ?? 0.01;
-  if (mine.length === 1 && Math.abs(priceOf(mine[0]) / target - 1) <= tol) return { action: "kept", price: priceOf(mine[0]).toFixed(6), hashes: [] };
+  // Kept only when both the price and the size still match: shares returned to a treasury (seized
+  // collateral) or a partly filled offer must be re-listed, not left out of the book.
+  const sizeOf = (o: any) => amountValue(isAsk ? o.taker_gets : o.taker_pays);
+  const sameSize = (o: any) => Math.abs(sizeOf(o) - Number(p.qty)) <= Math.max(1e-6, Number(p.qty) * tol);
+  if (mine.length === 1 && Math.abs(priceOf(mine[0]) / target - 1) <= tol && sameSize(mine[0]))
+    return { action: "kept", price: priceOf(mine[0]).toFixed(6), hashes: [] };
   if (!(Number(p.qty) > 0)) return { action: "skipped", price: p.price, hashes: [] };
 
   const hashes: string[] = [];

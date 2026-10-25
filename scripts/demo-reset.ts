@@ -4,8 +4,8 @@
 //    subscribing lending round).
 // 2. Closes leftover open loans (pays them off, collateral released) so the
 //    vault starts at 0% utilization.
-// 3. Restores both GPU oracle prices to the opening NAV.
-// 4. Restocks the GPU-A share offer on the DEX, then tops every system
+// 3. Restores every GPU oracle price to the opening NAV (the market maker syncs it to the market on start).
+// 4. Returns seized collateral to each GPU treasury (listed at NAV by the market maker), then tops every system
 //    account up to 1,000 XRP from the faucet (setupNetwork tops TDX up: BOB
 //    and CAROL 60,000 as background vault liquidity, DEV 15,000 for
 //    demo:check; the subscribing round starts with BOB 20,000 + CAROL 1,000).
@@ -84,8 +84,12 @@ async function main() {
   }
 
   console.log("4/5 market and balances...");
-  const stock = await x.restockShares("gpu-a", OPENING_NAV);
-  console.log(`  GPU-A shares: ${stock.returned} returned from the broker, ${stock.listed} re-listed by the treasury`);
+  // Seized collateral back to each GPU's treasury; the market maker lists it at NAV on its next quote.
+  const { GPUS } = await import("@moonshift/shared");
+  for (const g of GPUS) {
+    const stock = await x.restockShares(g.id);
+    if (Number(stock.returned) > 0) console.log(`  ${g.id} shares: ${stock.returned} returned from the broker to its treasury`);
+  }
   console.log(`  XRP top-ups to ${XRP_TARGET}...`);
   await topUpXrp(x);
 
