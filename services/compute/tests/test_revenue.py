@@ -54,7 +54,10 @@ def test_revenue_default_24_buckets(client):
         assert "utilizationPct" in b
         assert "simulated" in b
         assert isinstance(b["simulated"], bool)
-        assert float(b["revenue"]) >= 0.0
+        assert b["revenue"] is None and b["revenueAvailable"] is False
+        assert b["source"] == "usage_meter"
+        assert b["bookedMinutes"] == b["inferenceMinutes"] == 0
+        assert float(b["utilizationPct"]) == 0
         assert 0.0 <= float(b["utilizationPct"]) <= 100.0
 
 
@@ -103,5 +106,35 @@ def test_revenue_matches_contract_shape(client):
         "idleMinutes",
         "utilizationPct",
         "simulated",
+        "revenueAvailable",
+        "source",
     }
     assert set(buckets[0].keys()) == expected_keys
+
+
+def test_revenue_uses_measured_charges_once_and_survives_restart(tmp_path):
+    import asyncio
+    from dataclasses import replace
+    from compute.models import UsageEvent
+    from compute.scheduler import Scheduler
+
+    async def run():
+        settings = replace(Settings.from_env(), mock=True, state_dir=tmp_path)
+        scheduler = Scheduler(settings)
+        worker = scheduler.worker("gpu-a")
+        now = datetime.now(UTC)
+        event = UsageEvent(request_id="metered-request", gpu_id="gpu-a", buyer="DEV", booking_id=None,
+                           input_tokens=10, output_tokens=20, charge="0.012345", started_at=now-timedelta(seconds=2),
+                           finished_at=now, simulated=False)
+        await worker.record_usage(event)
+        await worker.record_usage(event)
+        buckets = await worker.revenue(now-timedelta(minutes=1), now+timedelta(minutes=1), timedelta(minutes=2))
+        assert buckets[0]["revenue"] == "0.012345"
+        assert buckets[0]["revenueAvailable"] is True
+        assert buckets[0]["utilizationPct"] == "0.000000"
+        restored = Scheduler(settings).worker("gpu-a")
+        await restored.load_snapshot()
+        again = await restored.revenue(now-timedelta(minutes=1), now+timedelta(minutes=1), timedelta(minutes=2))
+        assert again[0]["revenue"] == "0.012345"
+
+    asyncio.run(run())

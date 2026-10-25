@@ -78,7 +78,9 @@ versioned.
 | `API_URL` | empty | Base URL for `POST /internal/usage`; empty disables delivery locally. |
 | `PRICING_URL` | empty | Base URL for pricing's `/rates/inference`; unavailable pricing uses a deterministic fallback. |
 | `INTERNAL_API_KEY` | `dev-internal-key` in mock mode | Key for the usage callback and internal `/bookings` endpoint. Required outside mock mode. |
-| `VLLM_URL` | `http://127.0.0.1:8000` | Loopback-only vLLM OpenAI-compatible endpoint. |
+| `GPU_A_VLLM_URL` | `VLLM_URL`, then `http://127.0.0.1:8000` | Existing GPU-A OpenAI-compatible endpoint. |
+| `GPU_A_VLLM_MODEL` | `MODEL`, then the legacy endpoint alias | Model identifier accepted by the running server. This is separate from the real model name. |
+| `MODEL` | `Qwen/Qwen2.5-1.5B-Instruct` publicly | Real model identity. The legacy `Qwen/Qwen3-1.7B` server alias is normalized to Qwen2.5 for public responses. |
 | `GPU_B_MODE` | `simulated` | `simulated` or `real`; simulated status is exposed in every response. |
 | `GPU_B_VLLM_URL` | empty | Required private vLLM endpoint when `GPU_B_MODE=real`; it is never a public URL. |
 | `SLOT_MINUTES` | `5` | Minutes represented by one contract slot in the demo. |
@@ -98,15 +100,23 @@ Install `requirements-gpu.txt` only on the NVIDIA T4 host after verifying its
 CUDA/driver compatibility. Start vLLM on loopback, never in the security group:
 
 ```bash
-vllm serve Qwen/Qwen3-1.7B \
+vllm serve Qwen/Qwen2.5-1.5B-Instruct \
   --host 127.0.0.1 --port 8000 \
-  --dtype float16 --max-model-len 4096 \
-  --chat-template-kwargs '{"enable_thinking": false}'
+  --dtype float16 --max-model-len 4096
 ```
 
 Then set `MOCK=0`, set a real `INTERNAL_API_KEY`, and run the router on the API
 host or through an SSH tunnel. In real mode, vLLM's final `usage` object is the
-only source of billed token counts.
+only source of billed token counts for chat requests. A failed upstream never falls
+back to a generated local answer. Live workers without endpoints stay offline.
+
+Fresh streaming tasks use `/v1/chat/completions` with standard OpenAI fields only.
+Resumed tasks apply Qwen2.5's [published chat template](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct/blob/main/tokenizer_config.json)
+and append the partial assistant answer to its open assistant turn, then call
+`/v1/completions`. Neither path needs `continue_final_message`, which vLLM 0.6.2
+rejects even when false. The stream must finish explicitly; an upstream error or
+truncated reply fails the task. Failed router tasks refund their full price cap,
+including when part of an answer was already streamed.
 
 No real T4 has been benchmarked from this local workspace. Before a judge demo,
 record the measured throughput, time to first token, p50/p95 256-token latency,

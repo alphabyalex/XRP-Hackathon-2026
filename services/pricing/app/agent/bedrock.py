@@ -88,7 +88,7 @@ def explain(context: str, data: dict, base_flags: list[str]) -> Explanation:
     def fallback_result() -> Explanation:
         return Explanation(fallback.explain(context, data, base_flags), base_flags, "fallback", None, None)
 
-    if C.MOCK:
+    if C.MOCK or not C.BEDROCK_ENABLED:
         return fallback_result()
 
     started = time.monotonic()
@@ -151,7 +151,7 @@ def generate_credit_memo(credit_profile: dict, quote: dict, loan_request: dict) 
         )
 
     outcome = "mock"
-    if C.MOCK:
+    if C.MOCK or not C.BEDROCK_ENABLED:
         return fallback_result()
 
     outcome = "ok"
@@ -230,7 +230,7 @@ def generate_risk_alert(event: dict) -> RiskAlert:
             fell_back=True,
         )
 
-    if C.MOCK:
+    if C.MOCK or not C.BEDROCK_ENABLED:
         return fallback_result()
 
     outcome = "ok"

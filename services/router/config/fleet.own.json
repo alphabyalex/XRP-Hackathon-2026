@@ -1,41 +1,22 @@
 {
-  "_note": "Moonshift's own fleet (FLEET_SOURCE=own, what npm run demo runs): tasks execute only on GPU-A and GPU-B, the GPUs whose shareholders the task pays. External offers in the catalog are the market benchmark only: benchmark names the GPU model and the provider to price against (AWS): the cheapest AWS on-demand offer for that GPU sets the Guaranteed and Priority rates, the cheapest AWS spot offer sets the Pausable rate (optimizer.service_levels). pricePerHourUsdc is the price when the catalog has no such offer. endpoint ${COMPUTE_URL} = served through services/compute (GPU-A: the real Akash T4, with resume); empty = the in-process worker (GPU-B, the mock).",
+  "_note": "Only the existing Akash Network T4 is configured. Its deployed model is Qwen2.5-1.5B-Instruct. AWS prices are comparisons, not EC2 capacity. Admission requires a real endpoint health check and a live price benchmark. No static rate is used when the live feed is unavailable.",
   "gpus": [
     {
       "id": "gpu-a",
       "label": "GPU-A",
       "moonshift": {
         "gpuModel": "T4",
-        "hardware": "NVIDIA T4 16GB",
+        "hardware": "NVIDIA T4 16GB (Akash Network)",
         "benchmark": {
           "gpuModel": "T4",
           "provider": "aws"
         },
-        "pricePerHourUsdc": "0.526000",
-        "region": "us-east-2"
+        "region": "akash"
       },
       "maxConcurrent": 2,
       "moonshiftGpuId": "gpu-a",
       "computeGpuId": "gpu-a",
       "endpoint": "${COMPUTE_URL}"
-    },
-    {
-      "id": "gpu-b",
-      "label": "GPU-B",
-      "moonshift": {
-        "gpuModel": "T4",
-        "hardware": "NVIDIA T4 16GB",
-        "benchmark": {
-          "gpuModel": "T4",
-          "provider": "aws"
-        },
-        "pricePerHourUsdc": "0.526000",
-        "region": "us-east-2"
-      },
-      "maxConcurrent": 2,
-      "moonshiftGpuId": "gpu-b",
-      "computeGpuId": "gpu-b",
-      "endpoint": ""
     }
   ]
 }

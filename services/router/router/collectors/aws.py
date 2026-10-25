@@ -225,7 +225,7 @@ def _capacity_block_offers(ctx: CollectContext) -> list[Offer]:
                 gpu_count=spec["gpuCount"],
                 capacity_type="reserved",
                 price_per_hour_usd=float(block.get("UpfrontFee", 0)) / hours,
-                price_source="live",
+                price_source="live" if ctx.is_live("aws_capacity_blocks") else "fixture",
                 as_of=ctx.as_of,
                 availability=Availability("live", count=int(block.get("InstanceCount", 1))),
                 extra={

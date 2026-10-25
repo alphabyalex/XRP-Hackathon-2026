@@ -18,14 +18,17 @@ pip install -r requirements-dev.txt   # runtime only: requirements.txt
 uvicorn router.main:app --port 7200
 ```
 
-Everything is local and mock by default (no cloud account needed).
+The default fleet contains the existing Akash Network T4 running Qwen2.5-1.5B-Instruct.
+Public AWS prices are comparisons. They do not imply that Moonshift owns EC2 GPU capacity.
+Only a passing endpoint health check and live price benchmark allow task admission.
+Development fixtures are available only when `FLEET_SOURCE=mock` is explicitly selected.
 
 ## Switches
 
 | Env var | Default | Meaning |
 |---|---|---|
-| `FLEET_SOURCE` | `mock` | `mock` = config/fleet.json, `live` = config/fleet.live.json |
-| `PRICE_SOURCES` | `none` | collectors that call real APIs: `all`, `none`, or a comma list (`azure_retail,oracle,runpod,vast,aws_spot_advisor,aws_pricing,aws_spot_price,aws_placement,aws_offerings,aws_capacity_blocks,gcp_catalog,lambda`) |
+| `FLEET_SOURCE` | `own` | `own` and `live` configure only GPU-A. `mock` explicitly enables the development fleet. |
+| `PRICE_SOURCES` | `aws_public` | `aws_public` reads AWS's public spot and on-demand feeds without credentials. `all` or explicit provider collectors enable their real APIs. Non-mock fleets never use fixture prices. |
 | `STATE_BACKEND` | `local` | `local` (SQLite) or `dynamodb` |
 | `QUEUE_BACKEND` | `local` | `local` or `sqs` |
 | `ORCHESTRATOR` | `local` | `local` or `stepfunctions` |

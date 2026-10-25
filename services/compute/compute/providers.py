@@ -35,6 +35,13 @@ class ModelProvider(Protocol):
     ) -> Completion: ...
 
 
+class UnavailableProvider:
+    """A configured worker with no endpoint cannot generate or bill an answer."""
+
+    async def complete(self, **kwargs: object) -> Completion:
+        raise ProviderError("No model endpoint is configured for this worker")
+
+
 def estimate_text_tokens(text: str) -> int:
     """A deliberately conservative local estimate used before vLLM responds."""
 
@@ -73,9 +80,15 @@ class MockProvider:
 class VllmProvider:
     """A minimal adapter for a vLLM process bound to loopback only."""
 
-    def __init__(self, base_url: str, timeout_seconds: float) -> None:
-        self.base_url = base_url.rstrip("/")
+    def __init__(
+        self, base_url: str, timeout_seconds: float, served_model: str | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        self.base_url = base_url.rstrip("/").removesuffix("/v1")
         self.timeout_seconds = timeout_seconds
+        # The running server can use a legacy alias. Never expose that alias as the actual model.
+        self.served_model = served_model
+        self.transport = transport
 
     async def complete(
         self,
@@ -86,18 +99,16 @@ class VllmProvider:
         temperature: float | None,
     ) -> Completion:
         payload: dict[str, object] = {
-            "model": model,
+            "model": self.served_model or model,
             "messages": [message.model_dump() for message in messages],
             "max_tokens": max_tokens,
             "stream": False,
-            # Qwen3's thinking mode makes demo latency and pricing unpredictable.
-            "chat_template_kwargs": {"enable_thinking": False},
         }
         if temperature is not None:
             payload["temperature"] = temperature
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+            async with httpx.AsyncClient(timeout=self.timeout_seconds, transport=self.transport) as client:
                 response = await client.post(f"{self.base_url}/v1/chat/completions", json=payload)
                 response.raise_for_status()
                 body = response.json()
@@ -111,7 +122,7 @@ class VllmProvider:
                 content=content,
                 input_tokens=int(usage["prompt_tokens"]),
                 output_tokens=int(usage["completion_tokens"]),
-                model=str(body.get("model") or model),
+                model=model,
             )
         except (KeyError, IndexError, TypeError, ValueError) as error:
             raise ProviderError("vLLM response omitted completion usage") from error

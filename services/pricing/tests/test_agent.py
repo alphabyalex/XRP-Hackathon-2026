@@ -110,6 +110,7 @@ def test_credit_memo_number_guard_triggers_fallback_on_bad_bedrock_output(monkey
         ),
     )
     monkeypatch.setattr(C, "MOCK", False)
+    monkeypatch.setattr(C, "BEDROCK_ENABLED", True)
 
     res = bedrock.generate_credit_memo(profile, quote, req)
     assert res.fell_back is True
@@ -151,6 +152,7 @@ def test_credit_memo_scrubs_one_bad_sentence_instead_of_falling_back(monkeypatch
     )
     monkeypatch.setattr(bedrock, "_converse_custom", lambda s, u: json.dumps({"memo": text}))
     monkeypatch.setattr(C, "MOCK", False)
+    monkeypatch.setattr(C, "BEDROCK_ENABLED", True)
     res = bedrock.generate_credit_memo(profile, quote, req)
     assert res.fell_back is False and res.outcome == "ok_scrubbed"
     assert "13.8" not in res.memo and "score of 80" in res.memo
@@ -170,6 +172,19 @@ def test_credit_memo_retries_once_when_nothing_survives(monkeypatch):
 
     monkeypatch.setattr(bedrock, "_converse_custom", fake)
     monkeypatch.setattr(C, "MOCK", False)
+    monkeypatch.setattr(C, "BEDROCK_ENABLED", True)
     res = bedrock.generate_credit_memo(profile, quote, req)
     assert len(calls) == 2 and "Use only numbers" in calls[1]
     assert res.fell_back is False and res.outcome == "ok_retry"
+
+
+def test_bedrock_is_opt_in_for_all_prose_routes(monkeypatch):
+    monkeypatch.setattr(C, "MOCK", False)
+    monkeypatch.setattr(C, "BEDROCK_ENABLED", False)
+    def forbidden(*args):
+        raise AssertionError("Bedrock must not be called without explicit opt-in")
+    monkeypatch.setattr(bedrock, "_converse", forbidden)
+    monkeypatch.setattr(bedrock, "_converse_custom", forbidden)
+    assert bedrock.explain("nav", {}, []).source == "fallback"
+    assert bedrock.generate_credit_memo({"score": 80}, {"apr": "0.08"}, {}).fell_back
+    assert bedrock.generate_risk_alert({"type": "MARGIN_CALL"}).fell_back

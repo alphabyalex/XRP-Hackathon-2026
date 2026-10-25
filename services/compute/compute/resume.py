@@ -1,13 +1,10 @@
 """Resume, don't restart: token-level checkpoints and interruptible generation for the order router.
 
-All of the router's compute code lives in this module (owner Lucy, services/router). Hooks in
-Tharun's files: one install() call in main.py and GpuSupervisor.set_offline() in scheduler.py.
-
   POST /v1/resume/stream     SSE generation that the router can stop and continue on another GPU.
                              Body: {gpuId, messages, maxTokens, resume: {text, tokens}, checkpointEvery,
                              reportUsage, chargePerToken, buyer}. A resume sends the original messages plus
-                             the partial answer; vLLM continues the same assistant message
-                             (continue_final_message), so the reply stays one continuous text.
+                             the partial answer. A resumed request uses the model's chat template and
+                             /v1/completions, so old vLLM servers continue one open assistant reply.
                              Events: token, checkpoint (every N tokens and at the signal), interrupted, done.
   POST /v1/resume/interrupt  {gpuId, reason, move, durationSeconds}: checkpoint now; move=true also stops
                              the streams and takes the GPU out of public admission for durationSeconds.
@@ -39,7 +36,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from .models import ChatMessage, ComputeError, UsageEvent
-from .providers import MockProvider, VllmProvider, estimate_text_tokens
+from .providers import MockProvider, ProviderError, VllmProvider, estimate_text_tokens
 from .scheduler import Scheduler
 
 log = logging.getLogger("compute.resume")
@@ -115,29 +112,70 @@ async def mock_tokens(provider: MockProvider, req: StreamRequest, tokens_per_sec
         yield w
 
 
+def continuation_prompt(messages: list[ChatMessage], partial: str, model: str) -> str:
+    """Apply Qwen2.5's published text chat template, leaving the assistant turn open.
+
+    Source: Qwen/Qwen2.5-1.5B-Instruct tokenizer_config.json on Hugging Face.
+    Keep this explicit: applying a different model's template would silently corrupt a resume.
+    Tool messages are not part of the compute API's ChatMessage contract.
+    """
+    if model != "Qwen/Qwen2.5-1.5B-Instruct":
+        raise ProviderError("Continuation is not configured for this model's chat template")
+    prompt = ""
+    if messages[0].role != "system":
+        prompt = "<|im_start|>system\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.<|im_end|>\n"
+    for message in messages:
+        prompt += f"<|im_start|>{message.role}\n{message.content}<|im_end|>\n"
+    return prompt + "<|im_start|>assistant\n" + partial
+
+
 async def vllm_tokens(provider: VllmProvider, req: StreamRequest, model: str) -> AsyncIterator[str]:
-    messages: list[dict[str, str]] = [m.model_dump() for m in req.messages]
-    partial = req.resume.text
-    if partial:
-        messages.append({"role": "assistant", "content": partial})
+    remaining = req.maxTokens - req.resume.tokens
+    if remaining <= 0:
+        return
     payload: dict[str, Any] = {
-        "model": model,
-        "messages": messages,
-        "max_tokens": max(1, req.maxTokens - req.resume.tokens),
+        "model": provider.served_model or model,
+        "max_tokens": remaining,
         "stream": True,
-        "add_generation_prompt": not partial,
-        "continue_final_message": bool(partial),
-        "chat_template_kwargs": {"enable_thinking": False},
     }
-    async with httpx.AsyncClient(timeout=None) as http:
-        async with http.stream("POST", f"{provider.base_url}/v1/chat/completions", json=payload) as r:
-            r.raise_for_status()
-            async for line in r.aiter_lines():
-                if not line.startswith("data: ") or line == "data: [DONE]":
-                    continue
-                delta = json.loads(line[6:])["choices"][0].get("delta", {}).get("content")
-                if delta:
-                    yield delta
+    if req.resume.text:
+        path = "/v1/completions"
+        payload.update(prompt=continuation_prompt(req.messages, req.resume.text, model), stop=["<|im_end|>", "<|endoftext|>"])
+    else:
+        path = "/v1/chat/completions"
+        payload["messages"] = [message.model_dump() for message in req.messages]
+    # continue_final_message is deliberately absent. vLLM 0.6.2 rejects even false, and
+    # /completions already continues the open assistant prefix without any chat-only options.
+    finished = False
+    emitted = False
+    try:
+        async with httpx.AsyncClient(timeout=provider.timeout_seconds, transport=provider.transport) as http:
+            async with http.stream("POST", f"{provider.base_url}{path}", json=payload) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    raw = line[5:].strip()
+                    if raw == "[DONE]":
+                        finished = True
+                        break
+                    body = json.loads(raw)
+                    if "error" in body:
+                        raise ProviderError("The model endpoint reported a generation error")
+                    choices = body.get("choices", [])
+                    if not choices:
+                        continue  # usage-only event
+                    choice = choices[0]
+                    delta = choice.get("text") if req.resume.text else choice.get("delta", {}).get("content")
+                    if delta:
+                        emitted = True
+                        yield delta
+                    if choice.get("finish_reason") is not None:
+                        finished = True
+        if not finished or not emitted:
+            raise ProviderError("The model endpoint did not return a complete answer")
+    except (httpx.HTTPError, ValueError, TypeError, KeyError, IndexError) as error:
+        raise ProviderError("The model endpoint could not complete the stream") from error
 
 
 def install(app: FastAPI, scheduler: Scheduler, providers: dict[str, Any], settings: Any, router: Any) -> Hub:
@@ -167,11 +205,12 @@ def install(app: FastAPI, scheduler: Scheduler, providers: dict[str, Any], setti
         started = datetime.now(UTC)
         ok = False
         try:
-            source = (
-                mock_tokens(provider, req, worker.tokens_per_sec, scale)
-                if isinstance(provider, MockProvider)
-                else vllm_tokens(provider, req, worker.model)
-            )
+            if isinstance(provider, MockProvider):
+                source = mock_tokens(provider, req, worker.tokens_per_sec, scale)
+            elif isinstance(provider, VllmProvider):
+                source = vllm_tokens(provider, req, worker.model)
+            else:
+                raise ProviderError("No model endpoint is configured for this worker")
             async for piece in source:
                 if flag.event.is_set():
                     yield sse("checkpoint", text=text, tokens=n, reason=flag.reason)
@@ -191,15 +230,17 @@ def install(app: FastAPI, scheduler: Scheduler, providers: dict[str, Any], setti
             drain.cancel()
             hub.remove(req.gpuId, flag)
             await worker.release(request_id, succeeded=ok)
-            if req.reportUsage and n > start_n:
+            if ok and req.reportUsage and n > start_n:
                 served = n - start_n
                 charge = (Decimal(req.chargePerToken) * served).quantize(Decimal("0.000001"))
-                await router.usage_reporter.report(UsageEvent(
+                event = UsageEvent(
                     request_id=request_id, gpu_id=req.gpuId, buyer=req.buyer, booking_id=None,
                     input_tokens=sum(estimate_text_tokens(m.content) for m in req.messages) if start_n == 0 else 0,
                     output_tokens=served, charge=f"{charge:f}", started_at=started,
                     finished_at=datetime.now(UTC), simulated=settings.mock or worker.simulated,
-                ))
+                )
+                await router.usage_reporter.report(event)
+                await worker.record_usage(event)
 
     @app.post("/v1/resume/stream")
     async def resume_stream(req: StreamRequest, key: str | None = Header(default=None, alias="X-MS-Internal-Key")):
@@ -211,12 +252,17 @@ def install(app: FastAPI, scheduler: Scheduler, providers: dict[str, Any], setti
             first = await anext(gen)  # surface admission errors (booked, draining, offline) as HTTP 409
         except StopAsyncIteration:
             first = ""
+        except ProviderError as error:
+            raise ComputeError("UPSTREAM_ERROR", "The model endpoint could not start this request.", 503) from error
 
         async def body() -> AsyncIterator[str]:
             if first:
                 yield first
-            async for chunk in gen:
-                yield chunk
+            try:
+                async for chunk in gen:
+                    yield chunk
+            except ProviderError:
+                yield sse("error", reason="UPSTREAM_ERROR")
 
         return StreamingResponse(body(), media_type="text/event-stream")
 

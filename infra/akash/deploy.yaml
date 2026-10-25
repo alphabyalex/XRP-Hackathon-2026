@@ -12,7 +12,7 @@ services:
       - "--model"
       - "Qwen/Qwen2.5-1.5B-Instruct"
       - "--served-model-name"
-      - "Qwen/Qwen3-1.7B"
+      - "Qwen/Qwen2.5-1.5B-Instruct"
       - "--dtype"
       - "float16"
       - "--max-model-len"
