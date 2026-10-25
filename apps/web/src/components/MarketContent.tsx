@@ -19,7 +19,7 @@ export function MarketContent() {
     <main className="s">
       <div className="wrap">
         <div className="shead">
-          <h2>Two GPUs, earning now.</h2>
+          <h2>{views.length ? `${views.length} GPUs, earning now.` : "Live GPUs, earning now."}</h2>
           <p>Prices come from the order book on the XRP Ledger DEX. Yield is the last 24 hours of payouts, annualized.</p>
         </div>
         {unreachable && <ApiErrorNotice />}

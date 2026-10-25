@@ -1385,6 +1385,11 @@ main:has(.enter) + footer .logo {
   gap: 14px;
   flex-wrap: wrap;
 }
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
 .footer-desc {
   font-size: 13px;
   color: var(--ink3);

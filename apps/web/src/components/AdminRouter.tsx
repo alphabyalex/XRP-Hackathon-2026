@@ -222,7 +222,7 @@ export function AdminRouter() {
 
         <h3>Market benchmark</h3>
         <p className="why">
-          Tasks run only on GPU-A and GPU-B. These offers are the market: each GPU is priced at the cheapest on-demand offer for the same GPU, so a
+          Tasks run on Moonshift compute nodes. These offers are the market: each GPU is priced at the cheapest on-demand offer for the same GPU, so a
           customer never pays more than renting it elsewhere. Not shown to customers.
         </p>
         <div className="tbl">

@@ -190,6 +190,9 @@ const PROVIDERS: Record<string, string> = {
   runpod: "RunPod",
   vast: "Vast.ai",
   coreweave: "CoreWeave",
+  akash: "Decentralized Cloud",
+  dcloud: "Decentralized Cloud",
+  decentralized: "Decentralized Cloud",
 };
 
 export const providerName = (p: string) => PROVIDERS[p] ?? p;
