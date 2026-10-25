@@ -167,6 +167,7 @@ async function optional<T>(path: string): Promise<T | null> {
 export const lendingMarkets = () => optional<any>("/lending/markets");
 export const lendingDashboard = () => optional<any>("/lending/dashboard");
 export const lendingLoanbook = () => optional<any>("/lending/loanbook");
+export const lendingBaseApr = () => optional<any>("/lending/base-apr");
 
 // POST /applications: "capital" (borrowers) or "market" (GPU operators who want a vault funded).
 export type ApplicationKind = "capital" | "market";
