@@ -49,7 +49,7 @@ internalRouter.get(
   }))
 );
 
-// npm run demo and demo:reset: the last 24 hours of GPU activity and a dividend, then the live simulator.
+// Fund the live order book and start bounded real DEV ledger activity. No historical backfill.
 internalRouter.post("/seed-history", handle(async () => seedHistory()));
 
 // Credit events (Lucy, services/credit). Duplicate ids are ignored.

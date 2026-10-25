@@ -294,6 +294,41 @@ export async function requoteShareOffer(p: {
   return { action: mine.length ? "replaced" : "placed", price: target.toFixed(6), hashes };
 }
 
+// A whole ladder is managed only for protocol-controlled market-maker accounts.
+// Existing user orders are never cancelled or altered.
+export async function requoteShareLadder(p: {
+  account: AccountName; gpuId: GpuId; side: "ask" | "bid";
+  levels: { price: string; qty: string }[];
+}): Promise<{ action: "kept" | "replaced" | "placed" | "skipped"; hashes: string[] }> {
+  if (p.account !== "CAROL" && p.account !== `TREASURY_GPU_${p.gpuId.split("-")[1].toUpperCase()}`) throw new Error("Liquidity quotes require a protocol market-maker account");
+  if (p.levels.length > 10 || p.levels.some(l => !(Number(l.price)>0) || !(Number(l.qty)>0) || !Number.isFinite(Number(l.price)*Number(l.qty)))) throw new Error("Invalid liquidity levels");
+  if (!p.levels.length) return { action: "skipped", hashes: [] };
+  const gpu = GPUS.find(g=>g.id===p.gpuId);
+  if (!gpu) throw new Error("Unknown GPU");
+  const wallet=getAccountWallet(p.account), client=await getClient();
+  const shareIssuer=getAccountAddress("SHARE_ISSUER"), tdxIssuer=getAccountAddress("TDX_ISSUER");
+  const isAsk=p.side==="ask";
+  const res=await client.request({command:"account_offers",account:wallet.address,ledger_index:"validated"});
+  const issue=(a:any,currency:string,issuer:string)=>a && typeof a==="object" && a.currency===currency && a.issuer===issuer;
+  const mine=(res.result.offers??[]).filter((o:any)=> isAsk
+    ? issue(o.taker_gets,gpu.shareCode,shareIssuer)&&issue(o.taker_pays,"TDX",tdxIssuer)
+    : issue(o.taker_gets,"TDX",tdxIssuer)&&issue(o.taker_pays,gpu.shareCode,shareIssuer)) as any[];
+  const priceOf=(o:any)=>isAsk?amountValue(o.taker_pays)/amountValue(o.taker_gets):amountValue(o.taker_gets)/amountValue(o.taker_pays);
+  mine.sort((a,b)=>priceOf(a)-priceOf(b));
+  const levels=[...p.levels].sort((a,b)=>Number(a.price)-Number(b.price));
+  const same=mine.length===levels.length && mine.every((o,i)=>Math.abs(priceOf(o)/Number(levels[i].price)-1)<0.0025 && Math.abs(amountValue(isAsk?o.taker_gets:o.taker_pays)/Number(levels[i].qty)-1)<0.05);
+  if(same) return {action:"kept",hashes:[]};
+  const hashes:string[]=[];
+  for(const o of mine) hashes.push((await submitTx(wallet,{TransactionType:"OfferCancel",Account:wallet.address,OfferSequence:o.seq} as OfferCancel)).hash);
+  const domainId=getDomainIdIfConfigured();
+  for(const l of levels) {
+    const shares={currency:gpu.shareCode,issuer:shareIssuer,value:l.qty};
+    const tdx={currency:"TDX",issuer:tdxIssuer,value:(Number(l.qty)*Number(l.price)).toFixed(6)};
+    hashes.push((await submitTx(wallet,{TransactionType:"OfferCreate",Account:wallet.address,TakerGets:isAsk?shares:tdx,TakerPays:isAsk?tdx:shares,Flags:OfferCreateFlags.tfPassive,...(domainId?{DomainID:domainId}:{})} as OfferCreate)).hash);
+  }
+  return {action:mine.length?"replaced":"placed",hashes};
+}
+
 // What a share trade actually filled at, from the transaction's balance
 // changes for `account`: shares moved and TDX paid or received.
 export async function shareFill(hash: string, address: string, gpuId: GpuId): Promise<{ price: string; qty: string; side: "buy" | "sell" } | null> {

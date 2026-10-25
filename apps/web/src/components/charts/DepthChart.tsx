@@ -36,7 +36,7 @@ export function DepthChart({
       </div>
     );
   }
-  const pad = { l: 6, r: 6, t: 10, b: 22 };
+  const pad = { l: 38, r: 6, t: 24, b: 22 };
   const iw = width - pad.l - pad.r;
   const ih = height - pad.t - pad.b;
   const prices = [...b, ...a].map((l) => l.price);
@@ -58,7 +58,11 @@ export function DepthChart({
   return (
     <div ref={ref} className="chart">
       <svg width={width} height={height} role="img" aria-label={label}>
-        <line x1={pad.l} x2={pad.l + iw} y1={pad.t + ih} y2={pad.t + ih} stroke={chartTheme.rule} />
+        <text x={pad.l} y={12} fill={chartTheme.ink3} fontSize={chartTheme.axisSize}>Cumulative shares</text>
+        {[0, 0.5, 1].map(f => <g key={f}>
+          <line x1={pad.l} x2={pad.l+iw} y1={y(max*f)} y2={y(max*f)} stroke={chartTheme.rule} />
+          <text x={pad.l-5} y={y(max*f)+4} fill={chartTheme.ink3} fontSize={chartTheme.axisSize} textAnchor="end">{fmtNum(max*f)}</text>
+        </g>)}
         <path d={step(b, cb)} fill={chartTheme.up} opacity={0.18} stroke={chartTheme.up} strokeWidth={1.5} />
         <path d={step(a, ca)} fill={chartTheme.down} opacity={0.18} stroke={chartTheme.down} strokeWidth={1.5} />
         {mid !== null && <line x1={x(mid)} x2={x(mid)} y1={pad.t} y2={pad.t + ih} stroke={chartTheme.rule2} strokeDasharray="3 3" />}

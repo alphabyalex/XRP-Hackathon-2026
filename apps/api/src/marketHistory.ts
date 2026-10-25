@@ -5,7 +5,7 @@
 
 import { treasuryOf, type GpuId } from "@moonshift/shared";
 import { db } from "./db/db.js";
-import { startSim } from "./sim.js";
+import { startDevActivity } from "./devActivity.js";
 import * as xrpl from "./adapters/xrplAdapter.js";
 import { swr } from "./lending/swr.js";
 import { sharePrice } from "./sharePrice.js";
@@ -78,11 +78,10 @@ export async function navInputs(gpuId: GpuId): Promise<Record<string, string>> {
   };
 }
 
-// Startup and demo:reset: two-sided share books around each GPU's NAV
-// (marketMaker.ts) and the load simulator as the demand source (buyer SIM,
-// served and metered by the GPUs like any customer's request).
+// Seed actual funded share liquidity, then bounded DEV-account ledger activity.
+// Historical values are never backfilled.
 export async function seedHistory(): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = { market: await quoteMarket() };
-  startSim();
+  startDevActivity();
   return out;
 }

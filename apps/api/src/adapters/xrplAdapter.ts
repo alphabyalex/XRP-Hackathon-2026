@@ -180,6 +180,11 @@ export async function requoteShareOffer(p: Parameters<typeof realXrpl.requoteSha
   return { action: "skipped" as const, price: p.price, hashes: [] as string[] };
 }
 
+export async function requoteShareLadder(p: Parameters<typeof realXrpl.requoteShareLadder>[0]) {
+  if (!MOCK) return realXrpl.requoteShareLadder(p);
+  throw new Error("Live liquidity requires the real ledger");
+}
+
 export async function buyShares(p: BuySharesParams): Promise<TxResult> {
   if (!MOCK) return realXrpl.buyShares(p);
   ensureGpuMaps(p.gpuId);

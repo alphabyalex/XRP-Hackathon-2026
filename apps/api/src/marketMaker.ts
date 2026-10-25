@@ -10,6 +10,8 @@ import { logTx } from "./db/helpers.js";
 import { priceMoved, referencePrice, sharePrice } from "./sharePrice.js";
 import * as lending from "./adapters/lendingAdapter.js";
 import { recordOracle, stressActive } from "./lending/service.js";
+import { liquidityLadder } from "@moonshift/xrpl";
+import { broadcast } from "./sse.js";
 import { canSignGpuTreasury } from "./treasuryCapabilities.js";
 
 // The on-ledger oracle (the loans' collateral price) tracks the market price,
@@ -26,10 +28,7 @@ export async function syncOracle(gpuId: GpuId): Promise<string | null> {
   return tx.hash;
 }
 
-const SPREAD = 0.015;
-const BID_SHARES = "100";
-// Most of the treasury's shares stay off the book; this many are offered at a time.
-const ASK_SHARES = 200;
+
 
 let running: Promise<Record<string, unknown>> | null = null;
 
@@ -50,29 +49,23 @@ export function quoteMarket(): Promise<Record<string, unknown>> {
         const treasuryHeld = Number((await xrpl.getBalances(treasuryOf(g.id))).tokens[g.shareCode] ?? "0");
         const seller = treasuryHeld >= 5 ? treasuryOf(g.id) : "CAROL";
         const held = seller === "CAROL" ? Number((await xrpl.getBalances("CAROL")).tokens[g.shareCode] ?? "0") : treasuryHeld;
-        const askQty = String(Math.floor(Math.min(held, ASK_SHARES)));
-        const askPx = ref * (1 + SPREAD);
-        const quoteAsk = () => xrpl.requoteShareOffer({ account: seller, gpuId: g.id, side: "ask", price: fix6(askPx), qty: askQty });
-        const quoteBid = () => xrpl.requoteShareOffer({ account: "CAROL", gpuId: g.id, side: "bid", price: fix6(ref * (1 - SPREAD)), qty: BID_SHARES });
-        // The market maker never trades with itself: when the new ask would reach the standing bid
-        // (NAV fell), move CAROL's bid down first; otherwise move the ask first.
+        const cash = Number((await xrpl.getBalances("CAROL")).tokens.TDX ?? "0");
+        const enabled = GPUS.filter(gpu => canSignGpuTreasury(gpu.id)).length;
+        const ladder = liquidityLadder(ref, held, cash / Math.max(1, enabled));
+        const quoteAsk = () => xrpl.requoteShareLadder({account:seller,gpuId:g.id,side:"ask",levels:ladder.asks});
+        const quoteBid = () => xrpl.requoteShareLadder({account:"CAROL",gpuId:g.id,side:"bid",levels:ladder.bids});
         const book = await xrpl.getShareBook(g.id);
-        const bidFirst = book.bestBid !== null && askPx <= Number(book.bestBid);
-        let ask: Awaited<ReturnType<typeof quoteAsk>>;
-        let bid: Awaited<ReturnType<typeof quoteBid>>;
-        if (bidFirst) {
-          bid = await quoteBid();
-          ask = await quoteAsk();
-        } else {
-          ask = await quoteAsk();
-          bid = await quoteBid();
+        // Move bids first if a new ask could cross the old bid. Protocol orders
+        // remain passive and never cross their opposite protocol ladder.
+        const bidFirst = book.bestBid !== null && ladder.asks.length > 0 && Number(ladder.asks[0].price) <= Number(book.bestBid);
+        let ask: Awaited<ReturnType<typeof quoteAsk>>, bid: Awaited<ReturnType<typeof quoteBid>>;
+        if (bidFirst) { bid=await quoteBid(); ask=await quoteAsk(); }
+        else { ask=await quoteAsk(); bid=await quoteBid(); }
+        for (const [who,r] of [[seller,ask],["CAROL",bid]] as const) {
+          for(const hash of r.hashes) logTx({hash,result:"tesSUCCESS",validated:true,explorerUrl:""},"marketMaker",who,`${who} quotes ${g.id} share liquidity`);
         }
-        for (const [who, r] of [[seller, ask], ["CAROL", bid]] as const) {
-          for (const hash of r.hashes) {
-            logTx({ hash, result: "tesSUCCESS", validated: true, explorerUrl: "" }, "marketMaker", who, `${who} quotes ${g.id} shares at ${r.price} USDC`);
-          }
-        }
-        out[g.id] = { reference: fix6(ref), ask: ask.action === "skipped" ? null : ask.price, bid: bid.price, actions: [ask.action, bid.action] };
+        out[g.id] = {reference:fix6(ref),ask:ladder.asks[0]?.price??null,bid:ladder.bids[0]?.price??null,askLevels:ladder.asks.length,bidLevels:ladder.bids.length,actions:[ask.action,bid.action]};
+        if(ask.hashes.length || bid.hashes.length) broadcast("market", {gpuId:g.id,source:"ledger",askLevels:ladder.asks.length,bidLevels:ladder.bids.length});
       } catch (e) {
         out[g.id] = { error: (e as Error).message };
       } finally {

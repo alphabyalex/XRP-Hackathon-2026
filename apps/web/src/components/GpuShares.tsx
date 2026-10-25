@@ -52,6 +52,10 @@ export function GpuShares({ gpu, view }: { gpu: ApiGpuDetail; view: GpuView }) {
   const bids = levels(stats?.bids);
   const asks = levels(stats?.asks);
   const trades = stats?.trades ?? [];
+  const [depthLevels, setDepthLevels] = useState("5");
+  const visibleBids = depthLevels === "all" ? bids : bids.slice(0, Number(depthLevels));
+  const visibleAsks = depthLevels === "all" ? asks : asks.slice(0, Number(depthLevels));
+  const bestBid = bids[0]?.price ?? null, bestAsk = asks[0]?.price ?? null;
 
   return (
     <div className="shares-view">
@@ -71,12 +75,20 @@ export function GpuShares({ gpu, view }: { gpu: ApiGpuDetail; view: GpuView }) {
         </div>
         <div className="shares-book">
           <div className="panel">
-            <h4 className="panel-h">Depth</h4>
-            <DepthChart bids={bids} asks={asks} height={180} format={(v) => fmt(v, 3)} />
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
+              <h4 className="panel-h">Depth</h4>
+              <label className="note">Price levels <select aria-label="Depth price levels" value={depthLevels} onChange={e=>setDepthLevels(e.target.value)}><option value="5">5 per side</option><option value="10">10 per side</option><option value="all">All</option></select></label>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:12,marginBottom:8}}>
+              <span>Bid <b className="up">{bestBid===null?"–":fmt(bestBid,3)}</b></span>
+              <span>Spread {bestBid!==null&&bestAsk!==null?fmt(bestAsk-bestBid,3):"–"}</span>
+              <span>Ask <b className="dn">{bestAsk===null?"–":fmt(bestAsk,3)}</b></span>
+            </div>
+            <DepthChart bids={visibleBids} asks={visibleAsks} height={240} format={(v) => fmt(v, 3)} />
           </div>
           <div className="panel">
             <h4 className="panel-h">Order book</h4>
-            <OrderBook bids={bids} asks={asks} />
+            <OrderBook bids={visibleBids} asks={visibleAsks} />
           </div>
         </div>
         <div className="panel">
@@ -117,7 +129,7 @@ export function GpuShares({ gpu, view }: { gpu: ApiGpuDetail; view: GpuView }) {
           )}
         </div>
       </div>
-      <Ticket gpuId={gpu.id} gpuLabel={view.dashLabel} price={price} bestBid={bids.length ? Math.max(...bids.map((b) => b.price)) : null} />
+      <Ticket gpuId={gpu.id} gpuLabel={view.dashLabel} price={price} bestBid={bestBid} bestAsk={bestAsk} />
     </div>
   );
 }
@@ -145,7 +157,7 @@ function OrderBook({ bids, asks }: { bids: { price: number; qty: number }[]; ask
   );
 }
 
-function Ticket({ gpuId, gpuLabel, price, bestBid }: { gpuId: string; gpuLabel: string; price: number; bestBid: number | null }) {
+function Ticket({ gpuId, gpuLabel, price, bestBid, bestAsk }: { gpuId: string; gpuLabel: string; price: number; bestBid: number | null; bestAsk: number | null }) {
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [qty, setQty] = useState("");
   const [busy, setBusy] = useState(false);
@@ -154,7 +166,7 @@ function Ticket({ gpuId, gpuLabel, price, bestBid }: { gpuId: string; gpuLabel: 
   const refreshLive = useRefreshLive();
   const q = Number(qty) || 0;
   // A sell fills against the best bid; a buy at the market price.
-  const px = side === "sell" ? bestBid ?? price : price;
+  const px = side === "sell" ? bestBid ?? price : bestAsk ?? price;
 
   async function submit() {
     if (!q || busy) return;

@@ -6,10 +6,12 @@ import { logTx } from "./db/helpers.js";
 import { broadcast } from "./sse.js";
 import * as svc from "./lending/service.js";
 import * as risk from "./adapters/riskClient.js";
+import { startDevActivity } from "./devActivity.js";
 import { quoteMarket } from "./marketMaker.js";
 import { oraclePrice, lendingAvailable } from "./adapters/lendingAdapter.js";
 
 export function startBackgroundJobs(): void {
+  startDevActivity();
   // Keep both share books quoted around the reference price: 5 s after start, then every
   // minute (an unchanged offer is left alone). MARKET_MAKER=0 turns it off.
   const quote = () => {

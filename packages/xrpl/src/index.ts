@@ -13,6 +13,7 @@ export {
   getShareBook,
   getShareDepth,
   requoteShareOffer,
+  requoteShareLadder,
   shareFill,
   type ShareBook,
   type ShareDepth,
@@ -102,3 +103,5 @@ export {
   DEFAULT_GRACE_SECONDS,
 } from "./lendingLoans.js";
 export { conditionFor, releaseCollateral, seizeCollateral, escrowExists, decodeMemos } from "./collateral.js";
+
+export { liquidityLadder } from "./liquidity.js";
