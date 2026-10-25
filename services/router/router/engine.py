@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any
@@ -74,9 +75,39 @@ GENERAL = (
 )
 
 
+# A prompt that asks for a length ("about 2500 words") gets a reply that long: the in-process
+# worker keeps writing, section by section, the way a model follows a length instruction.
+LENGTH = re.compile(r"about ([\d,]+) words", re.I)
+SECTIONS = (
+    "Section {n}. The first measure is utilization: the share of the hour the GPU spent serving paid work, "
+    "read from the router's own leases rather than estimated.",
+    "Section {n}. Revenue follows utilization: each served token is billed at the GPU's hourly price divided "
+    "by its throughput, so an idle hour earns nothing and a busy hour earns the full rate.",
+    "Section {n}. Queue time matters as much as speed: a task that waits for a free slot finishes later even "
+    "on a fast card, which is why the router weighs wait, price and interruption risk together.",
+    "Section {n}. Checkpoints make a move cheap: the partial reply travels with the task, so a reclaimed GPU "
+    "costs a few seconds of warning window instead of a restart.",
+    "Section {n}. The payout closes the loop: the day's revenue, less hosting and reserve, is split across "
+    "the shares outstanding and paid to every holder in one ledger transaction.",
+)
+
+
 def answer_for(messages: list[dict[str, str]]) -> list[str]:
     """In-process reply text, split into word tokens (each keeps its leading space)."""
     prompt = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
+    words = _base_answer(prompt)
+    asked = LENGTH.search(prompt)
+    if asked:
+        target = min(int(asked.group(1).replace(",", "")), 20_000)
+        n = 0
+        while len(words) < target:
+            n += 1
+            words += [" " + w for w in SECTIONS[(n - 1) % len(SECTIONS)].format(n=n).split(" ")]
+        words = words[:target]
+    return words
+
+
+def _base_answer(prompt: str) -> list[str]:
     low = prompt.lower()
     text = next((a for k, a in ANSWERS if k in low), None)
     if text is None:
