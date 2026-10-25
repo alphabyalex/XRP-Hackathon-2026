@@ -30,7 +30,9 @@ rewrites. Environment changes require a new deployment.
 Deploy a clean checkout of the validated main revision from the repository root:
 
 ```bash
-vercel deploy --prod --yes --project moonshift --scope tharun-ekambarams-projects
+vercel deploy --prod --skip-domain --yes --project moonshift --scope tharun-ekambarams-projects
+# Inspect the successful build before promoting its returned deployment URL.
+vercel promote DEPLOYMENT_URL --yes --scope tharun-ekambarams-projects
 ```
 
 First check for an existing Git deployment of that exact commit. Do not create a
@@ -39,7 +41,7 @@ duplicate while it is building. The production build must pass before promotion.
 ## Sessions and live updates
 
 Browser requests use the frontend's same-origin `/api/*` proxy. This carries the
-existing HttpOnly, SameSite=Lax session cookie. Direct cross-origin browser calls
+existing HttpOnly, SameSite=Lax session cookie, marked Secure for HTTPS. Direct cross-origin browser calls
 will not carry the same session in normal browser settings. Server requests use
 the configured upstream origin directly.
 
@@ -50,10 +52,12 @@ retain their real source timestamps. Missing sources remain empty.
 ## Release validation
 
 - `/api/health` returns 200 on the frontend origin.
-- `/api/catalog/gpus` lists the health-checked T4 and V100 with actual resources.
-- `/api/models` identifies Qwen2.5-1.5B on GPU-A and Qwen2.5-3B on GPU-B.
+- `/api/catalog/gpus` lists only independently verified healthy workers with actual resources.
+- `/api/models` reports the canonical weights actually running on each serving worker.
 - A small pinned DEV task on each GPU returns a real answer and validated payment.
 - Wallet challenge, sign-in and account reads work through `/api` with cookies.
+- Anonymous model prompts return 401; funded authenticated prompts use the actual payer.
+- Signed booking ranges show a full-range USDC quote and reject altered or replayed consent.
 - Market, lending, Models and Docs load at 1280 and 400 pixels without overflow.
 - AWS comparisons retain source timestamps. Bedrock remains explicit opt-in and
   uses deterministic fallback on this backend.
@@ -91,3 +95,18 @@ do not support SSE; the normal 2 to 5 second polling remains necessary.
 Sources: [Akash persistent storage](https://akash.network/docs/developers/deployment/akash-sdl/advanced-features/),
 [Vercel environment variables](https://vercel.com/docs/environment-variables),
 [Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/).
+
+## Caching and observed activity
+
+Public GPU/model reads share short caches and concurrent requests in the browser
+and API. Writes and live events invalidate affected public reads. Wallet identity
+and balances never enter a public cache; active wallets poll the balance every
+five seconds, and prompt admission checks the actual issuer balance again.
+Private lending quotes are keyed by wallet, account and all quote inputs.
+
+The share books use funded protocol inventory and cash across five bid and ask
+levels. DEV makes bounded real IOC trades on devnet only. Uncertain submissions
+halt bot activity until reconciliation. Charts use actual fills, metered work,
+ledger observations and validated loan originations. They never backfill invented
+history. The borrowing cost curve is explicitly a what-if calculation from the
+real APR, selected collateral, principal and term.

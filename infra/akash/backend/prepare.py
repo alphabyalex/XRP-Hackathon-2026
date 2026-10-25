@@ -67,6 +67,20 @@ def runtime_settings() -> dict[str, str]:
     return result
 
 
+def render_environment(template: str, settings: dict[str, str]) -> tuple[str, dict[str, str]]:
+    # Hardware/model/price metadata is public configuration. Keeping it in the
+    # secret store exhausts Console's 100-secret deployment limit as the fleet
+    # expands. Credentials, private RPC URLs and GPU endpoints stay native secrets.
+    private = {key: value for key, value in settings.items() if
+               key in {"INTERNAL_API_KEY", "ADMIN_KEY", "MOONSHIFT_ACCOUNT_KEY"} or
+               key.endswith(("_SEED", "_WSS", "_URL"))}
+    if len(private) > 100:
+        raise RuntimeError("Too many private runtime settings for one deployment")
+    lines = ["      - " + json.dumps(f"{key}={('ac-secret://' + key) if key in private else settings[key]}")
+             for key in sorted(settings)]
+    return template.replace("      - MARKET_MAKER=1", "      - MARKET_MAKER=1\n" + "\n".join(lines)), private
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--revision", required=True)
@@ -84,8 +98,7 @@ def main() -> None:
     os.chmod(secret_path, 0o600)
     template = (Path(__file__).parent / "deploy.yaml").read_text()
     template = template.replace("RENDER_FULL_COMMIT_SHA", args.revision)
-    template = template.replace("      - MARKET_MAKER=1", "      - MARKET_MAKER=1\n" +
-        "\n".join(f"      - {key}=ac-secret://{key}" for key in sorted(settings)))
+    template, native_secrets = render_environment(template, settings)
     sdl_path = PRIVATE / "deploy.yaml"
     sdl_path.write_text(template)
     os.chmod(sdl_path, 0o600)
@@ -97,7 +110,7 @@ def main() -> None:
         cli_env = dict(os.environ)
         if credentials.get("AKT_CONSOLE_API_KEY"):
             cli_env["AKT_CONSOLE_API_KEY"] = credentials["AKT_CONSOLE_API_KEY"]
-        result = subprocess.run(command, input=json.dumps(settings), text=True, capture_output=True, env=cli_env)
+        result = subprocess.run(command, input=json.dumps(native_secrets), text=True, capture_output=True, env=cli_env)
         # CLI errors can embed request payloads. Never print raw response bodies.
         if result.returncode:
             failure = PRIVATE / "last-command-error.json"

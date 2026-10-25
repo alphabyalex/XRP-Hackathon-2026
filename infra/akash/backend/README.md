@@ -2,7 +2,7 @@
 
 The backend uses one CPU deployment with a persistent 20 GiB volume. Only the
 Express API port is public. Compute, pricing, risk, credit and router listen on
-loopback. The two GPU leases are separate deployments and remain running during
+loopback. GPU leases are separate deployments and remain running during
 backend updates.
 
 The official Node 24 image is pinned by digest. Bootstrap fetches an exact public
@@ -14,7 +14,8 @@ the API first. A persistent volume lock prevents overlapping backend writers.
 ## Prepare and inspect bids
 
 Commit, validate and push the release to `tharun` before running bootstrap.
-Set both GPU endpoints and their verified hardware, canonical model and accepted
+Set `GPU_NODES` explicitly to the independently verified workers. Set each
+GPU endpoint and its verified hardware, canonical model and accepted
 lease price in the gitignored local `.env`. Never print that file.
 
 ```bash
@@ -29,7 +30,10 @@ $0.03/hour at 600 blocks/hour. Inspect the real bid before accepting it. No AWS
 compute or paid Bedrock calls are enabled by this deployment.
 
 Runtime credentials are allowlisted and supplied through Console native secret
-references, using stdin. Akash management and AWS credentials are excluded.
+references, using stdin. Public hardware, canonical model and price metadata are
+ordinary quoted SDL environment settings. This keeps eight workers within
+Console's 100-secret limit. Private GPU/RPC URLs, signing seeds, operator keys
+and the account encryption key remain native secrets. Akash management and AWS credentials are excluded.
 The existing account encryption key is preserved. Public backend operator keys
 are generated separately. Private operational artifacts live under
 `~/.local/state/moonshift/backend`, with directory mode 0700 and file mode 0600.
@@ -60,8 +64,10 @@ current public account, lending and collateral registries. It preserves the
 local collateral records, wallet sessions and encrypted account seeds. Existing
 state is never reset. An integrity manifest is verified before any writer starts.
 
-Verify the API health, both catalog GPUs, both serving models, AWS timestamps and
-a small DEV task on each model. Verify settlement before connecting Vercel.
+Verify actual process revision and `GPU_NODES`, every compute supervisor, each
+public GPU detail/calendar/revenue read, canonical serving models, AWS timestamps
+and a small DEV task on every new model. A public endpoint health check alone
+does not prove that the compute registry can execute that node. Verify settlement before connecting Vercel.
 Keep the stopped laptop snapshot available for rollback. Before switching back,
 stop the cloud writer and copy its latest state back; do not boot both writers.
 
@@ -71,3 +77,8 @@ state before any provider migration or lease closure.
 
 SDL storage syntax follows the official
 [Akash persistent storage reference](https://akash.network/docs/developers/deployment/akash-sdl/advanced-features/).
+
+`akt console deployment sdl` can return the original creation SDL after a
+successful update. Verify the active process environment and source paths, live
+compute registry, and public route behavior as well. Never print the full process
+environment; report only the expected release SHA and enabled GPU IDs.

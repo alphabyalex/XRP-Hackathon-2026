@@ -88,7 +88,7 @@ export function ModelsContent() {
   const runId = useRef(0);
   const walletState = useWallet();
   const { wallet, account, loaded, refresh } = walletState;
-  const balanceFresh = Boolean(account?.balanceUpdatedAt && Date.now() - Date.parse(account.balanceUpdatedAt) >= 0 && Date.now() - Date.parse(account.balanceUpdatedAt) <= 15000);
+  const balanceFresh = Boolean(account?.balanceUpdatedAt && Date.now() - Date.parse(account.balanceUpdatedAt) >= -5000 && Date.now() - Date.parse(account.balanceUpdatedAt) <= 15000);
   const funded = Boolean(loaded && wallet?.verified && balanceFresh && Number(account?.balance) > 0);
 
   // The catalog and the GPUs behind it, polled every 5 s. Until GET /models

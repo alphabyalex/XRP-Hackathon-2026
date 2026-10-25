@@ -55,7 +55,13 @@ let running: Promise<void> | null = null;
 export function refreshHealth(): Promise<void> {
   if (!running) {
     const endpoints = new Set<string>();
+    const enabled = new Set((process.env.GPU_NODES ?? "gpu-a,gpu-b").split(",").map(id => id.trim()));
     running = Promise.all(GPUS.map(async (g) => {
+      if (!enabled.has(g.id)) {
+        state.set(g.id, { gpuId: g.id, kind: "hidden", ok: false, model: null, latencyMs: null,
+          checkedAt: new Date().toISOString(), error: "not_enabled" });
+        return;
+      }
       const endpoint = endpointOf(g.id);
       if (endpoint && endpoints.has(endpoint)) {
         state.set(g.id, { gpuId: g.id, kind: "hidden", ok: false, model: null, latencyMs: null,

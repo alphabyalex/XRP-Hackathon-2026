@@ -111,7 +111,8 @@ test("health hides duplicate endpoint aliases and preserves a genuine distinct G
 test("all eight physical IDs require their own matching canonical serving model", async () => {
   const { refreshHealth, gpuHealth } = await import("../src/gpuHealth.js");
   const originalFetch = globalThis.fetch;
-  const previous = new Map<string, string | undefined>();
+  const previous = new Map<string, string | undefined>([["GPU_NODES", process.env.GPU_NODES]]);
+  process.env.GPU_NODES = "gpu-a,gpu-b,gpu-c,gpu-d,gpu-e,gpu-f,gpu-g,gpu-h";
   for (const letter of "ABCDEFGH") {
     for (const suffix of ["VLLM_URL", "MODEL_ID"]) {
       const key = `GPU_${letter}_${suffix}`;
@@ -150,4 +151,25 @@ test("a model upgrade cannot use an older model's token throughput to advertise 
   const env = { GPU_E_PLANNING_MODEL_ID: "Qwen/Qwen2.5-3B-Instruct", GPU_E_PLANNING_OBSERVED_AT: "2026-10-25T14:00:00Z" };
   assert.equal(modelObservationStart("gpu-e", "Qwen/Qwen3.5-4B", base, env), null);
   assert.equal(modelObservationStart("gpu-e", "Qwen/Qwen3.5-4B", base, { ...env, GPU_E_PLANNING_MODEL_ID: "Qwen/Qwen3.5-4B" }), Date.parse(env.GPU_E_PLANNING_OBSERVED_AT));
+});
+
+test("an endpoint outside the enabled compute registry is never advertised as runnable", async () => {
+  const { refreshHealth, gpuHealth } = await import("../src/gpuHealth.js");
+  const original = {fetch:globalThis.fetch,nodes:process.env.GPU_NODES,url:process.env.GPU_C_VLLM_URL,model:process.env.GPU_C_MODEL_ID};
+  process.env.GPU_NODES = "gpu-a,gpu-b";
+  process.env.GPU_C_VLLM_URL = "http://disabled-c";
+  process.env.GPU_C_MODEL_ID = "Qwen/Qwen2.5-3B-Instruct";
+  let queriedDisabled = false;
+  globalThis.fetch = async url => { if(String(url).includes("disabled-c")) queriedDisabled=true; return Response.json({data:[{id:"Qwen/Qwen2.5-3B-Instruct"}]}); };
+  try {
+    await refreshHealth();
+    assert.equal(queriedDisabled,false);
+    assert.equal(gpuHealth().find(g=>g.gpuId==="gpu-c")?.error,"not_enabled");
+    process.env.GPU_NODES = "gpu-a,gpu-b,gpu-c";
+    await refreshHealth();
+    assert.equal(gpuHealth().find(g=>g.gpuId==="gpu-c")?.ok,true);
+  } finally {
+    globalThis.fetch=original.fetch;
+    for(const [key,value] of Object.entries({GPU_NODES:original.nodes,GPU_C_VLLM_URL:original.url,GPU_C_MODEL_ID:original.model})) if(value===undefined)delete process.env[key];else process.env[key]=value;
+  }
 });

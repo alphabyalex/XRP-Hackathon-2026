@@ -1,8 +1,9 @@
 # AWS: Bedrock and live GPU price comparisons
 
 Moonshift uses Amazon Bedrock for task sizing and credit explanations. A live,
-read-only AWS price feed supplies spot and on-demand comparisons. Compute runs
-on separate Akash NVIDIA T4 and Tesla V100 leases.
+read-only AWS price feed supplies spot and on-demand comparisons. Compute runs on independently verified Akash GPU leases. Actual hardware, model,
+lease costs and measurements are recorded under `infra/akash/leases` and
+`contracts/compute`; unverified workers stay unavailable.
 
 EC2 GPU quota was denied; no EC2 GPU instance is deployed.
 
@@ -22,8 +23,8 @@ never call AWS. Alex verifies real calls on his machine during integration.
 render or other. The service asks Haiku only for resource sizes and duration.
 Strict validation allows 1 to 8 GPUs, 1 to 128 vCPU, 1 to 1024 GB RAM,
 1 to 10000 GB storage and 60 to 604800 seconds. Integers must actually be
-integers. Inference can name only the deployed Qwen2.5-1.5B-Instruct; other
-task types cannot select a model. Extra fields and model-invented prices
+integers. Inference must use a model actually served by the selected healthy worker;
+other task types cannot select a model. Extra fields and model-invented prices
 are rejected. Invalid JSON, invalid sizes, unavailable credentials and timeouts
 all return the deterministic estimator with `source: "fallback"`.
 
@@ -90,10 +91,13 @@ on that node.
 
 ## Reservations
 
-`POST /bookings` reserves the physical node before requesting a ledger payment.
+`POST /bookings/quote` prices the whole selected UTC range.
+`POST /bookings/challenge` binds the wallet, account, GPU, start, end and maximum
+payment to an expiring one-use consent. Crossmark signs the exact message.
+`POST /bookings` verifies the signature and reserves the physical node before
+requesting a ledger payment.
 The signed-in account prepays the live quote to that GPU's treasury. Inference
-inside its active reservation has no additional token charge. The browser must
-supply a stable `Idempotency-Key`; retries replay confirmation or report pending
+inside its active reservation has no additional token charge. The approval ID is the stable idempotency key; retries replay confirmation or report pending
 without charging again. Unknown payment outcomes and failed cancellations remain
 in a durable pending journal for operator reconciliation. They are never shown
 as confirmed or automatically submitted again. Operators verify the ledger
@@ -105,7 +109,7 @@ On Alexander's machine, after the local stack is running with opt-in enabled:
 
 ```bash
 curl --fail --json '{"description":"Summarize a short article","type":"inference"}' \
-  http://127.0.0.1:4000/tasks/estimate
+  --header "Cookie: $MOONSHIFT_SESSION_COOKIE" http://127.0.0.1:4000/tasks/estimate
 curl --fail http://127.0.0.1:4000/catalog/aws
 curl --fail http://127.0.0.1:4000/catalog/gpus
 ```
@@ -115,6 +119,17 @@ fallback, inspect IAM/model access on Alex's machine without printing keys.
 Verify source timestamps on both AWS price classes. Run a small task and verify
 its settlement separately. Follow docs/VERCEL.md for the API tunnel and web release.
 
-The morning release adds the separately authorized V100 lease. Paid AWS
-infrastructure and Bedrock calls remain disabled on this machine and on the
-Akash backend.
+Every model prompt requires a verified wallet session and a freshly read positive
+USDC balance from the configured issuer on the validated ledger. Browser balances
+and caller-supplied account names are not trusted. Anonymous prompts return 401;
+zero balances return 402. The authorized internal operator can use DEV for checks.
+Paid AWS infrastructure and Bedrock calls remain disabled on the Akash backend.
+
+Qwen3.5-4B is supported as a separately verified modern-model deployment. Fresh
+calls disable thinking for short replies. A resumed call uses that actual node's
+`/tokenize` chat template with the unfinished assistant message, then passes exact
+token IDs to `/v1/completions`. Old vLLM 0.6.2 nodes receive no modern-only options.
+A model remains unavailable until real hardware, canonical weights, fresh and
+resumed generation, and measured throughput pass. Sources:
+[Qwen model card](https://huggingface.co/Qwen/Qwen3.5-4B),
+[vLLM 0.17.1 supported models](https://docs.vllm.ai/en/v0.17.1/models/supported_models/).
