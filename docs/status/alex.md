@@ -71,3 +71,17 @@ Night run, 2026-10-25. Branch `alex`. Started 04:36 ET from de6b6e8 (alex = main
 - The Home code panel fades into the section under it with a mask, instead of ending on a hard edge.
 - GPU page submit uses the router checkout (the path demo:check covers, with cap and refund). The describe box sets its task type and, for GPU-hour tasks, its size.
 - Candles on the share view use the api's hourly price history plus every live price the page sees; no bucket is filled in.
+
+## Morning fix, Terminal A (2026-10-25 08:40 to 09:55 ET)
+
+- 08:42 contracts pushed: `contracts/api/gpu_stats.json`, `collateral_options.json`, `lending_base_apr.json`, `lending_markets.json`, `lending_dashboard.json`, `lending_loanbook.json`, `applications.json`.
+- Fix 1: `.env` has no `GPU_B_VLLM_URL` (GPU-B is the stand-in again) and has `BEDROCK_ENABLED=1`. Bedrock sizing needed two pricing fixes: accept a Bedrock API key (`AWS_BEARER_TOKEN_BEDROCK`) and take the JSON object out of a fenced answer. "Fine-tune a 1B model on 50k customer support chats" returns `source: bedrock`, `taskType: fine-tune`.
+- Fix 2: cause was concurrency on the single vLLM node. An order's requests streamed at once and failed together. Compute now runs one stream per node at a time and retries once on the same node before any token is sent, logging the real cause. 5 Balanced tasks in a row all settled on GPU-A with charge and refund (18 to 21 s each).
+- Fix 3: one share price, a stored reference per GPU (`share_reference`) that moves only by the amount paid per share on a payout. GPU-A reset to 20.00 and GPU-B to 5.00 at 08:50; it held through three restarts. The market maker quotes 1.5% either side every minute. `change24hPct` runs from today's open (or today's reset). Borrow collateral, the max borrow and the keeper read the same price; a stress test overrides it until Restore. Cause of the climb: NAV included treasury cash, which grew with every share sale. A second cause: a stack outside this laptop with old code kept publishing the oracle at 58 to 60.
+- Fix 4: `GET /gpus/:id/stats` live. One payout source (dividend ledger); yields everywhere are 24 h payouts per share at the price. A real GPU-A payout ran at 09:01 (3.9996 USDC to 50 holders).
+- Fix 5: books two-sided for GPU-A (19.70 / 20.30) and GPU-B (4.925 / 5.075). CAROL sells when a treasury is empty. 1-share buys filled at the ask. Market buys are capped at 5% over the price.
+- Fix 6: Cheapest at our rate times the live AWS spot / on-demand ratio, Balanced halfway, Fastest our full rate; Cheapest is estimated 30% longer. Router quote 0.0037 / 0.0053 / 0.0069; task quote 0.108 / 0.154 / 0.200 an hour, rates as of the newest AWS price.
+- Fix 7: price per hour 0.200 (Akash lease 0.160 plus 25%), with the GPU market, AWS spot and on-demand beside it. Qwen2.5 1.5B is 1.67 USD per 1M output tokens (measured about 33 tokens/s).
+- Fix 8: lending routes live; over-limit is 409 OVER_LIMIT with maxBorrow; an unfunded wallet gets 409 "Fund this wallet first."
+- Not done: fix 9 (activity script), `POST /market/:gpuId/order` (buys and sells use /shares).
+- Integration 09:10 and 09:33: merged origin/lucy, typecheck clean, demo:prod fresh build, demo:check 12 of 12 both times.
