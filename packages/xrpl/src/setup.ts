@@ -459,20 +459,18 @@ export async function rotateAccount(name: AccountName): Promise<{ address: strin
 // Demo resets: seized collateral piles up with the broker and the treasury's
 // sell offer runs dry. Send the broker's shares back to the GPU treasury and
 // list whatever the treasury holds but does not have on offer, at `price`.
-export async function restockShares(gpuId: GpuId, price = "5.000000"): Promise<{ returned: string; listed: string }> {
+// demo:reset: seized collateral (GPU shares the lending pool took in liquidations) goes back to the GPU's
+// treasury. It is not listed here: a fixed-price listing (it was 5.00) filled at once against the market
+// maker's bid near NAV and moved the treasury's cash; the market maker lists the treasury's shares at NAV
+// on its next quote (apps/api marketMaker.ts).
+export async function restockShares(gpuId: GpuId): Promise<{ returned: string }> {
   const gpu = GPUS.find((g) => g.id === gpuId)!;
   const client = await getClient();
   const shareIssuer = getAccountAddress("SHARE_ISSUER");
-  const tdxIssuer = getAccountAddress("TDX_ISSUER");
   const treasury = getAccountWallet(treasuryOf(gpuId));
   const broker = getAccountWallet("LENDING_POOL");
-  const balanceOf = async (address: string) => {
-    const res = await client.request({ command: "account_lines", account: address, ledger_index: "validated" });
-    const line = res.result.lines.find((l) => l.currency === gpu.shareCode && l.account === shareIssuer);
-    return Number(line?.balance ?? 0);
-  };
-
-  const held = await balanceOf(broker.address);
+  const res = await client.request({ command: "account_lines", account: broker.address, ledger_index: "validated" });
+  const held = Number(res.result.lines.find((l) => l.currency === gpu.shareCode && l.account === shareIssuer)?.balance ?? 0);
   if (held > 0) {
     await submitTx(broker, {
       TransactionType: "Payment",
@@ -481,19 +479,5 @@ export async function restockShares(gpuId: GpuId, price = "5.000000"): Promise<{
       Amount: { currency: gpu.shareCode, issuer: shareIssuer, value: held.toFixed(6) },
     } as Payment);
   }
-
-  const offers = await client.request({ command: "account_offers", account: treasury.address, ledger_index: "validated" });
-  const offered = (offers.result.offers ?? [])
-    .filter((o) => typeof o.taker_gets === "object" && o.taker_gets.currency === gpu.shareCode)
-    .reduce((s, o) => s + Number((o.taker_gets as any).value), 0);
-  const free = (await balanceOf(treasury.address)) - offered;
-  if (free > 0.000001) {
-    await submitTx(treasury, {
-      TransactionType: "OfferCreate",
-      Account: treasury.address,
-      TakerGets: { currency: gpu.shareCode, issuer: shareIssuer, value: free.toFixed(6) },
-      TakerPays: { currency: "TDX", issuer: tdxIssuer, value: (free * Number(price)).toFixed(6) },
-    } as OfferCreate);
-  }
-  return { returned: held.toFixed(6), listed: Math.max(0, free).toFixed(6) };
+  return { returned: held.toFixed(6) };
 }
