@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
 import { StressControls } from "./LendingBits";
-import { InstantSwitchCard } from "./InstantSwitchCard";
 import { apiFetch } from "@/lib/api";
 import { fmt } from "@/lib/format";
 import {
@@ -256,7 +255,6 @@ export function AdminRouter() {
         ))}
 
         <h3>Infrastructure</h3>
-        <InstantSwitchCard />
 
         <h3>Market benchmark</h3>
         <p className="why">

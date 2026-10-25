@@ -54,7 +54,8 @@ export function useTween(target: number[], ms = chartTheme.tweenMs): number[] {
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, ms]);
-  return shown;
+  // Same length as the target on every render (the tween state lags one render when points are added).
+  return target.map((t, i) => shown[i] ?? t);
 }
 
 // Width of the chart's box, so SVG coordinates are real pixels (crisp text, no stretching).

@@ -15,12 +15,13 @@ import type {
   LoanRecord,
 } from "@moonshift/shared";
 
+// In a browser off localhost, always call the same origin's /api (next.config.mjs proxies it), so the
+// SameSite=Lax wallet session cookie is sent. The server and localhost talk to the api directly.
+const browserOffLocalhost = typeof window !== "undefined" && window.location.hostname !== "localhost";
 export const API_BASE = (
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.API_URL ||
-  (typeof window !== "undefined" && window.location.hostname !== "localhost"
+  browserOffLocalhost
     ? `${window.location.origin}/api`
-    : `http://localhost:${PORTS.api}`)
+    : process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || `http://localhost:${PORTS.api}`
 ).replace(/\/+$/, "");
 
 // The api answered 401: nobody is signed in (the wallet session cookie is missing).
