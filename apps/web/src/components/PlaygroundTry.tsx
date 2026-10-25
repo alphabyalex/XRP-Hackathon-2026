@@ -11,8 +11,8 @@ import { useReveal } from "@/hooks/useReveal";
 // time and shows its real answer. Answers are cached for the session, so a question is only paid
 // for once. The api returns the full answer, so the reveal here is client-side.
 const QUESTIONS = [
-  "Explain VWAP in one line",
-  "What does a GPU do that a CPU can't, in two sentences?",
+  "Explain what a GPU does in one sentence",
+  "Why are GPUs good at running AI models? Two sentences.",
   "Give me three names for a coffee shop on the moon",
   "Why do people tokenize real assets? One short paragraph.",
   "Write a haiku about a server that never sleeps",

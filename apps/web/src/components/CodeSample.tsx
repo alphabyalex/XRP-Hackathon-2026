@@ -11,7 +11,7 @@ const tokens = (base: string): Tok[] => [
   ["k", "from"], ["", " openai "], ["k", "import"], ["", " OpenAI\n\n"],
   ["", "client = OpenAI(\n    base_url="], ["s", `"${base}/v1"`], ["", ",\n    api_key=os.environ["], ["s", '"MOONSHIFT_KEY"'], ["", "],\n)\n\n"],
   ["", "r = client.chat.completions.create(\n    model="], ["s", '"Qwen/Qwen2.5-1.5B-Instruct"'], ["", ",\n    messages=[{"],
-  ["s", '"role"'], ["", ": "], ["s", '"user"'], ["", ",\n               "], ["s", '"content"'], ["", ": "], ["s", '"Explain VWAP in one line"'], ["", "}],\n"],
+  ["s", '"role"'], ["", ": "], ["s", '"user"'], ["", ",\n               "], ["s", '"content"'], ["", ": "], ["s", '"Explain what a GPU does in one sentence"'], ["", "}],\n"],
   ["", "    extra_body={"], ["s", '"priority"'], ["", ": "], ["s", '"balanced"'], ["", "},  "], ["c", "# cheapest | balanced | fastest"], ["", "\n)\n"],
   ["c", "# routed to the best GPU for that priority"],
 ];
