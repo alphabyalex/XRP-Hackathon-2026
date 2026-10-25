@@ -42,7 +42,8 @@ export function RentTabContent({ checkoutHref = "/market" }: { checkoutHref?: st
   const spot = usd(aws?.spot?.[0]?.usdPerHour);
   const rows: ClusterRow[] = GPUS.flatMap((g) => {
     const res = gpus[g.id]?.resources;
-    if (!res) return [];
+    // Only health-checked GPUs are listed: a GPU compute reports OFFLINE drops off until it is back.
+    if (!res || gpus[g.id].state === "OFFLINE") return [];
     return [
       {
         id: g.id,

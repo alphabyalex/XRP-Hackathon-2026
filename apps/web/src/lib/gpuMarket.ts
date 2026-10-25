@@ -35,12 +35,18 @@ export interface GpuStats {
   updatedAt?: string;
 }
 
-export const useGpuStats = (gpuId: string) => usePolled<GpuStats>(`/gpus/${encodeURIComponent(gpuId)}/stats`, { ms: 3000, on: ["market", "stats", "tx"] });
+// Off until Kristian's routes are on the merged api (GET /gpus/:id/stats, POST /market/:gpuId/order):
+// calling a missing route every 3 s would only log errors. Flip at integration once they answer.
+export const STATS_LIVE = false;
+
+export const useGpuStats = (gpuId: string) =>
+  usePolled<GpuStats>(STATS_LIVE ? `/gpus/${encodeURIComponent(gpuId)}/stats` : null, { ms: 3000, on: ["market", "stats", "tx"] });
 
 export const toMs = (t: string | number) => (typeof t === "number" ? (t < 1e12 ? t * 1000 : t) : new Date(t).getTime());
 
 // Market order on the share / USDC book. Falls back to the share routes the api has today.
 export async function placeOrder(gpuId: string, side: "buy" | "sell", qty: string, price?: string): Promise<TxResult> {
+  if (!STATS_LIVE) return apiFetch<TxResult>(side === "buy" ? "/shares/buy" : "/shares/sell", { method: "POST", body: JSON.stringify({ gpuId, qty, price }) });
   try {
     return await apiFetch<TxResult>(`/market/${encodeURIComponent(gpuId)}/order`, { method: "POST", body: JSON.stringify({ side, qty, price }) });
   } catch (err) {
