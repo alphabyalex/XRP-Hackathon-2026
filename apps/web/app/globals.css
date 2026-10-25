@@ -74,6 +74,10 @@ body {
 }
 main {
   flex: 1 0 auto;
+  /* body is a flex column (footer at the bottom); a centered main (main.wrap)
+     would otherwise shrink to its content and let a wide table widen the page */
+  width: 100%;
+  min-width: 0;
 }
 button,
 input,
