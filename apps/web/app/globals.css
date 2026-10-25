@@ -2252,3 +2252,11 @@ button.cal7-cell.free {
   font-size: 11px;
   color: var(--ink3);
 }
+
+/* The page you are on is bold in the nav (not on Home). */
+.nav .links a.on,
+.nav .nav-tab.on,
+.nav-menu a.on {
+  font-weight: 600;
+  color: var(--ink);
+}

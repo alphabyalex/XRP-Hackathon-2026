@@ -15,6 +15,13 @@ const LINKS = [
   { href: "/docs", label: "Docs" },
 ];
 
+// The section the current page belongs to (bold in the nav). Home has none; a GPU page is part of Market.
+function isCurrent(path: string | null, href: string) {
+  if (!path || path === "/") return false;
+  if (href === "/market" && path.startsWith("/gpu/")) return true;
+  return path === href || path.startsWith(href + "/");
+}
+
 export function Nav() {
   const [scrolled, setScrolled] = useState(false);
   const [onNight, setOnNight] = useState(false);
@@ -42,13 +49,17 @@ export function Nav() {
         </Link>
         <nav className="links" aria-label="Main">
           {LINKS.map((l) => (
-            <Link key={l.href} href={l.href}>
+            <Link key={l.href} href={l.href} className={clsx(isCurrent(path, l.href) && "on")} aria-current={isCurrent(path, l.href) ? "page" : undefined}>
               {l.label}
             </Link>
           ))}
         </nav>
         <div className="nav-end">
-          <Link className="nav-tab" href="/portfolio">
+          <Link
+            className={clsx("nav-tab", isCurrent(path, "/portfolio") && "on")}
+            href="/portfolio"
+            aria-current={isCurrent(path, "/portfolio") ? "page" : undefined}
+          >
             Portfolio
           </Link>
           <WalletButton />
@@ -60,7 +71,7 @@ export function Nav() {
       <div id="nav-menu" className={clsx("nav-menu", open && "open")} hidden={!open}>
         <nav className="wrap" aria-label="Main, small screens">
           {[...LINKS, { href: "/portfolio", label: "Portfolio" }].map((l) => (
-            <Link key={l.href} href={l.href}>
+            <Link key={l.href} href={l.href} className={clsx(isCurrent(path, l.href) && "on")} aria-current={isCurrent(path, l.href) ? "page" : undefined}>
               {l.label}
             </Link>
           ))}
