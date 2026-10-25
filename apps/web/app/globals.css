@@ -1161,8 +1161,9 @@ input[type="range"]::-moz-range-thumb {
   gap: 12px;
 }
 .ledger code {
-  font-family: var(--code);
-  font-size: 13px;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 500;
   color: var(--ink);
 }
 
@@ -1902,8 +1903,11 @@ section.s.close {
 section.s.close-bottom {
   padding-bottom: clamp(40px, 5vw, 72px);
 }
+/* Live numbers are set like every other number: Schibsted Grotesk, proportional figures
+   (BRAND.md rule 3: never tabular or monospace digits). */
 .live-num {
-  font-variant-numeric: tabular-nums;
+  font-family: var(--sans);
+  font-variant-numeric: normal;
 }
 .rent-tab .where {
   display: block;

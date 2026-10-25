@@ -27,6 +27,12 @@ const ease = (t: number) => 1 - Math.pow(1 - t, 3);
 
 // Tween a list of numbers toward `target` whenever it changes. New items start from the last
 // shown value, so an appended point grows out of the line instead of jumping in.
+// Bounded by design: nothing runs when the values did not move, a long series (a candle chart,
+// a day of samples) or a hidden tab or reduced motion jumps straight to the target, and the
+// frame loop always ends on the exact target. Each frame updates only this hook's component.
+const MAX_TWEEN = 120;
+const same = (a: number[], b: number[]) => a.length === b.length && a.every((v, i) => v === b[i] || (Number.isNaN(v) && Number.isNaN(b[i])));
+
 export function useTween(target: number[], ms = chartTheme.tweenMs): number[] {
   const [shown, setShown] = useState<number[]>(target);
   const from = useRef<number[]>(target);
@@ -34,24 +40,34 @@ export function useTween(target: number[], ms = chartTheme.tweenMs): number[] {
   const key = target.join(",");
   useEffect(() => {
     const start = current.current;
-    const last = start.length ? start[start.length - 1] : target[0] ?? 0;
-    from.current = target.map((_, i) => (i < start.length ? start[i] : last));
-    if (typeof window === "undefined" || ms <= 0 || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    if (same(start, target)) return;
+    const jump =
+      typeof window === "undefined" ||
+      ms <= 0 ||
+      target.length > MAX_TWEEN ||
+      document.hidden ||
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (jump) {
       current.current = target;
       setShown(target);
       return;
     }
+    const last = start.length ? start[start.length - 1] : target[0] ?? 0;
+    from.current = target.map((_, i) => (i < start.length ? start[i] : last));
     let raf = 0;
     const t0 = performance.now();
     const step = (now: number) => {
       const k = ease(Math.min(1, (now - t0) / ms));
-      const next = target.map((v, i) => from.current[i] + (v - from.current[i]) * k);
+      const next = k >= 1 ? target : target.map((v, i) => from.current[i] + (v - from.current[i]) * k);
       current.current = next;
       setShown(next);
       if (k < 1) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      // Interrupted mid-tween: the next tween starts from where this one was.
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, ms]);
   // Same length as the target on every render (the tween state lags one render when points are added).

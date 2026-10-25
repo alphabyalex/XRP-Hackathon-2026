@@ -165,7 +165,7 @@ export function HomeContent() {
       )}
 
       {featured && (
-        <section className="s tinted close">
+        <section className="s tinted close close-bottom">
           <div className="wrap">
             <MoneyStack revenue24h={featured.revenue24h} />
           </div>
@@ -173,7 +173,7 @@ export function HomeContent() {
       )}
 
       {featured && (
-        <section className="s close-bottom" id="borrow">
+        <section className="s close close-bottom" id="borrow">
           <div className="wrap">
             <div className="borrow">
               <Reveal>

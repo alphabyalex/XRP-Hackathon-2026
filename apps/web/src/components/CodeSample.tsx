@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { useReveal } from "@/hooks/useReveal";
-import { API_BASE } from "@/lib/api";
 
 // The OpenAI client snippet, typed out once when it scrolls into view. Tokens keep their
 // highlight class while they type, so the colors never flash in afterwards.
@@ -15,9 +14,8 @@ const tokens = (base: string): Tok[] => [
   ["", "    extra_body={"], ["s", '"priority"'], ["", ": "], ["s", '"balanced"'], ["", "},  "], ["c", "# cheapest | balanced | fastest"], ["", "\n)\n"],
   ["c", "# routed to the best GPU for that priority"],
 ];
-// Same address on the server and the first client render; the real one (a tunnel serves the api
-// under /api) swaps in after mount.
-const SERVER_BASE = "http://localhost:4000";
+// The public base URL developers call, the same on the server and in the browser.
+const PUBLIC_BASE = "https://moonshift-protocol.vercel.app/api";
 const CHARS_PER_TICK = 3;
 
 export function CodeSample() {
@@ -25,9 +23,7 @@ export function CodeSample() {
   const rm = usePrefersReducedMotion();
   const { ref, inView } = useReveal<HTMLDivElement>();
   const [shown, setShown] = useState(0);
-  const [base, setBase] = useState(SERVER_BASE);
-  useEffect(() => setBase(API_BASE), []);
-  const TOKENS = tokens(base);
+  const TOKENS = tokens(PUBLIC_BASE);
   const PLAIN_TEXT = TOKENS.map((t) => t[1]).join("");
   const total = PLAIN_TEXT.length;
 
