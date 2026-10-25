@@ -35,6 +35,9 @@ app.use(express.json());
 app.use(sessionUser);
 
 // public reads
+app.use((await import("./routes/catalog.js")).catalogRouter);
+app.use((await import("./routes/models.js")).modelsRouter);
+app.use((await import("./routes/tasks.js")).tasksRouter);
 app.use(gpusRouter);
 app.use(portfolioRouter);
 app.use(accountRouter);

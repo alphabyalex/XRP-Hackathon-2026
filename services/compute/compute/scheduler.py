@@ -8,11 +8,12 @@ import os
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Literal
 
 from .config import Settings
-from .models import BookingRequest, ComputeError
+from .models import BookingRequest, ComputeError, UsageEvent
 from .monte_carlo import MonteCarloRiskEngine
 
 
@@ -136,9 +137,10 @@ class GpuSupervisor:
         self._bookings: list[Booking] = []
         self._inflight: dict[str, Inflight] = {}
         self._history: list[dict[str, object]] = []
+        self._usage: dict[str, UsageEvent] = {}
         self._offline = False
 
-        # Both GPUs are the same card running the same model (NVIDIA T4 16GB, Qwen3 1.7B).
+        # GPU-A runs Qwen2.5-1.5B-Instruct on an NVIDIA T4 with 16 GB VRAM.
         total_vram = 16.0
         model_vram = 3.5
         resident = self.model
@@ -167,11 +169,13 @@ class GpuSupervisor:
         try:
             content = json.loads(self.snapshot_path.read_text(encoding="utf-8"))
             bookings = [Booking.from_snapshot(item) for item in content.get("bookings", [])]
+            usage = [UsageEvent.model_validate(item) for item in content.get("usage", [])]
         except (OSError, ValueError, KeyError, TypeError) as error:
             raise RuntimeError(f"Could not load scheduler snapshot {self.snapshot_path}") from error
 
         async with self._lock:
             self._bookings = [booking for booking in bookings if booking.end > utc_now()]
+            self._usage = {event.request_id: event for event in usage}
 
     def _persist_unlocked(self) -> None:
         self.snapshot_path.parent.mkdir(parents=True, exist_ok=True)
@@ -180,6 +184,7 @@ class GpuSupervisor:
             "gpu_id": self.gpu_id,
             "saved_at": utc_now().isoformat(),
             "bookings": [booking.snapshot() for booking in self._bookings],
+            "usage": [event.model_dump(mode="json") for event in self._usage.values()],
         }
         temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
         os.replace(temporary, self.snapshot_path)
@@ -418,8 +423,6 @@ class GpuSupervisor:
         async with self._lock:
             buckets: list[dict[str, object]] = []
             curr = start
-            booked_rate_per_min = 4.95 / 60.0
-            inf_rate_per_min = 1.80 / 60.0
 
             while curr < end:
                 b_end = min(curr + bucket_duration, end)
@@ -453,24 +456,18 @@ class GpuSupervisor:
                 booked_min = booked_overlap_sec / 60.0
                 inf_min = inf_overlap_sec / 60.0
                 is_simulated = self.simulated or self.settings.mock
-
-                if booked_min == 0.0 and inf_min == 0.0:
-                    h = (int(curr.timestamp()) // 3600) % 24
-                    util_pct = 60.0 + (h % 5) * 6.5
-                    active_min = b_total_minutes * (util_pct / 100.0)
-                    booked_min = active_min * 0.45
-                    inf_min = active_min * 0.55
-                    is_simulated = True
-
                 idle_min = max(0.0, b_total_minutes - booked_min - inf_min)
                 util_pct = min(100.0, ((booked_min + inf_min) / b_total_minutes) * 100.0)
-                rev = (booked_min * booked_rate_per_min) + (inf_min * inf_rate_per_min)
+                metered = [event for event in self._usage.values() if curr <= event.finished_at < b_end]
+                revenue = sum((Decimal(event.charge) for event in metered), Decimal(0))
 
                 buckets.append(
                     {
                         "start": curr.isoformat(),
                         "end": b_end.isoformat(),
-                        "revenue": f"{rev:.6f}",
+                        "revenue": f"{revenue:.6f}" if metered else None,
+                        "revenueAvailable": bool(metered),
+                        "source": "usage_meter",
                         "bookedMinutes": int(round(booked_min)),
                         "inferenceMinutes": int(round(inf_min)),
                         "idleMinutes": int(round(idle_min)),
@@ -481,6 +478,16 @@ class GpuSupervisor:
                 curr = b_end
 
             return buckets
+
+    async def record_usage(self, event: UsageEvent) -> None:
+        """Persist measured completed charges by request ID. Occupancy alone never implies income."""
+        if event.gpu_id != self.gpu_id or Decimal(event.charge) < 0:
+            raise ValueError("Usage must belong to this GPU and contain a nonnegative charge")
+        async with self._lock:
+            self._usage[event.request_id] = event
+            cutoff = utc_now() - timedelta(days=30)
+            self._usage = {key: value for key, value in self._usage.items() if value.finished_at >= cutoff}
+            self._persist_unlocked()
 
 
 class Scheduler:

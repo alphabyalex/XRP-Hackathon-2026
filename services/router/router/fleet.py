@@ -72,7 +72,12 @@ class GpuView:
 
 
 def _expand(s: str) -> str:
-    return re.sub(r"\$\{(\w+)\}", lambda m: os.getenv(m.group(1), ""), s or "")
+    expanded = re.sub(
+        r"\$\{(\w+)\}",
+        lambda m: C.COMPUTE_URL if m.group(1) == "COMPUTE_URL" else os.getenv(m.group(1), ""),
+        s or "",
+    )
+    return C.service_url(expanded)
 
 
 FLEET_FILES = {"live": "fleet.live.json", "own": "fleet.own.json"}
@@ -86,10 +91,12 @@ def benchmark_offer(
         o
         for o in catalog.values()
         if o.provider != "moonshift"
+        and (C.FLEET_SOURCE == "mock" or o.priceSource == "live")
         and (provider is None or o.provider == provider)
         and o.capacityType == capacity
         and o.availability.status != "none"
         and o.pricePerHourUsd > 0
+        and (C.FLEET_SOURCE == "mock" or o.age_seconds(now_utc()) <= C.CATALOG_MAX_AGE_SECONDS * C.LAST_GOOD_FACTOR)
         and (gpu_key(o.gpuModel) or o.gpuModel) == gpu_model
     ]
     return min(rows, key=lambda o: (o.pricePerHourUsd / max(o.gpuCount, 1), o.key), default=None)
@@ -107,7 +114,7 @@ def load_entries(catalog: dict[str, Offer]) -> list[FleetEntry]:
         bench: dict[str, Any] | None = None
         if "moonshift" in g:
             m = g["moonshift"]
-            price = float(m["pricePerHourUsdc"])
+            price = float(m.get("pricePerHourUsdc", 0)) if C.FLEET_SOURCE == "mock" else 0.0
             if m.get("benchmark"):
                 # "T4" (any provider) or {"gpuModel": "T4", "provider": "aws"}: the on-demand offer sets the
                 # price; the spot offer, when there is one, sets the Pausable service level (optimizer.py).
@@ -127,11 +134,12 @@ def load_entries(catalog: dict[str, Offer]) -> list[FleetEntry]:
                 gpu_count=1,
                 capacity_type="moonshift",
                 price_per_hour_usd=price,
-                price_source="static",
-                as_of=iso(now_utc()),
-                availability=Availability("live"),
+                price_source="live" if bench else "static",
+                as_of=bench["asOf"] if bench else iso(now_utc()),
+                availability=Availability("live" if C.FLEET_SOURCE == "mock" or bench else "none"),
             )
-            hardware, found = m.get("hardware", m["gpuModel"]), True
+            hardware = m.get("hardware", m["gpuModel"])
+            found = C.FLEET_SOURCE == "mock" or bench is not None
         else:
             offer = catalog.get(g["offer"])  # type: ignore[assignment]
             found = offer is not None
@@ -188,6 +196,7 @@ class FleetState:
     _compute_fetched: datetime | None = None
     # Moonshift GPUs apps/api does not list (endpoint missing or failing its health check).
     unlisted: set[str] = field(default_factory=set)
+    healthy_pools: set[str] = field(default_factory=set)
     _listing_fetched: datetime | None = None
 
     # ---- jobs and reclaims ----
@@ -216,17 +225,21 @@ class FleetState:
     # ---- services/compute calendar ----
 
     async def refresh_listing(self, transport: httpx.AsyncBaseTransport | None = None) -> None:
-        """Which Moonshift GPUs apps/api lists (GET /gpus-health, apps/api gpuHealth.ts), once a minute.
-        Unreachable api: keep the last answer (at start, everything is listed)."""
+        """Only a passing endpoint health check admits a live pool. Unreachable API fails closed."""
         now = now_utc()
         if self._listing_fetched and (now - self._listing_fetched).total_seconds() < C.CALENDAR_CACHE_SECONDS:
             return
         self._listing_fetched = now
         try:
             async with httpx.AsyncClient(transport=transport, timeout=2.0) as http:
-                rows = (await http.get(f"{C.API_URL}/gpus-health")).json()
+                response = await http.get(f"{C.API_URL}/gpus-health")
+                response.raise_for_status()
+                rows = response.json()
             self.unlisted = {r["gpuId"] for r in rows if not r.get("ok")}
+            self.healthy_pools = {r["gpuId"] for r in rows if r.get("ok")}
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
+            if C.FLEET_SOURCE != "mock":
+                self.healthy_pools.clear()
             log.info("gpu listing unavailable (%s); using the last known", type(e).__name__)
 
     async def refresh_compute(
@@ -243,8 +256,15 @@ class FleetState:
         headers = {"X-MS-Internal-Key": C.INTERNAL_API_KEY} if C.INTERNAL_API_KEY else {}
         try:
             async with httpx.AsyncClient(transport=transport, timeout=2.0, headers=headers) as http:
-                gpus = (await http.get(f"{C.COMPUTE_URL}/gpus")).json()
-                self.compute_offline = {g["id"] for g in gpus if g.get("state") == "OFFLINE"}
+                response = await http.get(f"{C.COMPUTE_URL}/gpus")
+                response.raise_for_status()
+                gpus = response.json()
+                self.compute_offline = {
+                    g["id"] for g in gpus
+                    if g.get("state") == "OFFLINE" or (C.FLEET_SOURCE != "mock" and g.get("simulated"))
+                }
+                if C.FLEET_SOURCE != "mock":
+                    self.compute_offline.update(set(ids) - {g["id"] for g in gpus})
                 for cid in ids:
                     r = await http.get(
                         f"{C.COMPUTE_URL}/gpus/{cid}/calendar",
@@ -254,6 +274,8 @@ class FleetState:
                         (parse_time(w["start"]), parse_time(w["end"])) for w in r.json() if w.get("kind") == "BOOKED"
                     ]
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
+            if C.FLEET_SOURCE != "mock":
+                self.compute_offline.update(ids)
             log.info("compute calendar unavailable (%s); using last known windows", type(e).__name__)
 
     # ---- views ----
@@ -273,12 +295,16 @@ class FleetState:
             wait = max(0.0, (ends[len(jobs) - e.maxConcurrent] - now).total_seconds())
         # Fresh: within CATALOG_MAX_AGE. Last good snapshot: up to 4x that, still usable but degraded
         # (availability treated as unknown, the optimizer adds risk). Older: excluded.
-        age = 0.0 if e.offer.priceSource == "static" or e.offer.provider == "moonshift" else e.offer.age_seconds(now)
+        age = 0.0 if C.FLEET_SOURCE == "mock" and e.offer.provider == "moonshift" else e.offer.age_seconds(now)
         fresh = age <= C.CATALOG_MAX_AGE_SECONDS
         degraded = not fresh and age <= C.CATALOG_MAX_AGE_SECONDS * C.LAST_GOOD_FACTOR
         reason = None
         if not e.offerFound:
             reason = "OFFER_MISSING"
+        elif C.FLEET_SOURCE != "mock" and not e.endpoint:
+            reason = "NO_ENDPOINT"
+        elif C.FLEET_SOURCE != "mock" and e.moonshiftGpuId not in self.healthy_pools:
+            reason = "NOT_LISTED"
         elif e.offer.provider == "moonshift" and e.moonshiftGpuId in self.unlisted:
             reason = "NOT_LISTED"
         elif self.reclaimed(e.id, now):
@@ -312,7 +338,7 @@ class FleetState:
             queueWaitSeconds=wait,
             bookedWindows=windows,
             available=reason is None,
-            executable=e.offerFound,
+            executable=e.offerFound if C.FLEET_SOURCE == "mock" else reason is None,
             fresh=fresh,
             offerKey=e.offer.key,
             asOf=e.offer.asOf,

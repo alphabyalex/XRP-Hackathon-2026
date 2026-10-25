@@ -1,0 +1,23 @@
+{
+  "endpoint": "POST /v1/chat/completions",
+  "request": {
+    "model": "Qwen/Qwen2.5-1.5B-Instruct",
+    "gpuId": "gpu-a",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with exactly Moonshift."
+      }
+    ],
+    "max_tokens": 12,
+    "priority": "balanced"
+  },
+  "notes": [
+    "gpuId pins execution to the requested serving GPU. gpu_id is accepted as a compatibility alias.",
+    "Unsupported model or GPU IDs are rejected before payment.",
+    "The response waits for settled status and price_usdc is the actual charged amount, not the estimate.",
+    "estimate_usdc, cap_usdc and settlement_status are returned separately.",
+    "Unknown prompt token count and total token count are null rather than invented zero.",
+    "Non-inference task types cannot be executed by the current text endpoint."
+  ]
+}

@@ -56,11 +56,19 @@ function taskRequest(type: TaskType, size: number, deadline: string): OrderReque
   return { kind: "rental", taskType: type, minutes: Math.max(1, Math.round(size * 60)), deadlineSeconds };
 }
 
-export function ComputeCheckout() {
-  const [type, setType] = useState<TaskType>("inference");
-  const [size, setSize] = useState("5000");
+// On the GPU page the task type and, for GPU-hour tasks, the size come from TaskDescribe above it
+// (`task`); the mode chosen here is reported back so its hardware quote uses the same one.
+export function ComputeCheckout({ task, onMode }: { task?: { type: TaskType; gpuHours: number }; onMode?: (m: Mode) => void } = {}) {
+  const [ownType, setType] = useState<TaskType>("inference");
+  const [ownSize, setSize] = useState("5000");
+  const type = task?.type ?? ownType;
+  const size = task && task.type !== "inference" ? String(Math.round(task.gpuHours * 100) / 100) : ownSize;
   const [deadline, setDeadline] = useState("");
-  const [mode, setMode] = useState<Mode>("balanced");
+  const [mode, setModeState] = useState<Mode>("balanced");
+  const setMode = (m: Mode) => {
+    setModeState(m);
+    onMode?.(m);
+  };
   const [buffer, setBuffer] = useState<Buffer>("25");
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoteErr, setQuoteErr] = useState<string | null>(null);
@@ -134,7 +142,8 @@ export function ComputeCheckout() {
 
   return (
     <div>
-      <span className="lbl">Task</span>
+      {!task && <span className="lbl">Task</span>}
+      {!task && (
       <div className="task-types" role="radiogroup" aria-label="Task">
         {TYPES.map((t) => (
           <button
@@ -152,12 +161,22 @@ export function ComputeCheckout() {
           </button>
         ))}
       </div>
-      <label className="lbl" htmlFor="task-size">
-        Size ({inference ? "tokens" : "GPU-hours"})
-      </label>
-      <div className="inp">
-        <input id="task-size" type="text" autoComplete="off" inputMode="decimal" value={size} onChange={(e) => setSize(typedAmount(e.target.value))} />
-      </div>
+      )}
+      {task && !inference ? (
+        <div className="line">
+          <span>Size</span>
+          <b>{fmt(n, 2)} GPU-hours</b>
+        </div>
+      ) : (
+        <>
+          <label className="lbl" htmlFor="task-size">
+            Size ({inference ? "tokens" : "GPU-hours"})
+          </label>
+          <div className="inp">
+            <input id="task-size" type="text" autoComplete="off" inputMode="decimal" value={size} onChange={(e) => setSize(typedAmount(e.target.value))} />
+          </div>
+        </>
+      )}
       {tooBig && <p className="note dn">{maxText}</p>}
       <label className="lbl task-deadline" htmlFor="task-deadline">
         Deadline (optional)

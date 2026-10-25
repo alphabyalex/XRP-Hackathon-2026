@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from functools import cache
 from pathlib import Path
 from typing import Any
@@ -35,12 +36,17 @@ def _flag(name: str, default: str = "0") -> bool:
     return _env(name, default).lower() in {"1", "true", "yes"}
 
 
+def service_url(value: str) -> str:
+    """Local Python workers bind IPv4; localhost can reach macOS AirPlay over IPv6 instead."""
+    return re.sub(r"^(https?://)localhost(?=[:/]|$)", r"\g<1>127.0.0.1", value.rstrip("/"))
+
+
 # ---- Runtime ---------------------------------------------------------------------------
 
 PORT = int(_env("PORT", "7200"))
 INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "")
-API_URL = _env("API_URL", "http://localhost:4000").rstrip("/")
-COMPUTE_URL = _env("COMPUTE_URL", "http://localhost:5001").rstrip("/")
+API_URL = service_url(_env("API_URL", "http://127.0.0.1:4000"))
+COMPUTE_URL = service_url(_env("COMPUTE_URL", "http://127.0.0.1:5001"))
 # XRPL network for the order escrow and settlement. devnet or testnet only; mainnet is refused.
 NETWORK = _env("NETWORK", "devnet").lower()
 EXPLORER = _env("XRPL_EXPLORER", f"https://{'testnet' if NETWORK == 'testnet' else 'devnet'}.xrpl.org").rstrip("/")
@@ -48,12 +54,12 @@ DB_PATH = Path(_env("ROUTER_DB_PATH", str(SERVICE_DIR / "data" / "router.db")))
 
 # ---- Backends: every external dependency has a local / mock mode ------------------------
 
-FLEET_SOURCE = _env("FLEET_SOURCE", "mock").lower()  # mock | own | live
+FLEET_SOURCE = _env("FLEET_SOURCE", "own").lower()  # mock (tests only) | own | live
 STATE_BACKEND = _env("STATE_BACKEND", "local").lower()  # local (SQLite) | dynamodb
 QUEUE_BACKEND = _env("QUEUE_BACKEND", "local").lower()  # local | sqs
 ORCHESTRATOR = _env("ORCHESTRATOR", "local").lower()  # local | stepfunctions
-# Price adapters: PRICE_SOURCES=all|none|comma list of collectors to call live; the rest use fixtures.
-PRICE_SOURCES = _env("PRICE_SOURCES", "none").lower()
+# Non-mock fleets collect live sources only. Public AWS prices need no account or credentials.
+PRICE_SOURCES = _env("PRICE_SOURCES", "aws_public").lower()
 SETTLEMENT = _env("SETTLEMENT", "api").lower()  # api | ledger (both: settle on XRPL) | off (tests only)
 # Who signs: router (default) = services/router signs and submits with xrpl-py (EscrowCreate, Batch
 # EscrowFinish + payouts + refund). api = the older path, plain Payments through apps/api /internal/router/pay.
@@ -149,7 +155,12 @@ def live_source(collector: str) -> bool:
     """Whether a price collector calls its real API (else it parses its fixture)."""
     if PRICE_SOURCES in {"", "none"}:
         return False
-    return PRICE_SOURCES == "all" or collector in {s.strip() for s in PRICE_SOURCES.split(",")}
+    selected = {s.strip() for s in PRICE_SOURCES.split(",")}
+    parent = {
+        "aws_spot_price": "aws_spot", "aws_spot_advisor": "aws_spot", "aws_placement": "aws_spot",
+        "aws_pricing": "aws_on_demand", "aws_capacity_blocks": "aws_on_demand",
+    }.get(collector)
+    return PRICE_SOURCES == "all" or collector in selected or parent in selected
 
 # Price cap on every order: max price = estimate x (1 + buffer). The buyer sets the cap aside up
 # front; settlement charges the actual cost and refunds the rest. A paused order (cap reached)

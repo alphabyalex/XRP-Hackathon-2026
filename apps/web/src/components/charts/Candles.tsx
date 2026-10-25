@@ -25,16 +25,23 @@ export interface Candle {
 export function toCandles(ticks: Tick[], interval: CandleInterval): Candle[] {
   const size = MS[interval];
   const out = new Map<number, Candle>();
+  // A candle opens at the previous candle's close (as exchanges draw it), so a series of
+  // hourly closes still shows each hour's move.
+  let prevClose: number | null = null;
   for (const tk of [...ticks].sort((a, b) => a.t - b.t)) {
     const t = Math.floor(tk.t / size) * size;
     const c = out.get(t);
-    if (!c) out.set(t, { t, o: tk.price, h: tk.price, l: tk.price, c: tk.price, v: tk.qty ?? 0 });
+    if (!c) {
+      const o = prevClose ?? tk.price;
+      out.set(t, { t, o, h: Math.max(o, tk.price), l: Math.min(o, tk.price), c: tk.price, v: tk.qty ?? 0 });
+    }
     else {
       c.h = Math.max(c.h, tk.price);
       c.l = Math.min(c.l, tk.price);
       c.c = tk.price;
       c.v += tk.qty ?? 0;
     }
+    prevClose = tk.price;
   }
   return [...out.values()];
 }

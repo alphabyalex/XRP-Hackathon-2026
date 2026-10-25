@@ -169,15 +169,9 @@ class ComputeRouter:
         except asyncio.TimeoutError as error:
             await worker.release(request_id, succeeded=False)
             raise ComputeError("UPSTREAM_ERROR", "The model request exceeded its runtime timeout.", 503) from error
-        except ProviderError:
-            # Fall back to local mock completion if remote worker is unreachable or pulling
-            mock_provider = MockProvider(self.settings.mock_latency_seconds)
-            completion = await mock_provider.complete(
-                messages=request.messages,
-                model=worker.model,
-                max_tokens=max_tokens,
-                temperature=request.temperature,
-            )
+        except ProviderError as error:
+            await worker.release(request_id, succeeded=False)
+            raise ComputeError("UPSTREAM_ERROR", "The model endpoint could not complete this request.", 503) from error
         except Exception:
             await worker.release(request_id, succeeded=False)
             raise
@@ -201,6 +195,7 @@ class ComputeRouter:
             simulated=simulated or simulated_demand,
         )
         await self.usage_reporter.report(event)
+        await worker.record_usage(event)
         x_ms: dict[str, object] = {
             "request_id": request_id,
             "gpu_id": worker.gpu_id,

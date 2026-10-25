@@ -1,4 +1,4 @@
-"""FLEET_SOURCE=own: tasks run only on GPU-A and GPU-B, priced from the market benchmark."""
+"""FLEET_SOURCE=own: only real GPU-A is configured, with a live market benchmark."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ def offer(provider: str, instance: str, capacity: str, price: float, status: str
         gpu_count=1,
         capacity_type=capacity,
         price_per_hour_usd=price,
-        price_source="fixture",
+        price_source="live",
         as_of=iso(now_utc()),
         availability=Availability(status),
     )
@@ -29,7 +29,7 @@ def catalog(*offers):
 def test_own_fleet_is_only_moonshift_gpus(monkeypatch):
     monkeypatch.setattr(C, "FLEET_SOURCE", "own")
     entries = load_entries(catalog(offer("aws", "g4dn.xlarge", "on-demand", 0.526)))
-    assert [(e.id, e.label, e.offer.provider) for e in entries] == [("gpu-a", "GPU-A", "moonshift"), ("gpu-b", "GPU-B", "moonshift")]
+    assert [(e.id, e.label, e.offer.provider) for e in entries] == [("gpu-a", "GPU-A", "moonshift")]
 
 
 def test_price_is_the_cheapest_on_demand_offer_for_the_same_gpu(monkeypatch):
@@ -49,10 +49,10 @@ def test_price_is_the_cheapest_on_demand_offer_for_the_same_gpu(monkeypatch):
         assert e.benchmark and e.benchmark["offerKey"] == "aws#us-east-1#g4dn.xlarge#on-demand"
 
 
-def test_listed_price_when_the_market_has_no_offer(monkeypatch):
+def test_gpu_is_unpriced_when_the_market_has_no_live_offer(monkeypatch):
     monkeypatch.setattr(C, "FLEET_SOURCE", "own")
     entries = load_entries(catalog())
-    assert all(e.offer.pricePerHourUsd == 0.526 and e.benchmark is None for e in entries)
+    assert all(e.offer.pricePerHourUsd == 0 and e.benchmark is None and not e.offerFound for e in entries)
 
 
 def test_gpus_apps_api_does_not_list_are_not_offered(monkeypatch):
@@ -63,4 +63,3 @@ def test_gpus_apps_api_does_not_list_are_not_offered(monkeypatch):
     state = FleetState(unlisted={"gpu-a"})
     views = {e.id: state.view(e, now_utc()) for e in entries}
     assert views["gpu-a"].available is False and views["gpu-a"].reason == "NOT_LISTED"
-    assert views["gpu-b"].available is True

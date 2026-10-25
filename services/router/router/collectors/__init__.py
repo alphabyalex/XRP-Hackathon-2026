@@ -9,8 +9,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from router import config as C
 from router.catalog import Offer
-from router.collectors import aws, others
+from router.collectors import aws, aws_public, others
 from router.collectors.base import CollectContext
 
 
@@ -23,6 +24,7 @@ class Collector:
 
 
 COLLECTORS: list[Collector] = [
+    Collector("aws_public", "aws", "spot", aws_public.collect),
     Collector("aws_spot", "aws", "spot", aws.collect_spot),
     Collector("aws_on_demand", "aws", "on_demand", aws.collect_on_demand),
     Collector("azure", "azure", "providers", others.azure),
@@ -44,6 +46,10 @@ def run(names: list[str] | None = None, ctx: CollectContext | None = None) -> tu
     errors: dict[str, str] = {}
     for c in COLLECTORS:
         if names is not None and c.name not in names:
+            continue
+        if C.FLEET_SOURCE != "mock" and not ctx.is_live(c.name):
+            continue
+        if c.name == "aws_public" and not ctx.is_live(c.name):
             continue
         try:
             offers.extend(c.fn(ctx))

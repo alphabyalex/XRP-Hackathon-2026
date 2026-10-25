@@ -12,7 +12,7 @@ Supports the 8-GPU decentralized compute fleet:
   - Node G: NVIDIA RTX 4000 Ada (20 GB GDDR6) - Europe / DigitalFrontier
   - Node H: NVIDIA Tesla P40 (24 GB GDDR5) - Europe / DigitalFrontier
 
-All nodes serve the unified model: `Qwen/Qwen3-1.7B` via vLLM openai-compatible endpoint.
+Prepared manifests load `Qwen/Qwen2.5-1.5B-Instruct` via vLLM openai-compatible endpoint.
 """
 
 from __future__ import annotations
@@ -36,12 +36,12 @@ AKT_BIN = "/opt/homebrew/bin/akt" if Path("/opt/homebrew/bin/akt").exists() else
 # 8 distinct GPU node specifications
 FLEET_SPEC: dict[str, dict[str, str | int]] = {
     "node-a": {"name": "node-a-t4", "model": "t4", "vram": "16GB", "desc": "NVIDIA T4 16GB", "region": "Europe (DigitalFrontier)", "sdl": "node-a-t4.yaml"},
-    "node-b": {"name": "node-e-v100", "model": "v100", "vram": "16GB", "desc": "NVIDIA Tesla V100 16GB", "region": "Europe (Zencloud)", "sdl": "node-e-v100.yaml"},
+    "node-b": {"name": "node-b-v100", "model": "v100", "vram": "16GB", "desc": "NVIDIA Tesla V100 16GB", "region": "Europe (Zencloud)", "sdl": "node-b-v100.yaml"},
     "node-c": {"name": "node-c-a100", "model": "a100", "vram": "80GB", "desc": "NVIDIA A100 Tensor Core 80GB", "region": "US Houston (DD)", "sdl": "node-c-a100.yaml"},
-    "node-d": {"name": "node-g-h100", "model": "h100", "vram": "80GB", "desc": "NVIDIA H100 SXM5 80GB", "region": "Europe Amsterdam (Val)", "sdl": "node-g-h100.yaml"},
-    "node-e": {"name": "node-b-rtx4090", "model": "rtx4090", "vram": "24GB", "desc": "NVIDIA GeForce RTX 4090 24GB", "region": "Eastern Europe (ProxyUA)", "sdl": "node-b-rtx4090.yaml"},
-    "node-f": {"name": "node-d-rtx3090", "model": "rtx3090", "vram": "24GB", "desc": "NVIDIA GeForce RTX 3090 24GB", "region": "North America (Ahn3)", "sdl": "node-d-rtx3090.yaml"},
-    "node-g": {"name": "node-f-rtx4000ada", "model": "rtx4000ada", "vram": "20GB", "desc": "NVIDIA RTX 4000 Ada 20GB", "region": "Europe (DigitalFrontier)", "sdl": "node-f-rtx4000ada.yaml"},
+    "node-d": {"name": "node-d-h100", "model": "h100", "vram": "80GB", "desc": "NVIDIA H100 SXM5 80GB", "region": "Europe Amsterdam (Val)", "sdl": "node-d-h100.yaml"},
+    "node-e": {"name": "node-e-rtx4090", "model": "rtx4090", "vram": "24GB", "desc": "NVIDIA GeForce RTX 4090 24GB", "region": "Eastern Europe (ProxyUA)", "sdl": "node-e-rtx4090.yaml"},
+    "node-f": {"name": "node-f-rtx3090", "model": "rtx3090", "vram": "24GB", "desc": "NVIDIA GeForce RTX 3090 24GB", "region": "North America (Ahn3)", "sdl": "node-f-rtx3090.yaml"},
+    "node-g": {"name": "node-g-rtx4000ada", "model": "rtx4000ada", "vram": "20GB", "desc": "NVIDIA RTX 4000 Ada 20GB", "region": "Europe (DigitalFrontier)", "sdl": "node-g-rtx4000ada.yaml"},
     "node-h": {"name": "node-h-p40", "model": "p40", "vram": "24GB", "desc": "NVIDIA Tesla P40 24GB", "region": "Europe (DigitalFrontier)", "sdl": "node-h-p40.yaml"},
 }
 
@@ -105,7 +105,7 @@ def cmd_screen() -> None:
             count = len(providers) if isinstance(providers, list) else 0
             status = f"{count} provider(s) online" if count > 0 else "Ready in catalog"
         except Exception:
-            status = "Audited"
+            status = "Provider status unavailable"
 
         print(f"{nid:<8} {spec['model']:<12} {spec['vram']:<8} {spec['desc']:<28} {spec['region']:<30} {status}")
     print("-" * 96)
@@ -158,7 +158,7 @@ def cmd_status(api_key: str | None) -> None:
         endpoint = state_data.get("endpoint")
         print(f"\n[+] Primary Active GPU Node (dseq {p_dseq}):")
         print(f"    vLLM Endpoint: {endpoint}")
-        print(f"    Model Served: Qwen/Qwen3-1.7B")
+        print("    Model weights: Qwen/Qwen2.5-1.5B-Instruct")
 
 
 def cmd_test_inference(endpoint: str | None = None) -> None:
@@ -173,7 +173,7 @@ def cmd_test_inference(endpoint: str | None = None) -> None:
     print(f"[*] Testing live vLLM inference on Akash GPU at {endpoint}...")
     url = f"{endpoint.rstrip('/')}/v1/chat/completions"
     payload = json.dumps({
-        "model": "Qwen/Qwen3-1.7B",
+        "model": os.getenv("GPU_A_VLLM_MODEL", "Qwen/Qwen3-1.7B"),
         "messages": [{"role": "user", "content": "What is Moonshift parallel compute in 1 sentence?"}],
         "max_tokens": 30,
     }).encode("utf-8")
@@ -253,7 +253,7 @@ def cmd_pricing() -> None:
     for arch, aws_eq, aws_rate, akash_rate, delta in rows:
         print(f"{arch:<24} {aws_eq:<26} {aws_rate:<14} {akash_rate:<14} {delta}")
     print("-" * 88)
-    print("Unified Inference Model: Qwen/Qwen3-1.7B (Zero cold-start weight residency)")
+    print("Prepared inference model: Qwen/Qwen2.5-1.5B-Instruct")
 
 
 def main() -> None:

@@ -1,17 +1,12 @@
 "use client";
-import { useState } from "react";
 import { utilizationOf } from "@/lib/schedule";
-import { AccountBalance } from "./AccountBalance";
 import dynamic from "next/dynamic";
 import { GPUS } from "@moonshift/shared";
 import { useLiveGpus, useApiUnreachable, useNow } from "@/lib/liveData";
 import { gpuView } from "@/lib/gpuView";
-import { fmt } from "@/lib/format";
 import { Button } from "./Button";
 import { AppWindow } from "./AppWindow";
-import { MarketTable } from "./MarketTable";
 import { RentTabContent } from "./RentTabContent";
-import { AccountPortfolio } from "./AccountPortfolio";
 import { ScheduleRows } from "./ScheduleRows";
 import { MoneyStack } from "./MoneyStack";
 import { BorrowPanel } from "./BorrowPanel";
@@ -19,41 +14,41 @@ import { CodeSample } from "./CodeSample";
 import { PlaygroundTry } from "./PlaygroundTry";
 import { ApiErrorNotice } from "./ApiErrorNotice";
 import { Reveal } from "./Reveal";
+import { LiveNumber } from "./LiveNumber";
 
 const Hero3DMark = dynamic(() => import("./Hero3DMark").then((m) => m.Hero3DMark), {
   ssr: false,
   loading: () => <div className="stage3d" />,
 });
 
-
-// "Two GPUs, earning now." (spelled out up to ten, as the copy reads).
-const WORDS = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
-function gpuCount(n: number): string {
-  if (!n) return "Live GPUs, earning now.";
-  return `${WORDS[n] ?? n} GPU${n === 1 ? "" : "s"}, earning now.`;
-}
+// "two GPUs" in the hero sentence (spelled out up to ten).
+const WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+const gpuWords = (n: number) => `${WORDS[n] ?? n} GPU${n === 1 ? "" : "s"}`;
 export function HomeContent() {
   const gpus = useLiveGpus();
   const now = useNow();
   const unreachable = useApiUnreachable();
-  const [activeAppTab, setActiveAppTab] = useState<string>("Market");
   const views = GPUS.map((g) => gpus[g.id]).filter(Boolean).map((g) => gpuView(g, now));
   const featured = views.find((v) => v.gpu.id === "gpu-a") ?? views[0];
 
+  // Counted only while compute reports the GPU connected (an offline GPU's shares still trade).
+  const live = views.filter((v) => v.gpu.state !== "OFFLINE");
   const paidLastNight = views.reduce((s, v) => s + v.split.holders, 0);
   // From the same slots the schedules draw, so the number and the bars agree.
-  const avgUtil = views.length ? views.reduce((s, v) => s + utilizationOf(v.slots, v.nowIndex), 0) / views.length : 0;
+  const avgUtil = live.length ? live.reduce((s, v) => s + utilizationOf(v.slots, v.nowIndex), 0) / live.length : 0;
 
   return (
     <main id="top">
       <section className="hero">
         <div className="wrap hero-in">
-          <div>
+          <Reveal>
             <h1>
               Own a <em>share</em> of a GPU.
             </h1>
             <p className="sub">
-              Moonshift splits real GPUs into shares on the XRP Ledger. Customers send tasks, the router runs each one on the best GPU, and every hour a GPU works pays its shareholders. Payouts land every night in USDC.
+              Moonshift splits real GPUs into shares on the XRP Ledger. Right now {gpuWords(live.length)} {live.length === 1 ? "is" : "are"} taking customer tasks, busy{" "}
+              <LiveNumber value={avgUtil} digits={1} suffix="%" /> of the last 20 hours. Last night shareholders were paid{" "}
+              <LiveNumber value={paidLastNight} digits={2} /> USDC.
             </p>
             <div className="ctas">
               <Button href="/market" arrow>
@@ -65,16 +60,23 @@ export function HomeContent() {
             </div>
             <div className="proof">
               <div>
-                <b>{fmt(paidLastNight, 2)} USDC</b>paid to holders last night
+                <b>
+                  <LiveNumber value={paidLastNight} digits={2} /> USDC
+                </b>
+                paid to holders last night
               </div>
               <div>
-                <b>{fmt(avgUtil, 1)}%</b>of the last 20 hours working
+                <b>
+                  <LiveNumber value={avgUtil} digits={1} suffix="%" />
+                </b>
+                of the last 20 hours working
               </div>
               <div>
-                <b>{views.length}</b>GPUs live on the XRPL
+                <b>{live.length}</b>
+                {live.length === 1 ? "GPU" : "GPUs"} live on the XRP Ledger
               </div>
             </div>
-          </div>
+          </Reveal>
           <Hero3DMark />
         </div>
       </section>
@@ -85,49 +87,24 @@ export function HomeContent() {
         </div>
       )}
 
-      <section className="s tinted" id="market">
+      <section className="s tinted close-bottom" id="market">
         <div className="wrap">
           <Reveal>
             <div className="shead">
-              <h2>{gpuCount(views.length)}</h2>
-              <p>Prices come from the order book on the XRP Ledger DEX. Yield is the last 24 hours of payouts, annualized.</p>
+              <h2>Rent a GPU by the hour</h2>
+              <p>Every GPU below passed its health check in the last minute. Run a task on one, or buy a share of what it earns.</p>
             </div>
           </Reveal>
           <Reveal>
-            <AppWindow
-              tabs={["Rent", "Market", "Portfolio", "Borrow", "Playground"]}
-              activeTab={activeAppTab}
-              onTabChange={setActiveAppTab}
-              acct={<AccountBalance />}
-            >
-              {activeAppTab === "Rent" && <RentTabContent />}
-              {activeAppTab === "Market" && (
-                <div className="tbl">
-                  <MarketTable views={views} />
-                </div>
-              )}
-              {activeAppTab === "Portfolio" && (
-                <div style={{ padding: "20px 24px" }}>
-                  <AccountPortfolio />
-                </div>
-              )}
-              {activeAppTab === "Borrow" && featured && (
-                <div style={{ padding: "24px 28px", maxWidth: 640, margin: "0 auto" }}>
-                  <BorrowPanel gpuId={featured.gpu.id} gpuLabel={featured.dashLabel} sharePrice={Number(featured.gpu.sharePrice) || 0} />
-                </div>
-              )}
-              {activeAppTab === "Playground" && (
-                <div style={{ padding: "24px 28px", maxWidth: 640, margin: "0 auto" }}>
-                  <PlaygroundTry />
-                </div>
-              )}
+            <AppWindow>
+              <RentTabContent checkoutHref="/market" />
             </AppWindow>
           </Reveal>
         </div>
       </section>
 
       {featured && (
-        <section className="s" id="schedule">
+        <section className="s close close-bottom" id="schedule">
           <div className="wrap">
             <Reveal>
               <div className="shead">
@@ -136,7 +113,10 @@ export function HomeContent() {
                   <br />
                   the clock.
                 </h2>
-                <p>This is {featured.dashLabel}&apos;s last 20 hours and next 4, in five minute slots. Lit time is the GPU working on customers&apos; tasks; gray is idle. As one task ends the router places the next, so the machine is rarely idle.</p>
+                <p>
+                  Here is {featured.dashLabel} over the last 20 hours and the next 4. Each bar is five minutes. Dark bars are customer work, light ones are idle time. When one task
+                  finishes the router hands it the next, so the gaps stay short.
+                </p>
               </div>
             </Reveal>
             <div className="sched-grid" style={{ gridTemplateColumns: "1fr", maxWidth: 860, marginInline: "auto" }}>
@@ -160,15 +140,21 @@ export function HomeContent() {
                   <div className="facts" style={{ marginTop: 40 }}>
                     <div>
                       <span>Working, last 20 hours</span>
-                      <b>{fmt(utilizationOf(featured.slots, featured.nowIndex), 1)}%</b>
+                      <b>
+                        <LiveNumber value={utilizationOf(featured.slots, featured.nowIndex)} digits={1} suffix="%" />
+                      </b>
                     </div>
                     <div>
                       <span>Revenue, last 24h</span>
-                      <b>{fmt(featured.revenue24h, 2)} USDC</b>
+                      <b>
+                        <LiveNumber value={featured.revenue24h} digits={2} /> USDC
+                      </b>
                     </div>
                     <div>
                       <span>Paid per share, last 24h</span>
-                      <b>{fmt(featured.split.holders / 1000, 6)} USDC</b>
+                      <b>
+                        <LiveNumber value={featured.split.holders / 1000} digits={6} /> USDC
+                      </b>
                     </div>
                   </div>
                 </div>
@@ -179,7 +165,7 @@ export function HomeContent() {
       )}
 
       {featured && (
-        <section className="s tinted">
+        <section className="s tinted close">
           <div className="wrap">
             <MoneyStack revenue24h={featured.revenue24h} />
           </div>
@@ -187,7 +173,7 @@ export function HomeContent() {
       )}
 
       {featured && (
-        <section className="s" id="borrow">
+        <section className="s close-bottom" id="borrow">
           <div className="wrap">
             <div className="borrow">
               <Reveal>
@@ -218,7 +204,7 @@ export function HomeContent() {
         </section>
       )}
 
-      <section className="s tinted" id="developers">
+      <section className="s tinted close" id="developers">
         <div className="wrap">
           <Reveal>
             <div className="shead">
@@ -229,7 +215,7 @@ export function HomeContent() {
           <Reveal>
             <div className="dev">
               <CodeSample />
-              <PlaygroundTry />
+              <PlaygroundTry autoplay />
             </div>
           </Reveal>
         </div>

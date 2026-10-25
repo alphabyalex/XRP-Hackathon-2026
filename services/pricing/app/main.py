@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app import config as C
 from app import pricing
-from app.agent import bedrock
+from app.agent import bedrock, task_estimate
 from app.money import to_dec
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -203,3 +203,8 @@ def agent_risk_alert(req_body: dict) -> dict:
         "latencyMs": res.latency_ms,
         "fellBack": res.fell_back,
     }
+
+
+@app.post("/agent/task-estimate", dependencies=[Depends(internal_key)])
+def agent_task_estimate(req: task_estimate.TaskEstimateRequest) -> dict:
+    return task_estimate.estimate_task(req)

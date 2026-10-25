@@ -1,8 +1,6 @@
 {
-  "endpoint": "GET /gpus/{id}/calendar?from=&to=",
-  "response": [
-    { "start": "2026-10-24T18:00:00Z", "end": "2026-10-24T18:05:00Z", "kind": "INFERENCE", "ref": null },
-    { "start": "2026-10-24T18:05:00Z", "end": "2026-10-24T18:10:00Z", "kind": "BOOKED", "ref": "redemption_abc123" },
-    { "start": "2026-10-24T18:10:00Z", "end": "2026-10-24T18:15:00Z", "kind": "HOLD", "ref": "booking_hold_xyz" }
-  ]
+  "endpoint": "GET /gpus/:id/calendar?days=7",
+  "request": {"gpuId": "gpu-a", "days": 7},
+  "response": {"gpuId": "gpu-a", "from": "2026-10-25T09:00:00.000Z", "to": "2026-11-01T09:00:00.000Z", "updatedAt": "2026-10-25T09:20:00.000Z", "events": [], "blocks": [{"start": "2026-10-25T09:00:00.000Z", "end": "2026-10-25T10:00:00.000Z", "bookedMinutes": 0, "runningMinutes": 0, "status": "free", "refs": []}]},
+  "notes": ["The response includes one block for every hour in the requested window.", "Events come only from the real compute scheduler. A failed read returns 503, never an empty synthetic calendar.", "Intervals reflect bookings and admitted running work, with no invented history.", "days must be an integer from 1 through 7."]
 }

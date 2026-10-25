@@ -1,0 +1,23 @@
+{
+  "method": "GET",
+  "path": "/catalog/aws",
+  "sse": {
+    "stream": "/events",
+    "event": "aws",
+    "data": {
+      "updatedAt": null,
+      "spot": [],
+      "onDemand": []
+    }
+  },
+  "response": {
+    "updatedAt": null,
+    "spot": [],
+    "onDemand": []
+  },
+  "notes": [
+    "An aws event is emitted when live spot/on-demand price snapshots change, including a transition to unavailable.",
+    "Every rate includes updatedAt from AWS collector asOf.",
+    "No fixture or static rate is exposed. Public polling is available for tunnels that cannot carry SSE."
+  ]
+}
