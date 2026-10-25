@@ -1887,3 +1887,10 @@ a.txl:hover {
   color: var(--ink);
   box-shadow: 0 1px 2px rgba(13, 13, 14, 0.08);
 }
+
+/* App view (AppWindow): part of the page, no browser box */
+.app-view {
+  width: 100%;
+  min-width: 0;
+  border-top: 1px solid var(--rule);
+}

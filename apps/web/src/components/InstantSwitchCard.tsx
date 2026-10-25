@@ -99,7 +99,7 @@ export function InstantSwitchCard() {
             className={`btn sm ${selectedGpu === "gpu-b" ? "ink" : "subtle"}`}
             onClick={() => setSelectedGpu("gpu-b")}
           >
-            GPU-B (T4 &middot; mock)
+            GPU-B (T4 &middot; built-in worker)
           </button>
         </div>
       </div>

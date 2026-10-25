@@ -43,7 +43,7 @@ export function GpuDetailContent({ id }: { id: string }) {
             <div>
               <b style={{ fontSize: 28 }}>{v.dashLabel}</b>
               <span>
-                {gpu.hw} &middot; {gpu.model} {gpu.resources?.region ? `· ${gpu.resources.region}` : ""}
+                {gpu.hw} {gpu.resources?.region ? `· ${gpu.resources.region}` : ""}
               </span>
             </div>
           </div>
