@@ -220,3 +220,15 @@ CREATE TABLE IF NOT EXISTS share_reference (
   updated_at TEXT NOT NULL,
   reason TEXT NOT NULL
 );
+
+-- Capital and new-market requests from the Lend page (routes/lendingViews.ts).
+CREATE TABLE IF NOT EXISTS applications (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  company TEXT,
+  details TEXT NOT NULL,
+  status TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);

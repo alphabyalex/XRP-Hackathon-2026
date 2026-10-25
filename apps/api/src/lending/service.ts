@@ -39,10 +39,18 @@ export class LendingError extends Error {
   constructor(
     public code: string,
     message: string,
-    public status = 400
+    public status = 400,
+    // Extra fields for the error body (OVER_LIMIT carries maxBorrow).
+    public extra: Record<string, unknown> = {}
   ) {
     super(message);
   }
+}
+
+// More than these shares can borrow: a 409 with the most they can, never a smaller loan.
+function overLimit(maxPrincipal: string | number): LendingError {
+  const max = Number(maxPrincipal);
+  return new LendingError("OVER_LIMIT", `This is more than these shares can borrow. The most is ${max.toFixed(2)} USDC.`, 409, { maxBorrow: fix6(max) });
 }
 
 // Demo loan defaults. Risk's model sizes max LTV by dividend coverage over
@@ -172,11 +180,7 @@ export async function buildQuote(req: LoanQuoteApiRequest): Promise<LoanQuoteApi
     quote = { ...quote, decision: "decline", reasons: [...new Set([...quote.reasons, "HIGHEST_RISK_GRADE"])] };
   } else if (quote.decision !== "approve") {
     const { maxPrincipal } = await timed("max", maxApprovedPrincipal({ ...req, borrower: req.borrower }));
-    if (Number(maxPrincipal) > 0 && Number(maxPrincipal) < Number(riskReq.principal)) {
-      counterOffer = { requested: riskReq.principal, offered: fix6(maxPrincipal) };
-      riskReq.principal = fix6(maxPrincipal);
-      ({ quote, source: riskSource } = await timed("risk quote", risk.quote(riskReq)));
-    }
+    if (Number(maxPrincipal) < Number(riskReq.principal)) throw overLimit(maxPrincipal);
   }
   // The memo is written in the background: the quote returns now and /borrow
   // shows APR, LTV and the lines immediately, then picks the memo up from
@@ -408,7 +412,13 @@ export async function openFromQuote(quoteId: string, actor?: Actor): Promise<Xls
   if (qrow.used) throw new LendingError("QUOTE_USED", "this quote already opened a loan", 409);
   if (new Date(qrow.expires_at).getTime() < Date.now()) throw new LendingError("QUOTE_EXPIRED", "quote expired; request a new one", 409);
   const q = JSON.parse(qrow.body) as LoanQuoteApiResponse;
-  if (q.quote.decision !== "approve") throw new LendingError("QUOTE_DECLINED", `risk declined this loan: ${q.quote.reasons.join(", ") || "LTV above max"}`, 409);
+  if (q.quote.decision !== "approve") {
+    if (q.quote.reasons.some((r) => /LTV|MAX|LIMIT/i.test(r))) {
+      const { maxPrincipal } = await maxApprovedPrincipal({ borrower: q.borrower, gpuId: q.gpuId, collateralShares: q.collateralShares });
+      if (Number(maxPrincipal) < Number(q.principal)) throw overLimit(maxPrincipal);
+    }
+    throw new LendingError("QUOTE_DECLINED", `risk declined this loan: ${q.quote.reasons.join(", ") || "LTV above max"}`, 409);
+  }
   const name = lending.nameOf(q.borrower);
   if (!name) throw new LendingError("BORROWER_NOT_CONFIGURED", "This account cannot sign loans.", 400);
   mustOwn(actor, name);

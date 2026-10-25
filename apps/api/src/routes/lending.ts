@@ -24,10 +24,15 @@ export function handle(fn: (req: Request, res: Response) => Promise<unknown>) {
     } catch (e) {
       const err = e as any;
       if (err instanceof svc.LendingError || (typeof err?.status === "number" && typeof err?.code === "string")) {
-        res.status(err.status).json({ error: { code: err.code, message: err.message } });
+        res.status(err.status).json({ error: { code: err.code, message: err.message, ...(err.extra ?? {}) } });
         return;
       }
       const msg = String(err?.message ?? err);
+      // A wallet the ledger has never seen cannot be scored or borrow yet.
+      if (/ACCOUNT_NOT_FOUND|actNotFound/.test(msg)) {
+        res.status(409).json({ error: { code: "WALLET_NOT_FUNDED", message: "Fund this wallet first." } });
+        return;
+      }
       const code = /^([A-Z_]{4,}):/.exec(msg)?.[1] ?? (err?.code && typeof err.code === "string" ? err.code : "INTERNAL");
       const status = /NO_LENDING_ROUND|NO_SUBSCRIBING_ROUND|ROUND_|tec|NOT_CONFIGURED/.test(msg) ? 409 : 500;
       res.status(status).json({ error: { code, message: msg } });
