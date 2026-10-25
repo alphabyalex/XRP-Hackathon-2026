@@ -9,12 +9,19 @@ import { estimateTask, quoteTask } from "@/lib/api";
 import { num, useModels, type CatalogGpu, type Sizing, type TaskQuote } from "@/lib/catalog";
 import { fmt } from "@/lib/format";
 import { fmtEta, type Mode, type TaskType } from "@/lib/routerApi";
+import { useApiEvents } from "@/lib/lendingApi";
 
 export type TaskSize = Omit<Sizing, "model">;
 
-// The serving endpoint runs text inference only (other types answer TASK_TYPE_UNAVAILABLE), so
-// only inference is offered here; planned types live on Docs.
-const TYPES: { value: TaskType; label: string }[] = [{ value: "inference", label: "Text inference" }];
+// All four task types. The estimate may pick one from the description; the quote prices the
+// hardware for whichever is chosen.
+const TYPES: { value: TaskType; label: string }[] = [
+  { value: "inference", label: "Text inference" },
+  { value: "fine-tune", label: "Fine-tune" },
+  { value: "render", label: "Render" },
+  { value: "other", label: "Other" },
+];
+const MODE_LABEL: Record<string, string> = { cheapest: "Cheapest", balanced: "Balanced", fastest: "Fastest" };
 
 function Slider({
   id,
@@ -87,7 +94,9 @@ export function TaskDescribe({
 
   useEffect(() => onSize(size), [size, onSize]);
 
-  // Live hardware quote: on every change, then every 5 seconds while the rates move.
+  // Live hardware quote: on every change, every 5 seconds, and on each live rate update.
+  const [rateTick, setRateTick] = useState(0);
+  useApiEvents(["aws", "calendar"], () => setRateTick((n) => n + 1));
   useEffect(() => {
     if (!gpu) return;
     let live = true;
@@ -106,7 +115,7 @@ export function TaskDescribe({
       clearTimeout(t0);
       clearInterval(t);
     };
-  }, [gpu, mode, size]);
+  }, [gpu, mode, size, rateTick]);
 
   async function estimate() {
     if (!text.trim() || busy) return;
@@ -125,6 +134,9 @@ export function TaskDescribe({
       setAnimating(true);
       setTimeout(() => setAnimating(false), 750);
       if (s.model && serving.some((m) => m.modelId === s.model)) setModel(s.model);
+      // The description can decide the type too (when the estimate names one).
+      const t = (e as { type?: string; taskType?: string }).type ?? (e as { taskType?: string }).taskType;
+      if (t && TYPES.some((x) => x.value === t)) onType(t as TaskType);
       setNote(e.source === "bedrock" ? "Sized by Amazon Bedrock from your description." : "Sized from your description with our standard rule.");
     } catch (err) {
       setNote((err as Error).message);
@@ -202,6 +214,17 @@ export function TaskDescribe({
         <p className="note" style={{ marginTop: 4 }}>
           ${fmt(Number(opt.pricePerHour), 3)} an hour, about {fmtEta(opt.estimatedDurationSeconds)}. Rates as of {new Date(opt.updatedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}.
         </p>
+      )}
+      {quote && quote.options.length > 1 && (
+        <div className="mode-prices" aria-label="Price by priority">
+          {quote.options.map((o) => (
+            <div key={o.mode} className={clsx(o.mode === mode && "on")}>
+              <span>{MODE_LABEL[o.mode] ?? o.mode}</span>
+              <b>${fmt(Number(o.totalPrice), 4)}</b>
+              <small>about {fmtEta(o.estimatedDurationSeconds)}</small>
+            </div>
+          ))}
+        </div>
       )}
       {!opt && quoteErr && <p className="note">{quoteErr}</p>}
     </div>
