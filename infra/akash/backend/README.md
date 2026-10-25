@@ -43,13 +43,18 @@ The snapshot tool refuses to run while a backend listener remains active.
 
 ```bash
 python3 infra/akash/backend/snapshot.py --source-stopped
+MOONSHIFT_SNAPSHOT_BYTES=$(wc -c < PRIVATE_SNAPSHOT_PATH | tr -d ' ')
 akt console shell BACKEND_DSEQ backend --stdin -- /bin/sh -ec \
-  'umask 077; tar -xz -C /data' < PRIVATE_SNAPSHOT_PATH
+  "umask 077; head -c $MOONSHIFT_SNAPSHOT_BYTES | tar -xz -C /data" < PRIVATE_SNAPSHOT_PATH
 akt console shell BACKEND_DSEQ backend -- /bin/sh -ec \
   'test -f /data/state/migration.json && touch /data/state/ACTIVATE'
 ```
 
 SQLite's backup API includes committed WAL records and checks database integrity.
+The bounded input is required by akt 1.0.4: its provider shell forwards the bytes
+but does not deliver stdin EOF. An unbounded gzip/tar pipeline can wait forever
+without extracting its final records. Always verify the manifest hashes after
+transfer and before activation.
 The archive contains the API, router and credit databases, compute/risk state and
 current public account, lending and collateral registries. It preserves the
 local collateral records, wallet sessions and encrypted account seeds. Existing

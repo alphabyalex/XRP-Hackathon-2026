@@ -84,7 +84,10 @@ def main() -> None:
         result = subprocess.run(command, input=json.dumps(settings), text=True, capture_output=True, env=cli_env)
         # CLI errors can embed request payloads. Never print raw response bodies.
         if result.returncode:
-            raise RuntimeError("Deployment creation failed; inspect the private operator response")
+            failure = PRIVATE / "last-command-error.json"
+            failure.write_text(json.dumps({"exitCode": result.returncode, "stdout": result.stdout, "stderr": result.stderr}))
+            failure.chmod(0o600)
+            raise RuntimeError("CLI returned an error. The remote mutation may already have succeeded. Inspect remote state and the private operator response before retrying.")
         payload = json.loads(result.stdout)
         response = PRIVATE / ("create-response.json" if args.create else "update-response.json")
         response.write_text(json.dumps(payload))

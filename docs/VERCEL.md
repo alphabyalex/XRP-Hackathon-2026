@@ -1,38 +1,79 @@
 # Moonshift on Vercel
 
-Production: https://moonshift-protocol.vercel.app
+Frontend: https://moonshift-protocol.vercel.app
+
+Backend: https://hqlndvicrddu7bkcop8kaptoh8.ingress.akash-palmito.org
 
 Project: `tharun-ekambarams-projects/moonshift`. Root directory: `apps/web`.
-Production traffic was resumed in the dashboard on 2026-10-25. No deployment
-was created during the night run. The existing deployment remains an older build
-until Alex releases the integrated head in the morning.
+The backend runs independently on Akash. Its deployment, persistent state and
+controlled migration are documented in `infra/akash/backend/README.md`.
 
-## Morning: Alexander's laptop
+## Production configuration
 
-Use Node 24 and Python 3.11 or later. Keep credentials only in the local,
-gitignored root `.env`. Never put keys in Vercel public variables.
-
-Terminal 1, from the repository root:
+Only the public API origin belongs in Vercel. Never upload the repository's
+local `.env`, account database, seeds, Akash management key or Quicknode URLs.
 
 ```bash
-git fetch origin
-git switch alex
-git pull --ff-only origin alex
-npm ci
-WEB_ORIGIN=https://moonshift-protocol.vercel.app BEDROCK_ENABLED=1 \
-  NODE_OPTIONS=--dns-result-order=ipv4first RISK_URL=http://127.0.0.1:7000 \
-  FLEET_SOURCE=own PRICE_SOURCES=aws_public npm run demo
+MOONSHIFT_API_ORIGIN='https://hqlndvicrddu7bkcop8kaptoh8.ingress.akash-palmito.org'
+curl --fail "$MOONSHIFT_API_ORIGIN/health"
+curl --fail "$MOONSHIFT_API_ORIGIN/catalog/gpus"
+vercel env add NEXT_PUBLIC_API_URL production --force --yes --no-sensitive \
+  --project moonshift --scope tharun-ekambarams-projects --value "$MOONSHIFT_API_ORIGIN"
+vercel env add API_URL production --force --yes --no-sensitive \
+  --project moonshift --scope tharun-ekambarams-projects --value "$MOONSHIFT_API_ORIGIN"
 ```
 
-The script starts services. On macOS AirPlay may also answer localhost on IPv6.
-The IPv4 DNS setting above and IPv4 compute adapters avoid that collision.
-Check the startup log for the selected compute and risk ports.
-Do not start a second stack. Verify the API before opening its tunnel:
+Both variables name the API root without `/api`. `NEXT_PUBLIC_API_URL` takes
+precedence. The setting is used by server requests and Next's external `/api/*`
+rewrites. Environment changes require a new deployment.
+
+Deploy a clean checkout of the validated main revision from the repository root:
 
 ```bash
+vercel deploy --prod --yes --project moonshift --scope tharun-ekambarams-projects
+```
+
+First check for an existing Git deployment of that exact commit. Do not create a
+duplicate while it is building. The production build must pass before promotion.
+
+## Sessions and live updates
+
+Browser requests use the frontend's same-origin `/api/*` proxy. This carries the
+existing HttpOnly, SameSite=Lax session cookie. Direct cross-origin browser calls
+will not carry the same session in normal browser settings. Server requests use
+the configured upstream origin directly.
+
+`/api/events` proxies to `/events`, and `/api/:path*` proxies to `/:path*`.
+Pages poll every 2 to 5 seconds and refresh on supported live events. API values
+retain their real source timestamps. Missing sources remain empty.
+
+## Release validation
+
+- `/api/health` returns 200 on the frontend origin.
+- `/api/catalog/gpus` lists the health-checked T4 and V100 with actual resources.
+- `/api/models` identifies Qwen2.5-1.5B on GPU-A and Qwen2.5-3B on GPU-B.
+- A small pinned DEV task on each GPU returns a real answer and validated payment.
+- Wallet challenge, sign-in and account reads work through `/api` with cookies.
+- Market, lending, Models and Docs load at 1280 and 400 pixels without overflow.
+- AWS comparisons retain source timestamps. Bedrock remains explicit opt-in and
+  uses deterministic fallback on this backend.
+
+Build in an isolated checkout. Do not share `apps/web/.next` between `next dev`
+and a production build.
+
+## Recovery tunnel from Alexander's laptop
+
+Use this only after stopping the Akash writer and restoring its latest state to
+the laptop. Never run two backend writers against the same accounts. Use Node 24,
+Python 3.11 or later and credentials in the gitignored root `.env`.
+
+Terminal 1, repository root:
+
+```bash
+WEB_ORIGIN=https://moonshift-protocol.vercel.app BEDROCK_ENABLED=0 \
+  NODE_OPTIONS=--dns-result-order=ipv4first FLEET_SOURCE=own \
+  PRICE_SOURCES=aws_public npm run demo
 curl --fail http://127.0.0.1:4000/health
-curl --fail http://127.0.0.1:4000/catalog/gpus
-curl --fail 'http://127.0.0.1:4000/models?gpuId=gpu-a'
 ```
 
 Terminal 2:
@@ -42,59 +83,11 @@ brew install cloudflared
 cloudflared tunnel --url http://127.0.0.1:4000
 ```
 
-Leave this terminal open. Copy only the generated public
-`https://...trycloudflare.com` origin below. It is an API URL, not a Quicknode
-endpoint. Its hostname changes whenever the tunnel restarts.
+Use the generated `https://...trycloudflare.com` origin in the two Vercel variable
+commands above, then deploy the validated web revision. Keep the laptop and
+tunnel running. The hostname changes when the tunnel restarts. Quick Tunnels
+do not support SSE; the normal 2 to 5 second polling remains necessary.
 
-Terminal 3, from the repository root:
-
-```bash
-MOONSHIFT_API_ORIGIN='https://replace-with-current-host.trycloudflare.com'
-curl --fail "$MOONSHIFT_API_ORIGIN/health"
-curl --fail "$MOONSHIFT_API_ORIGIN/catalog/gpus"
-vercel env add NEXT_PUBLIC_API_URL production --force --yes --no-sensitive \
-  --project moonshift --scope tharun-ekambarams-projects --value "$MOONSHIFT_API_ORIGIN"
-vercel env add API_URL production --force --yes --no-sensitive \
-  --project moonshift --scope tharun-ekambarams-projects --value "$MOONSHIFT_API_ORIGIN"
-```
-
-`NEXT_PUBLIC_API_URL` is the canonical upstream for server fetches and Next's
-`/api/*` rewrites. `API_URL` is only a legacy fallback. Both values above name
-the API root, without `/api` at the end. The public variable takes precedence.
-Environment changes require a subsequent deployment; they do not update a running
-build. Alex owns the morning release. Do not redeploy during the night run.
-
-## Browser sessions and live updates
-
-Browser requests must use the web origin's `/api/*` proxy. This keeps the existing
-HttpOnly, SameSite=Lax session cookie on the Vercel origin. Direct browser calls
-to the tunnel origin will not carry this session in normal browser settings.
-Server requests use `NEXT_PUBLIC_API_URL` to reach the upstream directly.
-
-The shared web API client must apply this rule to the router, lending and live
-data clients. Alex owns this change. Next rewrites `/api/events` to `/events`
-and `/api/:path*` to `/:path*`.
-
-Cloudflare Quick Tunnels do not support SSE. Poll reads every 2 to 5 seconds over
-this morning tunnel. `/catalog/aws` returns the same timestamped snapshot as the
-`aws` SSE event. Quotes use cached rates. For a stable URL and SSE use an existing
-named tunnel or another streaming-capable host. Quick Tunnels have no uptime
-guarantee and stop when their process exits.
-
-## Release validation
-
-- `/api/health` answers on the production web origin.
-- Catalog lists only health-checked endpoints and Qwen2.5-1.5B-Instruct on GPU-A.
-- Connect a wallet and verify account reads through `/api`, then run a small task.
-- On Alexander's laptop verify `/tasks/estimate` reports `source: "bedrock"` with
-  his configured Haiku model. Without opt-in and credentials it reports `fallback`.
-- AWS values include real source timestamps. Missing sources remain empty.
-- Keep the laptop stack and tunnel running for the presentation.
-
-Do not run `vercel build` against `apps/web/.next` while `next dev` uses that same
-directory. The previous session's chunk-loader crash came from sharing this
-build directory. Stop dev first or build in an isolated checkout.
-
-Sources: [Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/),
+Sources: [Akash persistent storage](https://akash.network/docs/developers/deployment/akash-sdl/advanced-features/),
 [Vercel environment variables](https://vercel.com/docs/environment-variables),
-[Vercel project resume](https://vercel.com/docs/projects/managing-projects#resuming-a-project).
+[Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/).
