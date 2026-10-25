@@ -9,6 +9,13 @@ import { ApiErrorNotice } from "./ApiErrorNotice";
 import { GpuMarketPrices } from "./GpuMarketPrices";
 import { ComputeCheckout } from "./ComputeCheckout";
 
+
+// "Two GPUs, earning now." (spelled out up to ten, as the copy reads).
+const WORDS = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
+function gpuCount(n: number): string {
+  if (!n) return "Live GPUs, earning now.";
+  return `${WORDS[n] ?? n} GPU${n === 1 ? "" : "s"}, earning now.`;
+}
 export function MarketContent() {
   const gpus = useLiveGpus();
   const now = useNow();
@@ -19,7 +26,7 @@ export function MarketContent() {
     <main className="s">
       <div className="wrap">
         <div className="shead">
-          <h2>{views.length ? `${views.length} GPUs, earning now.` : "Live GPUs, earning now."}</h2>
+          <h2>{gpuCount(views.length)}</h2>
           <p>Prices come from the order book on the XRP Ledger DEX. Yield is the last 24 hours of payouts, annualized.</p>
         </div>
         {unreachable && <ApiErrorNotice />}
