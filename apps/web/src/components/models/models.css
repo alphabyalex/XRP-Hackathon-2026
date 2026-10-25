@@ -22,6 +22,9 @@
   color: var(--ink3);
   word-break: break-all;
 }
+.mdl-mobile-gpu {
+  display: none;
+}
 .mdl-serving {
   color: var(--up);
   font-weight: 500;
@@ -104,6 +107,9 @@ code.mdl-inline {
   }
 }
 @media (max-width: 560px) {
+  .mdl-mobile-gpu {
+    display: block;
+  }
   .mdl-table th:not(:first-child):not(:last-child),
   .mdl-table td:not(:first-child):not(:last-child) {
     display: none;

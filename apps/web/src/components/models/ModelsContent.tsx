@@ -43,8 +43,9 @@ function normalize(rows: any[]): Model[] {
   }));
 }
 
-function sample(modelId: string, priority: Mode) {
-  return `from openai import OpenAI
+function sample(modelId: string, priority: Mode, gpuId?: string) {
+  return `import os
+from openai import OpenAI
 
 client = OpenAI(
     base_url="${BASE}",
@@ -54,7 +55,7 @@ client = OpenAI(
 r = client.chat.completions.create(
     model="${modelId}",
     messages=[{"role": "user", "content": "Explain VWAP in one line"}],
-    extra_body={"priority": "${priority}"},  # cheapest | balanced | fastest
+    extra_body={"priority": "${priority}"${gpuId ? `, "gpuId": "${gpuId}"` : ""}},  # cheapest | balanced | fastest
 )
 print(r.choices[0].message.content)`;
 }
@@ -295,6 +296,7 @@ export function ModelsContent() {
                   <td>
                     <b>{m.name}</b>
                     <span className="mdl-id">{m.modelId}</span>
+                    <span className="mdl-id mdl-mobile-gpu">{gpuText(m.gpuId)}</span>
                   </td>
                   <td>
                     {gpuText(m.gpuId)}
@@ -319,7 +321,7 @@ export function ModelsContent() {
             </span>
             <Segmented options={MODES} value={priority} onChange={setPriority} />
           </div>
-          <Code lang="Python" text={sample(current?.modelId ?? "Qwen/Qwen2.5-1.5B-Instruct", priority)} />
+          <Code lang="Python" text={sample(current?.modelId ?? "Qwen/Qwen2.5-1.5B-Instruct", priority, current?.gpuId)} />
           <p className="note">
             Base URL <code className="mdl-inline">{BASE}</code>. The response&apos;s <code className="mdl-inline">x_ms</code> field names the GPUs that
             served it, any move between them, and the payment.

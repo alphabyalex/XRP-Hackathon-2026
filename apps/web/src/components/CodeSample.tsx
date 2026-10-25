@@ -7,6 +7,7 @@ import { useReveal } from "@/hooks/useReveal";
 // highlight class while they type, so the colors never flash in afterwards.
 type Tok = [cls: "" | "k" | "s" | "c", text: string];
 const tokens = (base: string): Tok[] => [
+  ["k", "import"], ["", " os\n"],
   ["k", "from"], ["", " openai "], ["k", "import"], ["", " OpenAI\n\n"],
   ["", "client = OpenAI(\n    base_url="], ["s", `"${base}/v1"`], ["", ",\n    api_key=os.environ["], ["s", '"MOONSHIFT_KEY"'], ["", "],\n)\n\n"],
   ["", "r = client.chat.completions.create(\n    model="], ["s", '"Qwen/Qwen2.5-1.5B-Instruct"'], ["", ",\n    messages=[{"],
