@@ -128,6 +128,7 @@ MOCK = _env_bool("MOCK")
 AWS_REGION = os.getenv("AWS_REGION", "us-east-2")
 BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0")
 BEDROCK_TIMEOUT_SECONDS = float(os.getenv("BEDROCK_TIMEOUT_SECONDS", "12"))
+BEDROCK_ENABLED = _env_bool("BEDROCK_ENABLED")
 INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "")
 ACCOUNTS_FILE = Path(
     os.getenv("ACCOUNTS_FILE", str(SERVICE_DIR.parent.parent / "contracts" / "accounts.testnet.json"))

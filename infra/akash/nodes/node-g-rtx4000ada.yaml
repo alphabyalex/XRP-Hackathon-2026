@@ -1,6 +1,6 @@
 version: '2.0'
 services:
-  node-e-v100:
+  node-g-rtx4000ada:
     image: vllm/vllm-openai:v0.6.2
     expose:
     - port: 8000
@@ -11,7 +11,7 @@ services:
     - --model
     - Qwen/Qwen2.5-1.5B-Instruct
     - --served-model-name
-    - Qwen/Qwen3-1.7B
+    - Qwen/Qwen2.5-1.5B-Instruct
     - --dtype
     - float16
     - --max-model-len
@@ -20,7 +20,7 @@ services:
     - HUGGING_FACE_HUB_TOKEN=
 profiles:
   compute:
-    node-e-v100:
+    node-g-rtx4000ada:
       resources:
         cpu:
           units: 4
@@ -33,17 +33,17 @@ profiles:
           attributes:
             vendor:
               nvidia:
-              - model: v100
+              - model: rtx4000ada
   placement:
     dcloud:
       attributes:
         host: akash
       pricing:
-        node-e-v100:
+        node-g-rtx4000ada:
           denom: uact
-          amount: 400000
+          amount: 450000
 deployment:
-  node-e-v100:
+  node-g-rtx4000ada:
     dcloud:
-      profile: node-e-v100
+      profile: node-g-rtx4000ada
       count: 1

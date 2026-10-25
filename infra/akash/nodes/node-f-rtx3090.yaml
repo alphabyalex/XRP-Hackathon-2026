@@ -1,6 +1,6 @@
 version: '2.0'
 services:
-  node-d-rtx3090:
+  node-f-rtx3090:
     image: vllm/vllm-openai:v0.6.2
     expose:
     - port: 8000
@@ -11,7 +11,7 @@ services:
     - --model
     - Qwen/Qwen2.5-1.5B-Instruct
     - --served-model-name
-    - Qwen/Qwen3-1.7B
+    - Qwen/Qwen2.5-1.5B-Instruct
     - --dtype
     - float16
     - --max-model-len
@@ -20,7 +20,7 @@ services:
     - HUGGING_FACE_HUB_TOKEN=
 profiles:
   compute:
-    node-d-rtx3090:
+    node-f-rtx3090:
       resources:
         cpu:
           units: 4
@@ -39,11 +39,11 @@ profiles:
       attributes:
         host: akash
       pricing:
-        node-d-rtx3090:
+        node-f-rtx3090:
           denom: uact
           amount: 300000
 deployment:
-  node-d-rtx3090:
+  node-f-rtx3090:
     dcloud:
-      profile: node-d-rtx3090
+      profile: node-f-rtx3090
       count: 1

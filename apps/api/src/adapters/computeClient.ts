@@ -77,7 +77,7 @@ export async function getRevenueHistory(gpuId: GpuId, hours = 24, _legacyRevenue
   const query = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
   const raw = await computeJson<any>(`/gpus/${encodeURIComponent(gpuId)}/revenue?${query}`);
   const list: any[] = Array.isArray(raw) ? raw : raw.buckets ?? raw.history ?? [];
-  const buckets = list.filter((row) => !row.simulated).map((row): RevenueBucket => {
+  const buckets = list.filter((row) => !row.simulated && row.revenueAvailable !== false && (row.revenue ?? row.revenueTdx ?? row.gross) != null).map((row): RevenueBucket => {
     const booked = Number(row.bookedMinutes ?? row.booked_minutes ?? 0);
     const inference = Number(row.inferenceMinutes ?? row.inference_minutes ?? 0);
     const start = row.start ?? row.bucketStart;
