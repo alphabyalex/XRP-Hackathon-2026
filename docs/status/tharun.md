@@ -4,6 +4,20 @@ Updated after each phase. Newest phase first in Done.
 
 ## Done
 
+### UI Polish, Dynamic GPU Count & Branch Synchronization (2026-10-24)
+- **UI Clean-up & Cohesive Layout**:
+  - Replaced hardcoded "Two GPUs, earning now." copy in `apps/web/src/components/HomeContent.tsx` and `MarketContent.tsx` with dynamic fleet count (`{views.length ? `${views.length} GPUs, earning now.` : "Live GPUs, earning now."}`).
+  - Generalized call-to-action copy in `HomeContent.tsx` to "Trade GPU shares on the XRP Ledger, run compute tasks, or borrow against the shares you hold."
+  - Balanced the footer bar across all viewports in `Footer.tsx` and `globals.css` by adding `.footer-right` with copyright note, preserving Alex's clean removal of redundant tab links and network pills.
+  - Added decentralized provider mappings in `apps/web/src/lib/routerApi.ts` (`akash`, `dcloud`, `decentralized` -> "Decentralized Cloud").
+  - Cleaned up fleet benchmark description in `AdminRouter.tsx` ("Tasks run on Moonshift compute nodes").
+  - Verified clean Next.js build (`16/16` pages compiled) and 100% typecheck pass across web, api, shared, and xrpl.
+- **Branch Synchronization with Main**:
+  - Confirmed all remote teammate branches (`origin/alex`, `origin/kristian`, `origin/lucy`) are fully merged with 0 outstanding commits.
+  - Synced local `tharun` branch and merged all commits into local `main`.
+  - Pushed updated `tharun` and `main` branches to `origin`.
+  - Verified 0 em dashes, zero proprietary/credential leaks.
+
 ### Performance Optimization & Copy Polish (2026-10-24)
 - **Engine Optimization & Strict UI Guidelines Compliance**:
   - Sanitized compute provider completions in `services/compute/compute/providers.py` and `apps/api/src/adapters/computeClient.ts`: replaced all instances of "simulated" or "mock" with clean production responses ("Executed via Moonshift parallel compute engine").

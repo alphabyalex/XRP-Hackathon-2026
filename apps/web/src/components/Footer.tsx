@@ -14,6 +14,9 @@ export function Footer() {
             </Link>
             <span className="footer-desc">GPU compute and credit on the XRP Ledger.</span>
           </div>
+          <div className="footer-right">
+            <span className="footer-desc">&copy; 2026 Moonshift</span>
+          </div>
         </div>
       </div>
     </footer>

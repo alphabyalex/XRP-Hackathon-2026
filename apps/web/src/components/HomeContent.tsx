@@ -79,7 +79,7 @@ export function HomeContent() {
         <div className="wrap">
           <Reveal>
             <div className="shead">
-              <h2>Two GPUs, earning now.</h2>
+              <h2>{views.length ? `${views.length} GPUs, earning now.` : "Live GPUs, earning now."}</h2>
               <p>Prices come from the order book on the XRP Ledger DEX. Yield is the last 24 hours of payouts, annualized.</p>
             </div>
           </Reveal>
@@ -223,7 +223,7 @@ export function HomeContent() {
             </div>
             <h2>Enter the app</h2>
             <p>
-              Trade GPU-A and GPU-B on the XRP Ledger, book a five-minute slot, or borrow against the shares you hold.
+              Trade GPU shares on the XRP Ledger, run compute tasks, or borrow against the shares you hold.
             </p>
             <div className="ctas">
               <Button href="/market" arrow>
