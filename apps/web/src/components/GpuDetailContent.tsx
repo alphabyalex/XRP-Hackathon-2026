@@ -16,6 +16,7 @@ import { ApiErrorNotice } from "./ApiErrorNotice";
 import { Segmented } from "./Segmented";
 import { TaskDescribe, type TaskSize } from "./TaskDescribe";
 import { ComputeCheckout } from "./ComputeCheckout";
+import type { TaskDraft } from "@/lib/taskRequest";
 import { BookingCalendar } from "./BookingCalendar";
 import { GpuShares } from "./GpuShares";
 import { changeOf, fmtChange, priceOf, useGpuStats } from "@/lib/gpuMarket";
@@ -38,6 +39,8 @@ export function GpuDetailContent({ id }: { id: string }) {
   const [mode, setMode] = useState<Mode>("balanced");
   const [size, setSize] = useState<TaskSize | null>(null);
   const onSize = useCallback((s: TaskSize) => setSize(s), []);
+  const [task, setTask] = useState<TaskDraft>({ type: "inference", description: "", gpuId: id, modelId: "" });
+  const onTask = useCallback((draft: TaskDraft) => setTask(draft), []);
 
   if (unreachable) {
     return (
@@ -156,10 +159,10 @@ export function GpuDetailContent({ id }: { id: string }) {
             </div>
             <div className="task-grid">
               <div className="trade">
-                <TaskDescribe gpu={cat} type={type} onType={setType} mode={mode} onSize={onSize} />
+                <TaskDescribe gpu={cat} type={type} onType={setType} mode={mode} onSize={onSize} onTask={onTask} />
               </div>
               <div className="trade">
-                <ComputeCheckout task={{ type, gpuHours }} onMode={setMode} />
+                <ComputeCheckout task={{ ...task, type, gpuId: id }} onMode={setMode} />
               </div>
             </div>
             <h3 className="sub-h">Book GPU time</h3>

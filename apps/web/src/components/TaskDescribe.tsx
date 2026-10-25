@@ -10,6 +10,7 @@ import { num, useModels, type CatalogGpu, type Sizing, type TaskQuote } from "@/
 import { fmt } from "@/lib/format";
 import { fmtEta, type Mode, type TaskType } from "@/lib/routerApi";
 import { useApiEvents } from "@/lib/lendingApi";
+import type { TaskDraft } from "@/lib/taskRequest";
 
 export type TaskSize = Omit<Sizing, "model">;
 
@@ -67,12 +68,14 @@ export function TaskDescribe({
   onType,
   mode,
   onSize,
+  onTask,
 }: {
   gpu: CatalogGpu | undefined;
   type: TaskType;
   onType: (t: TaskType) => void;
   mode: Mode;
   onSize: (s: TaskSize) => void;
+  onTask: (task: TaskDraft) => void;
 }) {
   const maxVcpu = num(gpu?.vcpu) ?? 4;
   const maxRam = num(gpu?.ramGb) ?? 16;
@@ -86,19 +89,21 @@ export function TaskDescribe({
   const [quoteErr, setQuoteErr] = useState<string | null>(null);
   const [vcpu, ram, disk, mins] = useTween([size.vcpu, size.ramGb, size.storageGb, size.durationSeconds / 60], 700);
   const { data: models } = useModels(gpu?.id ?? "gpu-a");
-  const serving = (models?.models ?? []).filter((m) => m.status === "serving" && m.acceptsRequests);
+  const serving = (models?.models ?? []).filter((m) => m.gpuId === gpu?.id && m.status === "serving" && m.acceptsRequests);
   const [model, setModel] = useState("");
   useEffect(() => {
-    if (!model && serving[0]) setModel(serving[0].modelId);
+    if (!serving.some(m => m.modelId === model)) setModel(serving[0]?.modelId ?? "");
   }, [model, serving]);
 
   useEffect(() => onSize(size), [size, onSize]);
+  const selectedModel = serving.find(m => m.modelId === model);
+  useEffect(() => onTask({ type, description: text, gpuId: gpu?.id ?? "", modelId: selectedModel?.modelId ?? "", contextLength: selectedModel?.contextLength ?? undefined }), [type, text, gpu?.id, selectedModel?.modelId, selectedModel?.contextLength, onTask]);
 
   // Live hardware quote: on every change, every 5 seconds, and on each live rate update.
   const [rateTick, setRateTick] = useState(0);
   useApiEvents(["aws", "calendar"], () => setRateTick((n) => n + 1));
   useEffect(() => {
-    if (!gpu) return;
+    if (!gpu || type !== "inference") { setQuote(null); return; }
     let live = true;
     const load = () =>
       quoteTask({ gpuId: gpu.id, mode, ...size })
@@ -115,10 +120,10 @@ export function TaskDescribe({
       clearTimeout(t0);
       clearInterval(t);
     };
-  }, [gpu, mode, size, rateTick]);
+  }, [gpu, mode, size, rateTick, type]);
 
   async function estimate() {
-    if (!text.trim() || busy) return;
+    if (type !== "inference" || !text.trim() || busy) return;
     setBusy(true);
     setNote(null);
     try {
@@ -167,7 +172,7 @@ export function TaskDescribe({
         <span className="note" style={{ margin: 0 }}>
           {note ?? " "}
         </span>
-        <button type="button" className="btn ghost sm" style={{ width: "auto", flex: "none" }} disabled={!text.trim() || busy} onClick={estimate}>
+        <button type="button" className="btn ghost sm" style={{ width: "auto", flex: "none" }} disabled={type !== "inference" || !text.trim() || busy} onClick={estimate}>
           {busy ? "Sizing..." : "Size it"}
         </button>
       </div>
@@ -181,6 +186,7 @@ export function TaskDescribe({
         ))}
       </div>
 
+      {type !== "inference" ? <p className="note">This endpoint runs text inference. Other workloads are unavailable. <a href="/docs">Read Docs</a>.</p> : <>
       <div className="sliders">
         <Slider id="sz-vcpu" label="vCPU" value={size.vcpu} shown={vcpu} animating={animating} min={1} max={maxVcpu} step={1} unit="" onChange={set("vcpu")} />
         <Slider id="sz-ram" label="RAM" value={size.ramGb} shown={ram} animating={animating} min={1} max={maxRam} step={1} unit="GB" onChange={set("ramGb")} />
@@ -227,6 +233,7 @@ export function TaskDescribe({
         </div>
       )}
       {!opt && quoteErr && <p className="note">{quoteErr}</p>}
+      </>}
     </div>
   );
 }

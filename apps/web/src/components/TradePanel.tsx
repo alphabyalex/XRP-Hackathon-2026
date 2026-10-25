@@ -60,7 +60,7 @@ export function TradePanel({
         onChange={setTab}
       />
       {tab === "time" ? (
-        <ComputeCheckout />
+        <ComputeCheckout gpuId={gpuId} />
       ) : (
         <div>
           <label className="lbl" htmlFor="qty">

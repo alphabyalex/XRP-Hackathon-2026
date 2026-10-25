@@ -93,6 +93,7 @@ export interface Order {
 }
 
 export interface OrderRequest {
+  modelId?: string;
   kind: "inference" | "rental";
   gpuId?: string;
   mode?: Mode;
