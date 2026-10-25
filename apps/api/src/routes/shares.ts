@@ -3,7 +3,7 @@ import type { GpuId } from "@moonshift/shared";
 import * as xrpl from "../adapters/xrplAdapter.js";
 import { logTx } from "../db/helpers.js";
 import { broadcast } from "../sse.js";
-import { recordTrade } from "../sharePrice.js";
+import { recordTrade, sharePrice } from "../sharePrice.js";
 import { getAccountAddress } from "@moonshift/xrpl";
 import { asActor } from "../middleware/session.js";
 
@@ -16,7 +16,9 @@ sharesRouter.post("/shares/buy", asActor("body", "buyer"), async (req, res) => {
     return;
   }
   try {
-    const tx = await xrpl.buyShares({ buyer: buyer as any, gpuId, qty, maxPricePerShare: "999999" });
+    // A market buy fills at the best asks up to 5% over the share price, never at any price.
+    const limit = (Number((await sharePrice(gpuId)).price) * 1.05).toFixed(6);
+    const tx = await xrpl.buyShares({ buyer: buyer as any, gpuId, qty, maxPricePerShare: limit });
     logTx(tx, "buyShares", buyer, `${buyer} bought ${qty} shares of ${gpuId}`);
     if (tx.result === "tesSUCCESS") await recordTrade(gpuId, tx.hash, getAccountAddress(buyer as any));
     broadcast("tx", { hash: tx.hash, kind: "buyShares", account: buyer });

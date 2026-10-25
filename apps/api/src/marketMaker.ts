@@ -40,10 +40,14 @@ export function quoteMarket(): Promise<Record<string, unknown>> {
       try {
         const ref = Number(await referencePrice(g.id));
         if (!(ref > 0)) continue;
-        const held = Number((await xrpl.getBalances(treasuryOf(g.id))).tokens[g.shareCode] ?? "0");
+        // The treasury sells while it holds shares; once it is down to less than a few, CAROL (which
+        // bought every share its bids filled) offers from what it holds, so a buy always fills.
+        const treasuryHeld = Number((await xrpl.getBalances(treasuryOf(g.id))).tokens[g.shareCode] ?? "0");
+        const seller = treasuryHeld >= 5 ? treasuryOf(g.id) : "CAROL";
+        const held = seller === "CAROL" ? Number((await xrpl.getBalances("CAROL")).tokens[g.shareCode] ?? "0") : treasuryHeld;
         const askQty = String(Math.floor(Math.min(held, ASK_SHARES)));
         const askPx = ref * (1 + SPREAD);
-        const quoteAsk = () => xrpl.requoteShareOffer({ account: treasuryOf(g.id), gpuId: g.id, side: "ask", price: fix6(askPx), qty: askQty });
+        const quoteAsk = () => xrpl.requoteShareOffer({ account: seller, gpuId: g.id, side: "ask", price: fix6(askPx), qty: askQty });
         const quoteBid = () => xrpl.requoteShareOffer({ account: "CAROL", gpuId: g.id, side: "bid", price: fix6(ref * (1 - SPREAD)), qty: BID_SHARES });
         // The market maker never trades with itself: when the new ask would reach the standing bid
         // (NAV fell), move CAROL's bid down first; otherwise move the ask first.
@@ -58,7 +62,7 @@ export function quoteMarket(): Promise<Record<string, unknown>> {
           ask = await quoteAsk();
           bid = await quoteBid();
         }
-        for (const [who, r] of [[treasuryOf(g.id), ask], ["CAROL", bid]] as const) {
+        for (const [who, r] of [[seller, ask], ["CAROL", bid]] as const) {
           for (const hash of r.hashes) {
             logTx({ hash, result: "tesSUCCESS", validated: true, explorerUrl: "" }, "marketMaker", who, `${who} quotes ${g.id} shares at ${r.price} USDC`);
           }
