@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { ApiGpuDetail } from "@moonshift/shared";
-import { getGpu, getGpus, eventsUrl, ApiUnreachableError } from "./api";
+import { apiFetch, getGpu, getGpus, eventsUrl, ApiUnreachableError } from "./api";
 
 export type GpuMap = Record<string, ApiGpuDetail>;
 
@@ -10,9 +10,14 @@ interface LiveDataValue {
   unreachable: boolean;
   refresh: () => void;
   now: number;
+  // Lets usePolled hooks refetch the moment a matching SSE event arrives.
+  subscribe: (fn: (type: string) => void) => () => void;
 }
 
-const LiveDataContext = createContext<LiveDataValue>({ gpus: {}, unreachable: false, refresh: () => {}, now: 0 });
+// Every event type the api streams on /events.
+const EVENT_TYPES = ["usage", "tx", "calendar", "dividend", "loan", "market", "stats", "aws", "task"];
+
+const LiveDataContext = createContext<LiveDataValue>({ gpus: {}, unreachable: false, refresh: () => {}, now: 0, subscribe: () => () => {} });
 
 // Subscribes to SSE /events and refetches GPU details on any event, so
 // prices, the schedule and the hero proof row update in place. Debounced so
@@ -41,6 +46,13 @@ export function LiveDataProvider({
   const [unreachable, setUnreachable] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const refreshRef = useRef<() => void>(() => {});
+  const listeners = useRef(new Set<(type: string) => void>());
+  const subscribe = useRef((fn: (type: string) => void) => {
+    listeners.current.add(fn);
+    return () => {
+      listeners.current.delete(fn);
+    };
+  }).current;
 
   useEffect(() => {
     async function refresh() {
@@ -64,8 +76,11 @@ export function LiveDataProvider({
     let es: EventSource | null = null;
     try {
       es = new EventSource(eventsUrl());
-      for (const type of ["usage", "tx", "calendar", "dividend", "loan"]) {
-        es.addEventListener(type, scheduleRefresh);
+      for (const type of EVENT_TYPES) {
+        es.addEventListener(type, () => {
+          scheduleRefresh();
+          listeners.current.forEach((fn) => fn(type));
+        });
       }
       // EventSource reconnects by itself. When it does (for example after the
       // api restarts), clear the error and pull fresh data without a reload.
@@ -78,9 +93,9 @@ export function LiveDataProvider({
       setUnreachable(true);
     }
 
-    // Safety net: refetch every 30 seconds so data never goes stale even if
+    // Safety net: refetch every 5 seconds so data never goes stale even if
     // the event stream drops quietly.
-    const poll = setInterval(refresh, 30_000);
+    const poll = setInterval(refresh, 5_000);
 
     return () => {
       clearTimeout(debounceRef.current);
@@ -90,7 +105,7 @@ export function LiveDataProvider({
   }, []);
 
   return (
-    <LiveDataContext.Provider value={{ gpus, unreachable, refresh: () => refreshRef.current(), now }}>
+    <LiveDataContext.Provider value={{ gpus, unreachable, refresh: () => refreshRef.current(), now, subscribe }}>
       {children}
     </LiveDataContext.Provider>
   );
@@ -114,4 +129,42 @@ export function useRefreshLive(): () => void {
 
 export function useApiUnreachable(): boolean {
   return useContext(LiveDataContext).unreachable;
+}
+
+// Polls one api route every `ms` (2 to 5 seconds) and also refetches when one of the named SSE
+// events arrives. Keeps the last good value through a failed read; `error` is set until a read
+// works again. `data` is undefined until the first answer, so callers show a loading state.
+export function usePolled<T>(path: string | null, { ms = 4000, on = [] as string[] } = {}): { data: T | undefined; error: string | null } {
+  const { subscribe } = useContext(LiveDataContext);
+  const [data, setData] = useState<T>();
+  const [error, setError] = useState<string | null>(null);
+  const onKey = on.join(",");
+  useEffect(() => {
+    if (!path) return;
+    let alive = true;
+    let debounce: ReturnType<typeof setTimeout> | undefined;
+    const load = () =>
+      apiFetch<T>(path)
+        .then((d) => {
+          if (!alive) return;
+          setData(d);
+          setError(null);
+        })
+        .catch((e: unknown) => alive && setError(e instanceof Error ? e.message : "Not available right now"));
+    load();
+    const t = setInterval(load, ms);
+    const events = onKey ? onKey.split(",") : [];
+    const off = subscribe((type) => {
+      if (!events.includes(type)) return;
+      clearTimeout(debounce);
+      debounce = setTimeout(load, 250);
+    });
+    return () => {
+      alive = false;
+      clearInterval(t);
+      clearTimeout(debounce);
+      off();
+    };
+  }, [path, ms, onKey, subscribe]);
+  return { data, error };
 }

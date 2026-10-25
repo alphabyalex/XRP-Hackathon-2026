@@ -1894,3 +1894,59 @@ a.txl:hover {
   min-width: 0;
   border-top: 1px solid var(--rule);
 }
+
+/* Home: sections that follow closely on the one before */
+section.s.close {
+  padding-top: clamp(40px, 5vw, 72px);
+}
+section.s.close-bottom {
+  padding-bottom: clamp(40px, 5vw, 72px);
+}
+.live-num {
+  font-variant-numeric: tabular-nums;
+}
+.rent-tab .where {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--ink2);
+}
+
+/* Code sample typing itself out: the ghost holds the final size, the typed copy sits on top */
+.code pre {
+  position: relative;
+}
+.code .code-ghost {
+  visibility: hidden;
+}
+.code .code-typed {
+  position: absolute;
+  inset: 0;
+  white-space: pre;
+}
+.code .caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.1em;
+  margin-left: 1px;
+  vertical-align: -0.2em;
+  background: var(--accent);
+  animation: caret-blink 1s steps(1) infinite;
+}
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .code .caret {
+    animation: none;
+  }
+}
+/* The dark panel fades into the light section under it instead of ending on a hard edge */
+.dev .code {
+  border-radius: 18px 18px 0 0;
+  padding-bottom: 56px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 64px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 64px), transparent);
+}
