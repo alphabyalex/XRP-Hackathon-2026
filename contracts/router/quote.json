@@ -51,6 +51,7 @@
     },
     "alternativesConsidered": { "aws": 12, "azure": 2, "gcp": 3, "oracle": 3, "lambda": 3, "runpod": 2, "vast": 2, "coreweave": 4, "moonshift": 2 },
     "plansEvaluated": 412,
+    "limits": { "maxGpuHours": 336.0, "maxTokens": 48384000, "days": 7.0 },
     "why": null,
     "validUntil": "2026-10-24T22:01:00Z",
     "asOf": "2026-10-24T22:00:00Z"

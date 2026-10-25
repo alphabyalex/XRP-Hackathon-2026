@@ -119,6 +119,12 @@ RENTAL_TIME_SCALE = float(_env("RENTAL_TIME_SCALE", "60"))  # in-process rentals
 # In-process generation speed multiplier (1 = the GPU's real tokensPerSec; tests speed it up).
 ENGINE_TIME_SCALE = float(_env("ENGINE_TIME_SCALE", "1"))
 
+# ---- Service levels on identical GPUs (optimizer.service_levels) ------------------------
+# Pausable work yields to priority work: its ETA carries this expected share of time paused.
+PAUSABLE_SLOWDOWN = float(_env("PAUSABLE_SLOWDOWN", "0.3"))
+PRIORITY_PREMIUM = float(_env("PRIORITY_PREMIUM", "0.25"))  # Fastest: on-demand rate plus this
+MAX_TASK_DAYS = float(_env("MAX_TASK_DAYS", "7"))  # the largest task is what the fleet finishes in this time
+
 
 @cache
 def load_json(name: str) -> dict[str, Any]:

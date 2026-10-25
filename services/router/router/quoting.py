@@ -25,10 +25,10 @@ class ConstraintsIn(BaseModel):
 
 class OrderIn(BaseModel):
     kind: str = "inference"
-    tokens: int | None = Field(default=None, ge=1, le=1_000_000)
+    tokens: int | None = Field(default=None, ge=1, le=1_000_000_000)
     requests: int | list[Any] | None = None  # a count (quote) or the prompts themselves (order)
     maxTokens: int | None = Field(default=None, ge=1, le=8192)  # noqa: N815 (per request)
-    minutes: int | None = Field(default=None, ge=1, le=24 * 60)
+    minutes: int | None = Field(default=None, ge=1)  # the fleet's own limit is checked in check_size
     deadlineSeconds: float | None = Field(default=None, gt=0)  # noqa: N815
     budgetUsdc: str | float | None = None  # noqa: N815
     constraints: ConstraintsIn = Field(default_factory=ConstraintsIn)
@@ -82,13 +82,27 @@ def spec_dict(spec: O.OrderSpec) -> dict[str, Any]:
     }
 
 
+def limits(views: list[GpuView]) -> dict[str, Any]:
+    """The largest task the fleet takes: what every GPU finishes in MAX_TASK_DAYS."""
+    hours = O.max_gpu_hours(views)
+    tps = min((v.tokensPerSec for v in views if v.executable and v.tokensPerSec > 0), default=0.0)
+    return {"maxGpuHours": round(hours, 2), "maxTokens": int(hours * 3600 * tps), "days": C.MAX_TASK_DAYS}
+
+
+def check_size(spec: O.OrderSpec, views: list[GpuView]) -> None:
+    """Refuse a task the fleet cannot finish in MAX_TASK_DAYS (never shrink it to fit)."""
+    cap = O.max_gpu_hours(views)
+    if cap > 0 and O.gpu_hours(spec, views) > cap + 1e-9:
+        raise RouterError(422, "TOO_LARGE", f"Max {cap:g} GPU-hours")
+
+
 def quote(
     spec: O.OrderSpec, views: list[GpuView], alternatives: Counter[str], catalog_as_of: str, now: datetime
 ) -> tuple[dict[str, Any], dict[O.Mode, O.Choice]]:
-    plans = O.enumerate_plans(spec, views)
+    check_size(spec, views)
+    choices, plans = O.choose_for(spec, views)
     if not plans:
         raise RouterError(503, "NO_CAPACITY", "no executable GPU is available for this order")
-    choices = O.choose(plans, spec)
     order = spec_dict(spec)
     qid = "q_" + hashlib.sha256(json.dumps([order, catalog_as_of], sort_keys=True).encode()).hexdigest()[:8]
     body = {
@@ -98,7 +112,8 @@ def quote(
         "default": "balanced",
         "options": {m: O.plan_dict(choices[m], spec, now) for m in O.MODES},
         "alternativesConsidered": dict(sorted(alternatives.items())),
-        "plansEvaluated": len(plans),
+        "plansEvaluated": plans,
+        "limits": limits(views),
         "why": None,
         "validUntil": iso(now + timedelta(seconds=C.QUOTE_VALID_SECONDS)),
         "asOf": iso(now),

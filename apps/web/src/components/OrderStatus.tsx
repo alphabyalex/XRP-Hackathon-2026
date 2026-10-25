@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { usdc } from "@/lib/format";
+import { taskUsdc } from "@/lib/format";
 import { cancelOrder, fmtEta, fmtTime, getOrder, orderEventsUrl, raiseCap, type Order } from "@/lib/routerApi";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
@@ -104,7 +104,7 @@ export function OrderStatus({ initial }: { initial: Order }) {
       <div className="line">
         <span>Estimate</span>
         <b>
-          {usdc(order.estimateUsdc ?? order.priceUsdc)} USDC · at most {usdc(cap)} USDC
+          {taskUsdc(order.estimateUsdc ?? order.priceUsdc)} USDC · at most {taskUsdc(cap)} USDC
         </b>
       </div>
       <div className="line">
@@ -113,7 +113,7 @@ export function OrderStatus({ initial }: { initial: Order }) {
       </div>
       {order.payment?.hash && (
         <div className="line">
-          <span>Set aside {usdc(order.payment && "amountUsdc" in order.payment ? (order.payment as { amountUsdc: string }).amountUsdc : cap)} USDC</span>
+          <span>Set aside {taskUsdc(order.payment && "amountUsdc" in order.payment ? (order.payment as { amountUsdc: string }).amountUsdc : cap)} USDC</span>
           <b>
             <TxLinks links={[order.payment.explorerUrl, ...(order.topUps ?? []).map((t) => t.explorerUrl)]} />
           </b>
@@ -130,7 +130,7 @@ export function OrderStatus({ initial }: { initial: Order }) {
       {order.status === "paused" && order.pause && (
         <div className="os-pause">
           <p className="note">
-            Spent {usdc(order.pause.spentUsdc)} of {usdc(order.pause.capUsdc)} USDC. Finishing needs about {usdc(order.pause.neededUsdc)} USDC more.
+            Spent {taskUsdc(order.pause.spentUsdc)} of {taskUsdc(order.pause.capUsdc)} USDC. Finishing needs about {taskUsdc(order.pause.neededUsdc)} USDC more.
           </p>
           <div className="two">
             <Button size="sm" disabled={!!busy} onClick={raise}>
@@ -149,7 +149,7 @@ export function OrderStatus({ initial }: { initial: Order }) {
       )}
       {settled && (
         <p className="note os-settled">
-          Charged {usdc(charged)} USDC · Refunded {usdc(refunded)} USDC{" "}
+          Charged {taskUsdc(charged)} USDC · Refunded {taskUsdc(refunded)} USDC{" "}
           <TxLinks links={[...order.settlements.map((s) => s.explorerUrl), order.refund?.explorerUrl]} />
         </p>
       )}

@@ -1,5 +1,5 @@
 {
-  "_note": "Moonshift's own fleet (FLEET_SOURCE=own, what npm run demo runs): tasks execute only on GPU-A and GPU-B, the GPUs whose shareholders the task pays. External offers in the catalog are the market benchmark only: benchmark names the GPU model, and each GPU's hourly price is the cheapest guaranteed (on-demand) market offer for that model, so a customer never pays more than renting the same GPU elsewhere. pricePerHourUsdc is the price when the catalog has no such offer. endpoint empty = the worker runs in-process.",
+  "_note": "Moonshift's own fleet (FLEET_SOURCE=own, what npm run demo runs): tasks execute only on GPU-A and GPU-B, the GPUs whose shareholders the task pays. External offers in the catalog are the market benchmark only: benchmark names the GPU model and the provider to price against (AWS): the cheapest AWS on-demand offer for that GPU sets the Guaranteed and Priority rates, the cheapest AWS spot offer sets the Pausable rate (optimizer.service_levels). pricePerHourUsdc is the price when the catalog has no such offer. endpoint empty = the worker runs in-process.",
   "gpus": [
     {
       "id": "gpu-a",
@@ -7,7 +7,10 @@
       "moonshift": {
         "gpuModel": "T4",
         "hardware": "NVIDIA T4 16GB",
-        "benchmark": "T4",
+        "benchmark": {
+          "gpuModel": "T4",
+          "provider": "aws"
+        },
         "pricePerHourUsdc": "0.526000",
         "region": "us-east-2"
       },
@@ -22,7 +25,10 @@
       "moonshift": {
         "gpuModel": "T4",
         "hardware": "NVIDIA T4 16GB",
-        "benchmark": "T4",
+        "benchmark": {
+          "gpuModel": "T4",
+          "provider": "aws"
+        },
         "pricePerHourUsdc": "0.526000",
         "region": "us-east-2"
       },

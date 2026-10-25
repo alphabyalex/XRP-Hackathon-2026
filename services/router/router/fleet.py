@@ -68,6 +68,7 @@ class GpuView:
     asOf: str  # noqa: N815
     reason: str | None = None
     degraded: bool = False  # last good snapshot: price older than CATALOG_MAX_AGE but within the fallback
+    spotUsdcPerHour: float = 0.0  # noqa: N815 (market spot benchmark; > 0 enables service levels)
 
 
 def _expand(s: str) -> str:
@@ -77,18 +78,25 @@ def _expand(s: str) -> str:
 FLEET_FILES = {"live": "fleet.live.json", "own": "fleet.own.json"}
 
 
-def benchmark_offer(catalog: dict[str, Offer], gpu_model: str) -> Offer | None:
-    """The cheapest guaranteed (on-demand) market offer for this GPU model, per GPU."""
+def benchmark_offer(
+    catalog: dict[str, Offer], gpu_model: str, capacity: str = "on-demand", provider: str | None = None
+) -> Offer | None:
+    """The cheapest market offer for this GPU model and capacity type (optionally one provider), per GPU."""
     rows = [
         o
         for o in catalog.values()
         if o.provider != "moonshift"
-        and o.capacityType == "on-demand"
+        and (provider is None or o.provider == provider)
+        and o.capacityType == capacity
         and o.availability.status != "none"
         and o.pricePerHourUsd > 0
         and (gpu_key(o.gpuModel) or o.gpuModel) == gpu_model
     ]
     return min(rows, key=lambda o: (o.pricePerHourUsd / max(o.gpuCount, 1), o.key), default=None)
+
+
+def per_gpu(o: Offer) -> float:
+    return o.pricePerHourUsd / max(o.gpuCount, 1)
 
 
 def load_entries(catalog: dict[str, Offer]) -> list[FleetEntry]:
@@ -101,10 +109,16 @@ def load_entries(catalog: dict[str, Offer]) -> list[FleetEntry]:
             m = g["moonshift"]
             price = float(m["pricePerHourUsdc"])
             if m.get("benchmark"):
-                b = benchmark_offer(catalog, m["benchmark"])
+                # "T4" (any provider) or {"gpuModel": "T4", "provider": "aws"}: the on-demand offer sets the
+                # price; the spot offer, when there is one, sets the Pausable service level (optimizer.py).
+                spec = m["benchmark"] if isinstance(m["benchmark"], dict) else {"gpuModel": m["benchmark"]}
+                b = benchmark_offer(catalog, spec["gpuModel"], "on-demand", spec.get("provider"))
                 if b is not None:
-                    price = b.pricePerHourUsd / max(b.gpuCount, 1)
+                    price = per_gpu(b)
                     bench = {"offerKey": b.key, "pricePerGpuHourUsd": round(price, 6), "asOf": b.asOf}
+                    spot = benchmark_offer(catalog, spec["gpuModel"], "spot", spec.get("provider"))
+                    if spot is not None:
+                        bench |= {"spotOfferKey": spot.key, "spotPricePerGpuHourUsd": round(per_gpu(spot), 6)}
             offer = make_offer(
                 provider="moonshift",
                 region=m.get("region", "moonshift"),
@@ -284,6 +298,7 @@ class FleetState:
             asOf=e.offer.asOf,
             reason=reason,
             degraded=degraded,
+            spotUsdcPerHour=float((e.benchmark or {}).get("spotPricePerGpuHourUsd", 0.0)),
         )
 
     def describe(self, e: FleetEntry, now: datetime) -> dict[str, Any]:

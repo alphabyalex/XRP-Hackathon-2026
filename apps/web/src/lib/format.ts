@@ -13,6 +13,14 @@ export function usdc(n: number | string): string {
   return v > 0 && v < 0.005 ? "< 0.01" : fmt(v, 2);
 }
 
+// Task prices: under 1 USDC with 4 decimals, so small jobs are told apart.
+export function taskUsdc(n: number | string): string {
+  const v = Number(n);
+  if (!(v > 0)) return "0.0000";
+  if (v < 0.0001) return "< 0.0001";
+  return v < 1 ? v.toFixed(4) : usdc(v);
+}
+
 // Typed-only amount fields (no spinner arrows, no wheel or arrow-key stepping):
 // keep digits, plus one decimal point when decimals are allowed.
 export function typedAmount(raw: string, decimals = true): string {
