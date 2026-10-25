@@ -140,7 +140,7 @@ const services = [
   { name: "credit", dir: "services/credit", module: "credit.main:app", port: 7100, flag: "MOCK_CREDIT", env: { MOCK: "0", MONITOR_MODE: "websocket" } },
   // Local compute in its own MOCK mode (simulated GPU) unless COMPUTE_URL
   // points at the EC2 box, in which case the api talks to that instead.
-  { name: "compute", dir: "services/compute", module: "compute.main:app", port: 5000, flag: "MOCK_COMPUTE", skipIfRemote: "COMPUTE_URL", env: { MOCK: "1" } },
+  { name: "compute", dir: "services/compute", module: "compute.main:app", port: 5000, flag: "MOCK_COMPUTE", skipIfRemote: "COMPUTE_URL", env: { MOCK: "1", GPU_NODES: "gpu-a,gpu-b,gpu-c,gpu-d,gpu-e,gpu-f,gpu-g,gpu-h" } },
   // router: order routing (Lucy). Tasks run only on Moonshift's GPU-A and GPU-B (fleet.own.json), priced
   // from the external market catalog; local state and in-process queues; settles on devnet through the api.
   { name: "router", dir: "services/router", module: "router.main:app", port: 7200, flag: "MOCK_ROUTER", env: { FLEET_SOURCE: "own", STATE_BACKEND: "local", QUEUE_BACKEND: "local", ORCHESTRATOR: "local", SETTLEMENT: "api", COMPUTE_URL: "http://localhost:5000" } },
