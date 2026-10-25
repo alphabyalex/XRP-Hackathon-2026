@@ -49,9 +49,11 @@ vercel deploy --prebuilt --prod --yes
 ```
 
 ### Live Production Deployment
-- **Canonical Production URL**: `https://web-swart-six-22.vercel.app`
-- **Latest Production Release**: `https://web-dcz2vq6tt-tharun-ekambarams-projects.vercel.app`
-- **Project**: `tharun-ekambarams-projects/web`
+- **Canonical Protocol URL**: `https://moonshift-protocol.vercel.app`
+- **Secondary Protocol URL**: `https://moonshift-xrp.vercel.app`
+- **Team Production URL**: `https://moonshift-tharun-ekambarams-projects.vercel.app`
+- **Latest Production Release**: `https://moonshift-9lkd0mkev-tharun-ekambarams-projects.vercel.app`
+- **Project**: `tharun-ekambarams-projects/moonshift`
 - **Root Directory**: `apps/web`
 - **Framework Preset**: Next.js 15.5.28 (React 18.3.1, Node.js 24.x)
 
