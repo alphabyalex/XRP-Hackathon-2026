@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { liveAwsRates, nodeAvailability, observedChange24h } from "../src/marketData/rentalData.js";
-import { modelsForGpu } from "../src/marketData/modelCatalog.js";
+import { modelsForGpu, observedOutputThroughput } from "../src/marketData/modelCatalog.js";
 import type { RentalGpu } from "../src/marketData/rentalCatalog.js";
 
 const now = Date.parse("2026-10-25T09:00:00Z");
@@ -62,4 +62,12 @@ test("undeployed fitting models cannot accept requests or receive fabricated tok
   const measured = modelsForGpu(gpu, 25);
   assert.equal(measured[0].pricePer1MTokens, "5.555556");
   assert.equal(modelsForGpu({ ...gpu, vramGb: 4 }).length, 1);
+});
+
+test("historical rows from builds without reliable provenance cannot price current model tokens", () => {
+  const boot = Date.now() - 60_000;
+  const old = { output_tokens: 1000, started_at: new Date(boot - 2000).toISOString(), finished_at: new Date(boot - 1000).toISOString() };
+  const fresh = { output_tokens: 20, started_at: new Date(boot + 1000).toISOString(), finished_at: new Date(boot + 3000).toISOString() };
+  assert.equal(observedOutputThroughput([old], boot), null);
+  assert.equal(observedOutputThroughput([old, fresh], boot), 10);
 });

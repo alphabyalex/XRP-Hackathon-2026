@@ -6,6 +6,20 @@ const MODEL_SPECS = [
   { id: "Qwen/Qwen2.5-3B-Instruct", name: "Qwen2.5-3B-Instruct", vramGb: 9, parametersBillion: 3.09 },
 ] as const;
 
+export interface ThroughputObservation { output_tokens: number; started_at: string; finished_at: string }
+export function observedOutputThroughput(rows: ThroughputObservation[], notBefore: number): number | null {
+  let tokens = 0, seconds = 0;
+  for (const row of rows) {
+    const start = Date.parse(row.started_at), finish = Date.parse(row.finished_at);
+    const elapsed = (finish - start) / 1000;
+    if (start >= notBefore && finish <= Date.now() && elapsed > 0 && Number.isFinite(elapsed)
+      && Number.isSafeInteger(row.output_tokens) && row.output_tokens > 0) {
+      tokens += row.output_tokens; seconds += elapsed;
+    }
+  }
+  return seconds > 0 ? tokens / seconds : null;
+}
+
 export function modelsForGpu(gpu: RentalGpu, measuredOutputTokensPerSecond: number | null = null) {
   return MODEL_SPECS.filter(model => model.vramGb <= gpu.vramGb).map(model => {
     const serving = gpu.id === "gpu-a" && model.id === "Qwen/Qwen2.5-1.5B-Instruct" && gpu.status === "serving";
