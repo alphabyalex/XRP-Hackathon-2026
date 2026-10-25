@@ -196,6 +196,34 @@
       "owner": "rDBNrgqBmMV3ebnFWhnyxZkdUQb7GZkejc",
       "escrowSequence": 6383402,
       "nonce": "2B7804D83B024BB3D1919A4E"
+    },
+    "522363FF11B81D93804508102A373E3902789D16A4881F465DDE507239CFFB7A": {
+      "gpuId": "gpu-a",
+      "shares": "100.000000",
+      "owner": "rDBNrgqBmMV3ebnFWhnyxZkdUQb7GZkejc",
+      "escrowSequence": 6383416,
+      "nonce": "AA6771C4F9E4B3F78B6B18FA"
+    },
+    "24CEF577C1D49F40283FA2DFD2656E00013C992D27E1904EBDC839565073CFF6": {
+      "gpuId": "gpu-a",
+      "shares": "80.000000",
+      "owner": "rDBNrgqBmMV3ebnFWhnyxZkdUQb7GZkejc",
+      "escrowSequence": 6383417,
+      "nonce": "6E73C1A4268C7D63FA53C205"
+    },
+    "55A34E44A85AB35B736706ABD2A3BD5E8D72C0A809ED43C2AFBCBDF8CB8C4F45": {
+      "gpuId": "gpu-a",
+      "shares": "100.000000",
+      "owner": "rDBNrgqBmMV3ebnFWhnyxZkdUQb7GZkejc",
+      "escrowSequence": 6383420,
+      "nonce": "D346A91AC49054C4700C2489"
+    },
+    "4A42B16C8752FA45BB8F18A6E33D8B13C30ED3AAA6CCEC0870C9A7DB96B9B0E4": {
+      "gpuId": "gpu-a",
+      "shares": "100.000000",
+      "owner": "rfPQUkUazV8AbkiKRjAaFi1ZrHpncdFjPp",
+      "escrowSequence": 6395224,
+      "nonce": "4B737E67AA235AA29FD000D0"
     }
   }
 }

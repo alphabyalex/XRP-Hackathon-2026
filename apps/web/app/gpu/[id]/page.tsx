@@ -22,13 +22,10 @@ export default async function GpuDetailPage({ params }: { params: Promise<{ id: 
     );
   } catch (err) {
     if (err instanceof NotFoundError) notFound(); // a registry GPU that is not online yet
-    if (err instanceof ApiUnreachableError) {
-      return (
-        <main className="wrap" style={{ paddingBlock: 120 }}>
-          <ApiErrorNotice />
-        </main>
-      );
-    }
-    throw err;
+    return (
+      <main className="wrap" style={{ paddingBlock: 120 }}>
+        <ApiErrorNotice />
+      </main>
+    );
   }
 }

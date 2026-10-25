@@ -38,10 +38,10 @@ async function runTests() {
 
   // 2. Account names and environment keys
   console.log("\nTest 2: Account names and environment key resolution");
-  assert.equal(ALL_ACCOUNT_NAMES.length, 12);
+  assert.equal(ALL_ACCOUNT_NAMES.length, 18);
   assert.equal(getSeedEnvKey("TDX_ISSUER", "testnet"), "TDX_ISSUER_SEED");
   assert.equal(getSeedEnvKey("ALICE", "testnet"), "ALICE_SEED");
-  console.log("  Passed: 12 accounts configured with exact seed env mapping");
+  console.log("  Passed: 18 accounts configured with exact seed env mapping");
 
   // 3. Typed Errors
   console.log("\nTest 3: Typed error classes");

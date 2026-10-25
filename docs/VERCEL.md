@@ -35,21 +35,27 @@ Configure the following environment variables in the Vercel project settings:
 
 ## 3. Deploying via Vercel CLI
 
-To build or deploy directly using the Vercel CLI:
+To build or deploy directly using the Vercel CLI from the repository root:
 
 ```bash
-# 1. Navigate to the web app
-cd apps/web
+# 1. Pull production environment settings
+vercel pull --yes --environment=production
 
-# 2. Simulate local production build
-vercel build
+# 2. Build production artifacts
+vercel build --prod --yes
 
-# 3. Deploy preview
-vercel deploy
-
-# 4. Deploy production
-vercel deploy --prod
+# 3. Deploy prebuilt artifacts directly to production
+vercel deploy --prebuilt --prod --yes
 ```
+
+### Live Production Deployment
+- **Canonical Protocol URL**: `https://moonshift-protocol.vercel.app`
+- **Secondary Protocol URL**: `https://moonshift-xrp.vercel.app`
+- **Team Production URL**: `https://moonshift-tharun-ekambarams-projects.vercel.app`
+- **Latest Production Release**: `https://moonshift-9lkd0mkev-tharun-ekambarams-projects.vercel.app`
+- **Project**: `tharun-ekambarams-projects/moonshift`
+- **Root Directory**: `apps/web`
+- **Framework Preset**: Next.js 15.5.28 (React 18.3.1, Node.js 24.x)
 
 ---
 

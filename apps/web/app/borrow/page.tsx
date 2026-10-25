@@ -21,7 +21,7 @@ async function sessionInit(): Promise<RequestInit> {
 export default async function BorrowPage() {
   try {
     const init = await sessionInit();
-    const [portfolio, { gpus }, profile, max, me] = await Promise.all([
+    const [portfolio, { gpus, unreachable }, profile, max, me] = await Promise.all([
       getPortfolio(init).catch(() => null),
       fetchAllGpus(),
       apiFetch<CreditProfile>("/loans/profile/me", init).catch(() => null),
@@ -33,6 +33,13 @@ export default async function BorrowPage() {
       apiFetch<{ wallet: ConnectedWallet | null }>("/wallet/me", init).catch(() => null),
     ]);
     const gpu = gpus[GPU_ID] ?? Object.values(gpus)[0];
+    if (unreachable || !gpu) {
+      return (
+        <main className="wrap" style={{ paddingBlock: 120 }}>
+          <ApiErrorNotice />
+        </main>
+      );
+    }
     return (
       <BorrowContent
         initialPortfolio={portfolio}
@@ -45,14 +52,11 @@ export default async function BorrowPage() {
         sharePrice={Number(gpu.sharePrice) || 0}
       />
     );
-  } catch (err) {
-    if (err instanceof ApiUnreachableError) {
-      return (
-        <main className="wrap" style={{ paddingBlock: 120 }}>
-          <ApiErrorNotice />
-        </main>
-      );
-    }
-    throw err;
+  } catch (_err) {
+    return (
+      <main className="wrap" style={{ paddingBlock: 120 }}>
+        <ApiErrorNotice />
+      </main>
+    );
   }
 }
