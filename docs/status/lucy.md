@@ -17,16 +17,21 @@ Night run, 2026-10-25. Branch `lucy`, from origin/alex 5526a8c. Running on Alexa
 - **Borrow P1** (05:14): credit rating with "Data via Quicknode · ledger N", the funding round and its available capital, GPU picker, live quote, memo, three charts (LTV at the GPU's hourly share prices, payment schedule from the quote terms, coverage per live quote), the account's history (every ledger step of every loan, with tx links), and the two request flows ("Request access to capital", "List a market") with the analyst message and "Under review".
 - **Quicknode** (05:20): services/credit now reads `account_objects` and `account_offers` (obligations on each source line), subscribes to `ledger` closes on the account WebSocket, polls `server_info` every 30 s, serves `GET /network`, and sends a `NETWORK_STATUS` credit event every 15 s that the api already relays. Verified live through Quicknode (testnet ledger 21,809,725; event seen on the api's `/events`). docs/QUICKNODE.md lists every method, why it matters, and how to reproduce it. 96 credit tests pass.
 
+- **Home borrow card** (05:24, Alex's request): BorrowPanel charts the base APR from `/lending/base-apr` when it exists, else the APR of each real loan at origination; collateral value at the live share price; capital available in the lending round; Get your quote opens /borrow with that GPU and share count. The fixed 10% APR and 50% slider are gone.
+- **SSE fallbacks** (05:26, Tharun's note on tunnels): /borrow polls loans every 5 s and the profile every 10 s; Try it reads the order when the stream fails; /lend already polls every 5 s.
+- **Polish** (05:28 to 05:36): loans the ledger still carries debt on count as outstanding (matches the round's 2,357 USDC); share price chart under the borrow panel before a quote; credit memo under the rating on wide screens; compact rows; "No approved amount" instead of "up to 0.00".
+- Verified the quote path with real DEV payloads served to the test browser: 300 USDC on 101 GPU-A shares quotes 14.76% APR, LTV 10.7%, 30 payments of 10.03 USDC, memo shown; 900 USDC (max 663) shows "You can borrow up to 663.00 USDC against these shares" and Borrow stays disabled.
+- **06:30 checkpoint** (06:32): merged origin/alex, typecheck clean in all four workspaces, 96 credit tests pass, pushed. Done for Alex: lending routes that are not on the api are no longer called (`LENDING_ROUTES_LIVE = false` in `lib/lendingApi.ts`; the pages read `/vault`, `/loans`, `/portfolio/me`); signed-out /borrow no longer calls `/loans/profile/me` or `/loans/max`; the chart remount workaround is gone (useTween fixed). /borrow, /lend (both tabs), /models, /docs and / load with zero console errors at 1280, signed in and out.
+
 ## Next
 
-1. 05:30 checkpoint: merge origin/alex, typecheck, push.
-2. Pick up Kristian's lending routes and Tharun's `/models` when they land.
-3. Polish at 400 px; final pass at 7:15.
+1. If Kristian's routes land before 7:15: set `LENDING_ROUTES_LIVE = true`, check the shapes, push.
+2. Final pass at 7:15, final push and DONE at 7:30.
 
 ## Blockers
 
 - Inference fails right now: a signed-in Try it order on GPU-A paid, served 0 tokens and was refunded; `/v1/chat/completions` answers `ORDER_FAILED`. The Models page says so plainly and shows the refund. Same root cause as Alex's request to Tharun (`continue_final_message` 400 on the Akash node).
-- Until Kristian's routes exist, my pages log one 404 each for `/loans/collateral-options`, `/lending/markets`, `/lending/dashboard`, `/lending/loanbook` (re-asked once a minute), and `/applications` answers 404, which the form shows as "Requests are not open right now."
+- Kristian has pushed nothing tonight (06:30). Until his routes exist: holdings come from `/portfolio/me`, markets from the vault rounds, the dashboard from `/vault` and `/loans`, and the two request forms show "Requests open shortly" with submit disabled.
 
 ## Requests
 
