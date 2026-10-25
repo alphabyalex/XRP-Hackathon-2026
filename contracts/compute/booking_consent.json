@@ -1,0 +1,20 @@
+{
+  "purpose": "Moonshift GPU booking consent v1",
+  "challengeLifetimeSeconds": 300,
+  "maximumRangeHours": 24,
+  "flow": [
+    "POST /bookings/quote returns the live price for the complete range.",
+    "POST /bookings/challenge requires a signed-in wallet and binds wallet, ledger account, GPU, UTC start and end, maximum payment, request ID, nonce and expiry.",
+    "The connected wallet signs messageHex without submitting a ledger transaction.",
+    "POST /bookings verifies the signature and consumes the approval atomically with its durable reservation journal. Compute reserves first. A validated payment confirms the booking.",
+    "Uncertain outcomes retain the hold and idempotency record. An identical signed retry returns a confirmed receipt or an explicit pending result. It never submits a second payment."
+  ],
+  "quoteRequest": {"gpuId": "gpu-a", "slotStart": "2026-10-26T08:00:00.000Z", "durationSeconds": 7200},
+  "quoteResponseFields": ["gpuId", "slotStart", "slotEnd", "durationSeconds", "totalPrice", "pricePerHour", "priceCap", "updatedAt"],
+  "challengeRequestFields": ["gpuId", "slotStart", "durationSeconds", "priceCap"],
+  "challengeResponseFields": ["challengeId", "message", "messageHex", "expiresAt", "gpuId", "slotStart", "slotEnd", "durationSeconds", "priceCap", "quotedAmount", "wallet", "account"],
+  "bookingRequestFields": ["gpuId", "slotStart", "durationSeconds", "priceCap", "challengeId", "publicKey", "signature"],
+  "idempotencyHeader": "Idempotency-Key must equal challengeId when supplied.",
+  "bookingResponseFields": ["bookingId", "redemptionId", "gpuId", "slotStart", "slotEnd", "amount", "currency", "priceSource", "priceBasis", "priceUpdatedAt", "payment"],
+  "errors": ["NOT_CONNECTED", "BOOKING_CONSENT_REQUIRED", "BOOKING_CONSENT_CHANGED", "INVALID_BOOKING_SIGNATURE", "BOOKING_CONSENT_EXPIRED", "BOOKING_CONSENT_USED", "PRICE_CAP_EXCEEDED", "SLOT_TAKEN", "PAYMENT_PENDING", "CANCELLATION_PENDING", "BOOKING_PENDING"]
+}

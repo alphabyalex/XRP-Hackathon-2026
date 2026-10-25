@@ -162,8 +162,8 @@ export function GpuDetailContent({ id }: { id: string }) {
                 <ComputeCheckout task={{ type, gpuHours }} onMode={setMode} />
               </div>
             </div>
-            <h3 className="sub-h">Book an hour</h3>
-            <p className="sub-p">The next 7 days of {v.dashLabel}. Pick a free hour and it is yours, paid up front on the ledger.</p>
+            <h3 className="sub-h">Book GPU time</h3>
+            <p className="sub-p">The next 7 days of {v.dashLabel}. Choose consecutive free hours, then approve the range and price cap in your wallet.</p>
             <div className="trade" style={{ marginTop: 20 }}>
               <BookingCalendar gpuId={gpu.id} gpuLabel={v.dashLabel} pricePerHour={hourly} />
             </div>

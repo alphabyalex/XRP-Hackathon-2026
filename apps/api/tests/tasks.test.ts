@@ -143,6 +143,9 @@ test("only a validated successful payment confirms a prepaid reservation", async
 // No test reaches a real ledger, compute worker, price feed, or AWS account.
 import express from "express";
 import { DatabaseSync } from "node:sqlite";
+import { Wallet } from "xrpl";
+import { sign } from "ripple-keypairs";
+import { promptFunding } from "../src/middleware/funding.js";
 import { createTasksRouter, type TaskRouteDependencies } from "../src/routes/tasks.js";
 import type { RentalCatalog } from "../src/marketData/rentalCatalog.js";
 
@@ -151,8 +154,12 @@ type RouteOptions = {
   reserveRejects?: boolean; reserveResponseLost?: boolean; cancelFails?: boolean;
   paidRecordFails?: boolean; pendingRecordFails?: boolean;
   catalogGpuId?: string; catalogModelId?: string;
+  fundingBalance?: string;
 };
 async function routeFixture(options: RouteOptions = {}) {
+  const wallet = Wallet.generate();
+  const account = Wallet.generate().classicAddress;
+  let clock = Date.now();
   const database = new DatabaseSync(":memory:");
   database.exec(`CREATE TABLE bookings (id TEXT PRIMARY KEY,gpu_id TEXT,slot_start TEXT,slot_end TEXT,holder TEXT,redemption_id TEXT)`);
   const state = { charges: 0, reservations: 0, cancellations: 0, holder: "", amount: "", emitted: [] as string[] };
@@ -193,9 +200,17 @@ async function routeFixture(options: RouteOptions = {}) {
   };
   const app = express();
   app.use(express.json());
+  app.use((req, _res, next) => {
+    if (!req.header("X-Test-Signed-Out")) req.user = { name: "DEV", wallet: wallet.classicAddress,
+      walletNetwork: "testnet", address: account, createdAt: fresh };
+    next();
+  });
   const dependencies: Partial<TaskRouteDependencies> = {
     db, cachedCatalog: () => catalog, getCatalog: async () => catalog,
     actor: req => { if (req.header("X-Test-Signed-Out")) throw new Error("No session"); return "DEV"; },
+    bookingIdentity: req => { if (req.header("X-Test-Signed-Out")) throw new TaskError("NOT_CONNECTED", "No session", 401); return { holder: "DEV", wallet: wallet.classicAddress, account }; },
+    consentClock: () => clock,
+    funding: promptFunding(async () => ({ balance: options.fundingBalance ?? "1", balanceUpdatedAt: fresh })),
     liveEnabled: () => true, fetchUpstream,
     estimate: async () => { throw new Error("Pricing service unavailable"); },
     pay: async params => {
@@ -214,9 +229,25 @@ async function routeFixture(options: RouteOptions = {}) {
   assert(address && typeof address !== "string");
   const base = `http://127.0.0.1:${address.port}`;
   const body = { gpuId: "gpu-a", slotStart: new Date(Date.now() + 3600000).toISOString(), durationSeconds: 3600, priceCap: "1.000000", holder: "ALEXANDER" };
+  const proofs = new Map<string, Record<string, unknown>>();
+  const rawPost = (path: string, payload: unknown, key?: string, extra: Record<string, string> = {}) => fetch(`${base}${path}`, {
+    method: "POST", headers: { "Content-Type": "application/json", ...(key ? { "Idempotency-Key": key } : {}), ...extra }, body: JSON.stringify(payload),
+  });
+  async function post(path: string, payload: unknown, key = "same-request", extra: Record<string, string> = {}) {
+    if (path !== "/bookings") return rawPost(path, payload, key, extra);
+    let proof = proofs.get(key);
+    if (!proof) {
+      const response = await rawPost("/bookings/challenge", payload, undefined, extra);
+      if (!response.ok) return response;
+      const challenge = await response.json();
+      proof = { ...payload as object, challengeId: challenge.challengeId, publicKey: wallet.publicKey, signature: sign(challenge.messageHex, wallet.privateKey) };
+      proofs.set(key, proof);
+    }
+    return rawPost(path, proof, String(proof.challengeId), extra);
+  }
   return {
     state, database, body,
-    post: (path: string, payload: unknown, key = "same-request", extra: Record<string, string> = {}) => fetch(`${base}${path}`, { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": key, ...extra }, body: JSON.stringify(payload) }),
+    post, rawPost, proofs, wallet, account, advance: (ms: number) => { clock += ms; },
     get: (path: string) => fetch(`${base}${path}`),
     journal: () => database.prepare("SELECT * FROM task_bookings").get() as { status: string; booking_id: string | null; payment_hash: string | null },
     close: async () => { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); database.close(); },
@@ -383,4 +414,114 @@ test("inference estimates identify the model actually deployed on the priced phy
     assert.deepEqual(estimate.suggestedModels, [{ gpuId: "gpu-c", modelId: "Qwen/Qwen2.5-3B-Instruct" }]);
     assert.equal(fixture.state.charges, 0);
   } finally { await fixture.close(); }
+});
+
+test("booking range quote uses the full live duration before any hold or payment", async () => {
+  const fixture = await routeFixture();
+  try {
+    const response = await fixture.post("/bookings/quote", { ...fixture.body, durationSeconds: 7200 });
+    assert.equal(response.status, 200);
+    const quote = await response.json();
+    assert.equal(quote.totalPrice, "0.250000");
+    assert.equal(Date.parse(quote.slotEnd) - Date.parse(quote.slotStart), 7200000);
+    assert.equal(fixture.state.charges + fixture.state.reservations, 0);
+  } finally { await fixture.close(); }
+});
+
+async function signedBooking(fixture: Awaited<ReturnType<typeof routeFixture>>) {
+  const response = await fixture.post("/bookings/challenge", fixture.body);
+  assert.equal(response.status, 201);
+  const challenge = await response.json();
+  return { challenge, proof: { ...fixture.body, challengeId: challenge.challengeId,
+    publicKey: fixture.wallet.publicKey, signature: sign(challenge.messageHex, fixture.wallet.privateKey) } };
+}
+
+test("wallet consent binds purpose, GPU, both times, cap and the session account", async () => {
+  const fixture = await routeFixture();
+  try {
+    const { challenge, proof } = await signedBooking(fixture);
+    for (const text of ["Moonshift GPU booking consent v1", "Nonce:", fixture.wallet.classicAddress,
+      fixture.account, fixture.body.gpuId, fixture.body.slotStart, challenge.slotEnd, "1.000000 USDC"]) assert(challenge.message.includes(text));
+    for (const change of [{ gpuId: "gpu-b" }, { slotStart: new Date(Date.parse(fixture.body.slotStart) + 3600000).toISOString() },
+      { durationSeconds: 7200 }, { priceCap: "2.000000" }]) {
+      const response = await fixture.rawPost("/bookings", { ...proof, ...change }, challenge.challengeId);
+      assert.equal(response.status, 403);
+      assert.equal((await response.json()).error.code, "BOOKING_CONSENT_CHANGED");
+    }
+    assert.equal(fixture.state.charges + fixture.state.reservations, 0);
+  } finally { await fixture.close(); }
+});
+
+test("wrong wallet signatures and changed signature bytes never reserve or charge", async () => {
+  const fixture = await routeFixture();
+  try {
+    const { challenge, proof } = await signedBooking(fixture);
+    const other = Wallet.generate();
+    for (const change of [{ publicKey: other.publicKey, signature: sign(challenge.messageHex, other.privateKey) },
+      { signature: `${proof.signature.startsWith("A") ? "B" : "A"}${proof.signature.slice(1)}` }]) {
+      const response = await fixture.rawPost("/bookings", { ...proof, ...change }, challenge.challengeId);
+      assert.equal(response.status, 403);
+      assert.equal((await response.json()).error.code, "INVALID_BOOKING_SIGNATURE");
+    }
+    assert.equal(fixture.state.charges + fixture.state.reservations, 0);
+  } finally { await fixture.close(); }
+});
+
+test("expired unused wallet approvals leave no hold, payment or consumed nonce", async () => {
+  const fixture = await routeFixture();
+  try {
+    const { challenge, proof } = await signedBooking(fixture);
+    fixture.advance(6 * 60000);
+    const response = await fixture.rawPost("/bookings", proof, challenge.challengeId);
+    assert.equal(response.status, 409);
+    assert.equal((await response.json()).error.code, "BOOKING_CONSENT_EXPIRED");
+    assert.equal(fixture.state.charges + fixture.state.reservations, 0);
+    assert.equal(fixture.database.prepare("SELECT consumed_at FROM booking_consents").get()?.consumed_at, null);
+    assert.equal(fixture.database.prepare("SELECT count(*) AS n FROM task_bookings").get()?.n, 0);
+  } finally { await fixture.close(); }
+});
+
+test("a consent cannot be moved to a new idempotency request or reused after consuming", async () => {
+  const fixture = await routeFixture();
+  try {
+    const { challenge, proof } = await signedBooking(fixture);
+    const moved = await fixture.rawPost("/bookings", proof, "another-request");
+    assert.equal(moved.status, 403);
+    fixture.database.prepare("UPDATE booking_consents SET consumed_at=? WHERE id=?").run(new Date().toISOString(), challenge.challengeId);
+    const replay = await fixture.rawPost("/bookings", proof, challenge.challengeId);
+    assert.equal(replay.status, 409);
+    assert.equal((await replay.json()).error.code, "BOOKING_CONSENT_USED");
+    assert.equal(fixture.state.charges + fixture.state.reservations, 0);
+  } finally { await fixture.close(); }
+});
+
+test("parallel identical signed requests settle exactly once and retain the signature audit", async () => {
+  const fixture = await routeFixture();
+  try {
+    const { challenge, proof } = await signedBooking(fixture);
+    const responses = await Promise.all([fixture.rawPost("/bookings", proof, challenge.challengeId), fixture.rawPost("/bookings", proof, challenge.challengeId)]);
+    assert.deepEqual(responses.map(response => response.status).sort(), [200, 201]);
+    assert.equal(fixture.state.charges, 1);
+    assert.equal(fixture.state.reservations, 1);
+    const row = fixture.database.prepare("SELECT consumed_at,public_key,signature FROM booking_consents").get();
+    assert(row?.consumed_at);
+    assert.equal(row?.public_key, proof.publicKey);
+    assert.equal(row?.signature, proof.signature);
+    fixture.advance(8 * 86400000);
+    const recovered = await fixture.rawPost("/bookings", proof, challenge.challengeId);
+    assert.equal(recovered.status, 200); // A completed receipt remains recoverable after approval expiry.
+    assert.equal(fixture.state.charges, 1);
+  } finally { await fixture.close(); }
+});
+
+test("task estimator rejects anonymous or unfunded prompts before any service call", async () => {
+  const anonymous = await routeFixture();
+  const unfunded = await routeFixture({ fundingBalance: "0" });
+  try {
+    const first = await anonymous.post("/tasks/estimate", { description: "Size a task", type: "inference" }, "unsigned", { "X-Test-Signed-Out": "1" });
+    assert.equal(first.status, 401);
+    const second = await unfunded.post("/tasks/estimate", { description: "Size a task", type: "inference" });
+    assert.equal(second.status, 402);
+    assert.equal((await second.json()).error.code, "USDC_REQUIRED");
+  } finally { await anonymous.close(); await unfunded.close(); }
 });

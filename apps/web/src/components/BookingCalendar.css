@@ -1,0 +1,7 @@
+.cal7-help { margin-bottom: 16px; }
+.cal7 button.cal7-cell { touch-action: none; }
+.cal7 button.cal7-cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; z-index: 1; }
+.cal7-range-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 20px; }
+.cal7-range-fields label { min-width: 0; color: var(--ink3); font-size: 11px; }
+.cal7-range-fields input { width: 100%; min-width: 0; box-sizing: border-box; min-height: 44px; margin-top: 6px; border: 1px solid var(--rule); border-radius: 8px; padding: 8px; color: var(--ink); font: inherit; }
+@media (max-width: 560px) { .cal7-range-fields { grid-template-columns: minmax(0, 1fr); } }
