@@ -14,7 +14,8 @@ export const GPUS = [
     id: "gpu-a",
     label: "GPU A",
     hw: "NVIDIA T4 16GB",
-    model: "Qwen/Qwen3-1.7B",
+    // What the live endpoint serves (its vLLM root); requests use the served name Qwen/Qwen3-1.7B.
+    model: "Qwen/Qwen2.5-1.5B-Instruct",
     shareCode: "GPA",
     contractCode: "HRA",
     sharesTotal: 1000,
@@ -22,7 +23,7 @@ export const GPUS = [
   {
     id: "gpu-b",
     label: "GPU B",
-    hw: "NVIDIA Tesla V100 16GB",
+    hw: "NVIDIA T4 16GB", // the mock GPU: same card as GPU-A everywhere until real hardware replaces it
     model: "Qwen/Qwen3-1.7B",
     shareCode: "GPB",
     contractCode: "HRB",
@@ -132,14 +133,14 @@ export const RESOURCE_BREAKDOWN: Record<GpuId, GpuResourceBreakdown> = {
     instanceType: "dCloud SDL (Audited Provider)",
     region: "Decentralized Cloud",
     components: {
-      gpu: { label: "GPU Compute", spec: "1x NVIDIA Tesla V100 16GB", hourlyUsd: "0.200000" },
+      gpu: { label: "GPU Compute", spec: "1x NVIDIA T4 16GB VRAM", hourlyUsd: "0.110000" },
       cpu: { label: "vCPU Compute", spec: "4 vCPUs (AMD EPYC / Intel)", hourlyUsd: "0.024000" },
       ram: { label: "System Memory", spec: "16 GiB System RAM", hourlyUsd: "0.014000" },
       storage: { label: "NVMe Storage", spec: "100 GB NVMe SSD", hourlyUsd: "0.012000" },
     },
-    totalHourlyUsd: "0.250000",
-    monthlyUsd: "180.00",
-    indexedSavingsVsAwsPct: "91.8%",
+    totalHourlyUsd: "0.160000",
+    monthlyUsd: "115.20",
+    indexedSavingsVsAwsPct: "69.6%",
   },
   "gpu-c": {
     provider: "Akash Network (akt CLI)",
