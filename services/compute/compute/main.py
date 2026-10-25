@@ -81,6 +81,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             settings.pricing_cache_seconds,
             settings.request_timeout_seconds,
             settings.mock,
+            api_url=settings.api_url,
+            internal_api_key=settings.internal_api_key,
         ),
         usage_reporter=UsageReporter(
             settings.api_url, settings.internal_api_key, settings.request_timeout_seconds

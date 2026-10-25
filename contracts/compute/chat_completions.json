@@ -1,36 +1,64 @@
 {
   "endpoint": "POST /v1/chat/completions",
-  "headers": { "X-MS-Buyer": "ALICE", "X-MS-Booking": "optional, redemption id for a booked slot" },
+  "headers": {
+    "X-MS-Buyer": "ALICE",
+    "X-MS-Booking": "optional, redemption id for a booked slot"
+  },
   "request": {
-    "model": "Qwen/Qwen3-1.7B",
-    "messages": [{ "role": "user", "content": "Say hello in one sentence." }],
+    "model": "Qwen/Qwen2.5-1.5B-Instruct",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Say hello in one sentence."
+      }
+    ],
     "stream": false
   },
   "response": {
     "id": "chatcmpl-abc123",
     "object": "chat.completion",
     "created": 1761072000,
-    "model": "Qwen/Qwen3-1.7B",
+    "model": "Qwen/Qwen2.5-1.5B-Instruct",
     "choices": [
       {
         "index": 0,
-        "message": { "role": "assistant", "content": "Hello there!" },
+        "message": {
+          "role": "assistant",
+          "content": "Hello there!"
+        },
         "finish_reason": "stop"
       }
     ],
     "x_ms": {
       "request_id": "req_abc123",
       "gpu_id": "gpu-a",
-      "model": "Qwen/Qwen3-1.7B",
+      "model": "Qwen/Qwen2.5-1.5B-Instruct",
       "input_tokens": 8,
       "output_tokens": 5,
-      "charge": "0.001234",
-      "routed_reason": "lowest utilization READY gpu",
-      "simulated": false
+      "charge": "0.000306",
+      "routed_reason": "LOWEST_ESTIMATED_PRICE",
+      "simulated": false,
+      "charge_basis": "live_hourly_rate_times_measured_request_runtime",
+      "measured_runtime_seconds": 2,
+      "hourly_usd": "0.550000",
+      "price_updated_at": "2026-10-25T07:39:58.233Z",
+      "planning_runtime_is_estimate": true
     }
   },
   "error_example": {
     "status": 409,
-    "body": { "error": { "code": "GPU_BOOKED", "message": "gpu-a is booked until 2026-10-24T18:05:00Z" } }
-  }
+    "body": {
+      "error": {
+        "code": "GPU_BOOKED",
+        "message": "gpu-a is booked until 2026-10-24T18:05:00Z"
+      }
+    }
+  },
+  "notes": [
+    "Response is an illustrative contract shape, not a stored runtime answer.",
+    "Live rates come from GET /catalog/gpus. Missing or stale rates fail with PRICING_UNAVAILABLE before execution.",
+    "The metered charge is hourly rate times measured endpoint request runtime divided by 3600.",
+    "An active reservation belonging to X-MS-Buyer has charge 0.000000 and charge_basis prepaid_booking. Missing, expired or wrong-owner reservations return BOOKING_NOT_FOUND.",
+    "The API task router owns payment settlement. This service reports metered usage."
+  ]
 }
