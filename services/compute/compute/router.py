@@ -195,6 +195,7 @@ class ComputeRouter:
             simulated=simulated or simulated_demand,
         )
         await self.usage_reporter.report(event)
+        await worker.record_usage(event)
         x_ms: dict[str, object] = {
             "request_id": request_id,
             "gpu_id": worker.gpu_id,

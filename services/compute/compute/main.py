@@ -46,6 +46,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
     scheduler = Scheduler(settings)
     providers: dict[str, ModelProvider] = {}
+    configured_endpoints: set[str] = set()
 
     def provider_for(gid: str) -> ModelProvider:
         if settings.mock:
@@ -59,6 +60,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not endpoint:
             scheduler.worker(gid).set_offline(True)
             return UnavailableProvider()
+        endpoint = endpoint.rstrip("/").removesuffix("/v1")
+        if endpoint in configured_endpoints:
+            scheduler.worker(gid).set_offline(True)
+            return UnavailableProvider()
+        configured_endpoints.add(endpoint)
         scheduler.worker(gid).simulated = False
         return VllmProvider(
             endpoint, settings.request_timeout_seconds, settings.upstream_model if gid == "gpu-a" else None

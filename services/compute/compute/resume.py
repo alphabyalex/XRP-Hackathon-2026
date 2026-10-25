@@ -233,12 +233,14 @@ def install(app: FastAPI, scheduler: Scheduler, providers: dict[str, Any], setti
             if ok and req.reportUsage and n > start_n:
                 served = n - start_n
                 charge = (Decimal(req.chargePerToken) * served).quantize(Decimal("0.000001"))
-                await router.usage_reporter.report(UsageEvent(
+                event = UsageEvent(
                     request_id=request_id, gpu_id=req.gpuId, buyer=req.buyer, booking_id=None,
                     input_tokens=sum(estimate_text_tokens(m.content) for m in req.messages) if start_n == 0 else 0,
                     output_tokens=served, charge=f"{charge:f}", started_at=started,
                     finished_at=datetime.now(UTC), simulated=settings.mock or worker.simulated,
-                ))
+                )
+                await router.usage_reporter.report(event)
+                await worker.record_usage(event)
 
     @app.post("/v1/resume/stream")
     async def resume_stream(req: StreamRequest, key: str | None = Header(default=None, alias="X-MS-Internal-Key")):

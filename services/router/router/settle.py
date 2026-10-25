@@ -100,7 +100,7 @@ async def pay(
 
 def settlement_lines(order: dict[str, Any]) -> list[dict[str, Any]]:
     """What each GPU earned for the work it actually served, never more in total than the buyer set aside."""
-    if order.get("executionFailed"):
+    if order.get("executionFailed") or order.get("status") == "failed":
         # A partial or failed reply is not a delivered task. Moonshift absorbs its compute cost.
         return []
     paid = cap_dec(order)

@@ -143,3 +143,13 @@ def test_gpu_a_url_and_real_model_configuration(monkeypatch):
     assert settings.vllm_url == "http://gpu-a"
     assert settings.model == MODEL
     assert settings.upstream_model == ALIAS
+
+
+def test_live_workers_cannot_register_the_same_endpoint_twice(tmp_path):
+    settings = replace(Settings.from_env(), state_dir=tmp_path, mock=False,
+                       vllm_url="http://same-worker", gpu_b_vllm_url="http://same-worker/v1/")
+    app = create_app(settings)
+    with TestClient(app) as client:
+        workers = {gpu["id"]: gpu for gpu in client.get("/gpus").json()}
+        assert workers["gpu-a"]["state"] == "READY"
+        assert workers["gpu-b"]["state"] == "OFFLINE"

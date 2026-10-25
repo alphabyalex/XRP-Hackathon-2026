@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from router import collectors
+from router import config as C
 from router.catalog import Offer, iso, now_utc
 from router.collectors.base import CollectContext
 from router.fleet import FleetEntry, FleetState, GpuView, load_entries
@@ -22,7 +23,10 @@ class Service:
     def load_catalog(self, offers: list[Offer], errors: dict[str, str] | None = None) -> None:
         """Replace offers that were re-collected; keep the last good snapshot for the rest."""
         for o in offers:
-            self.offers[o.key] = o
+            if C.FLEET_SOURCE == "mock" or o.priceSource == "live":
+                self.offers[o.key] = o
+        if C.FLEET_SOURCE != "mock":
+            self.offers = {key: offer for key, offer in self.offers.items() if offer.priceSource == "live"}
         self.errors = errors or {}
         self.catalog_as_of = max((o.asOf for o in self.offers.values() if o.priceSource != "static"), default="")
         self.entries = load_entries(self.offers)
@@ -39,7 +43,8 @@ class Service:
             for o in self.offers.values()
             if (provider is None or o.provider == provider) and (gpu_model is None or o.gpuModel == gpu_model)
         ]
-        moonshift = [e.offer.with_(executable=True) for e in self.entries if e.offer.provider == "moonshift"]
+        moonshift = [e.offer.with_(executable=True) for e in self.entries if e.offer.provider == "moonshift"
+                     and (C.FLEET_SOURCE == "mock" or self.state.view(e, now_utc()).available)]
         if provider in (None, "moonshift") and gpu_model in (None, *[o.gpuModel for o in moonshift]):
             rows += [o for o in moonshift if gpu_model is None or o.gpuModel == gpu_model]
         return sorted(rows, key=lambda o: (o.provider, o.gpuModel, o.pricePerHourUsd, o.key))

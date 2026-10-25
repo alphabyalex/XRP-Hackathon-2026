@@ -84,7 +84,7 @@ class VllmProvider:
         self, base_url: str, timeout_seconds: float, served_model: str | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
-        self.base_url = base_url.rstrip("/")
+        self.base_url = base_url.rstrip("/").removesuffix("/v1")
         self.timeout_seconds = timeout_seconds
         # The running server can use a legacy alias. Never expose that alias as the actual model.
         self.served_model = served_model
