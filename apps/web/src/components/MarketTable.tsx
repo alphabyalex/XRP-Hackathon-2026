@@ -32,25 +32,7 @@ export function MarketTable({ views }: { views: GpuView[] }) {
                 <div className="gname">
                   <DataMoon slots={v.slots.slice(-288)} size={40} />
                   <div>
-                    <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      <b>{v.dashLabel}</b>
-                      {(v.gpu.resources?.provider || (v.gpu as any).provider) && (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            padding: "1px 6px",
-                            borderRadius: 4,
-                            background: "rgba(255,255,255,0.08)",
-                            color: "var(--ink2, #a0aec0)",
-                            border: "1px solid rgba(255,255,255,0.12)",
-                            fontWeight: 500,
-                            letterSpacing: "0.02em",
-                          }}
-                        >
-                          {v.gpu.resources?.provider ?? (v.gpu as any).provider}
-                        </span>
-                      )}
-                    </div>
+                    <b>{v.dashLabel}</b>
                     <span>{v.gpu.hw}</span>
                   </div>
                 </div>

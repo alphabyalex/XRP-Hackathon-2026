@@ -42,7 +42,8 @@ async function buildSummary(gpuId: GpuId) {
     impliedYieldPct: nav.implied_yield_pct,
     holdersCount: holders.length,
     monteCarlo: (computeState as any)?.monte_carlo,
-    resources: RESOURCE_BREAKDOWN[gpuId],
+    // Hosting and its cost breakdown: real hardware only.
+    resources: gpuHealth().some((h) => h.gpuId === gpuId && h.kind === "real") ? RESOURCE_BREAKDOWN[gpuId] : undefined,
   };
 }
 

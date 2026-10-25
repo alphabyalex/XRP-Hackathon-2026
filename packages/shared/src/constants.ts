@@ -122,19 +122,20 @@ export interface GpuResourceBreakdown {
 }
 
 export const RESOURCE_BREAKDOWN: Record<GpuId, GpuResourceBreakdown> = {
+  // Tharun's live Akash T4 lease (DSEQ 1792883508772, $117.50 a month).
   "gpu-a": {
-    provider: "AWS",
-    instanceType: "g4dn.xlarge",
-    region: "us-east-2",
+    provider: "Akash Network",
+    instanceType: "dCloud SDL (Audited Provider)",
+    region: "Decentralized Cloud",
     components: {
-      gpu: { label: "GPU Compute", spec: "1x NVIDIA T4 16GB VRAM", hourlyUsd: "0.360000" },
-      cpu: { label: "vCPU Compute", spec: "4 vCPUs (Intel Cascade Lake)", hourlyUsd: "0.080000" },
-      ram: { label: "System Memory", spec: "16 GiB System RAM", hourlyUsd: "0.046000" },
-      storage: { label: "NVMe Storage", spec: "125 GB NVMe SSD", hourlyUsd: "0.040000" },
+      gpu: { label: "GPU Compute", spec: "1x NVIDIA T4 16GB VRAM", hourlyUsd: "0.110000" },
+      cpu: { label: "vCPU Compute", spec: "4 vCPUs (AMD EPYC / Intel)", hourlyUsd: "0.024000" },
+      ram: { label: "System Memory", spec: "16 GiB System RAM", hourlyUsd: "0.014000" },
+      storage: { label: "NVMe Storage", spec: "100 GB NVMe SSD", hourlyUsd: "0.012000" },
     },
-    totalHourlyUsd: "0.526000",
-    monthlyUsd: "378.72",
-    indexedSavingsVsAwsPct: "0.0%",
+    totalHourlyUsd: "0.160000",
+    monthlyUsd: "115.20",
+    indexedSavingsVsAwsPct: "69.6%",
   },
   "gpu-b": {
     provider: "Akash Network",
