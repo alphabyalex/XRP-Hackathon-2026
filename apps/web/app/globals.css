@@ -1388,60 +1388,6 @@ main:has(.enter) + footer .logo {
 main:has(.enter) + footer .footer-desc {
   color: var(--night-muted);
 }
-.footer-links {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  font-size: 13.5px;
-  flex-wrap: wrap;
-}
-.footer-links a {
-  color: var(--ink2);
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.15s ease;
-}
-.footer-links a:hover {
-  color: var(--ink);
-}
-main:has(.enter) + footer .footer-links a {
-  color: var(--night-muted);
-}
-main:has(.enter) + footer .footer-links a:hover {
-  color: var(--night-ink);
-}
-.footer-pills {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.footer-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--tint);
-  border: 1px solid var(--rule);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ink2);
-}
-main:has(.enter) + footer .footer-pill {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: var(--night-muted);
-}
-.footer-dot {
-  width: 7px;
-  height: 7px;
-  background: var(--up);
-  border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--up-wash);
-}
-main:has(.enter) + footer .footer-dot {
-  box-shadow: 0 0 0 2px rgba(11, 138, 79, 0.3);
-}
 
 .toast {
   position: fixed;
