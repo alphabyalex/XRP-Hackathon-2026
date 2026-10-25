@@ -1,0 +1,39 @@
+{
+  "method": "GET",
+  "path": "/models?gpuId=gpu-a",
+  "request": {
+    "gpuId": "gpu-a"
+  },
+  "response": {
+    "updatedAt": "2026-10-25T08:42:50.190183Z",
+    "gpuId": "gpu-a",
+    "models": [
+      {
+        "gpuId": "gpu-a",
+        "id": "Qwen/Qwen2.5-1.5B-Instruct",
+        "modelId": "Qwen/Qwen2.5-1.5B-Instruct",
+        "name": "Qwen2.5-1.5B-Instruct",
+        "status": "serving",
+        "acceptsRequests": true,
+        "vramGb": 5,
+        "vramBasis": "FP16 weights plus context and runtime budget",
+        "parametersBillion": 1.54,
+        "contextLength": 4096,
+        "publishedContextLength": 32768,
+        "sourceUrl": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct",
+        "pricePer1MTokens": null,
+        "currency": "USD",
+        "priceBasis": null,
+        "endpoint": "/v1/chat/completions",
+        "updatedAt": "2026-10-25T08:42:50.190183Z"
+      }
+    ]
+  },
+  "notes": [
+    "A serving record requires healthy GPU-A. With no healthy GPUs models is empty.",
+    "Other fitting Qwen2.5 models are on_request, have null endpoint and acceptsRequests=false.",
+    "vramGb is a conservative sizing budget, not measured memory consumption.",
+    "Price per 1M output tokens is computed only from fresh live hourly rates and observed real usage throughput. Null means insufficient evidence.",
+    "Call the public endpoint with the canonical modelId. The private legacy vLLM alias is an implementation detail."
+  ]
+}
