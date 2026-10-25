@@ -19,7 +19,8 @@ git fetch origin
 git switch alex
 git pull --ff-only origin alex
 npm ci
-WEB_ORIGIN=https://moonshift-protocol.vercel.app BEDROCK_ENABLED=1 npm run demo
+WEB_ORIGIN=https://moonshift-protocol.vercel.app BEDROCK_ENABLED=1 \
+  FLEET_SOURCE=own PRICE_SOURCES=aws_public npm run demo
 ```
 
 The script starts services and selects port 5001 if macOS owns port 5000.
