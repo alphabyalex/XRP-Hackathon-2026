@@ -88,9 +88,11 @@ export function LiveDataProvider({
         setUnreachable(false);
         scheduleRefresh();
       };
-      es.onerror = () => setUnreachable(true);
+      // A dropped or unsupported stream (a Quick Tunnel carries no SSE) is not an outage: the
+      // 5 second poll keeps data fresh, and only a failed fetch marks the api unreachable.
+      es.onerror = () => {};
     } catch {
-      setUnreachable(true);
+      // no EventSource: polling alone
     }
 
     // Safety net: refetch every 5 seconds so data never goes stale even if
