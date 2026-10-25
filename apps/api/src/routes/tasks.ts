@@ -3,16 +3,45 @@ import { randomUUID } from "crypto";
 import { SLOT_MINUTES, type GpuId } from "@moonshift/shared";
 import * as ledger from "@moonshift/xrpl";
 import { internalHeaders, serviceJson } from "../adapters/serviceFetch.js";
-import { db } from "../db/db.js";
-import { addRevenue, logTx } from "../db/helpers.js";
-import { actorFor } from "../middleware/session.js";
-import { broadcast } from "../sse.js";
-import { cachedRentalCatalog, getRentalCatalog } from "../marketData/rentalCatalog.js";
+import { db as defaultDb } from "../db/db.js";
+import { addRevenue as defaultAddRevenue, logTx as defaultLogTx } from "../db/helpers.js";
+import { actorFor as defaultActorFor } from "../middleware/session.js";
+import { broadcast as defaultBroadcast } from "../sse.js";
+import { cachedRentalCatalog as defaultCachedCatalog, getRentalCatalog as defaultGetCatalog } from "../marketData/rentalCatalog.js";
 import { buildQuote, fallbackSizing, fits, hourlyBlocks, integer, parseEstimate, parseQuote, parseSizing, settleHeldBooking, TaskError, type CalendarEvent, type Sizing } from "./tasksCore.js";
 
-export const tasksRouter = Router();
 const computeUrl = () => (process.env.COMPUTE_URL ?? "http://localhost:5001").replace(/\/+$/, "");
 const pricingUrl = () => (process.env.PRICING_URL ?? "http://localhost:6100").replace(/\/+$/, "");
+
+interface EstimateResult { source: string; modelId: string | null; sizing: unknown }
+export interface TaskRouteDependencies {
+  db: typeof defaultDb;
+  cachedCatalog: typeof defaultCachedCatalog;
+  getCatalog: typeof defaultGetCatalog;
+  actor: typeof defaultActorFor;
+  pay: typeof ledger.payForInference;
+  addRevenue: typeof defaultAddRevenue;
+  logTx: typeof defaultLogTx;
+  broadcast: typeof defaultBroadcast;
+  fetchUpstream: typeof fetch;
+  liveEnabled: () => boolean;
+  estimate: (input: ReturnType<typeof parseEstimate>) => Promise<EstimateResult>;
+}
+
+// Production defaults remain real services. Tests replace only these boundaries.
+export function createTasksRouter(overrides: Partial<TaskRouteDependencies> = {}) {
+const tasksRouter = Router();
+const db = overrides.db ?? defaultDb;
+const cachedRentalCatalog = overrides.cachedCatalog ?? defaultCachedCatalog;
+const getRentalCatalog = overrides.getCatalog ?? defaultGetCatalog;
+const actorFor = overrides.actor ?? defaultActorFor;
+const pay = overrides.pay ?? ledger.payForInference;
+const addRevenue = overrides.addRevenue ?? defaultAddRevenue;
+const logTx = overrides.logTx ?? defaultLogTx;
+const broadcast = overrides.broadcast ?? defaultBroadcast;
+const fetchUpstream = overrides.fetchUpstream ?? fetch;
+const liveEnabled = overrides.liveEnabled ?? (() => process.env.MOCK_XRPL === "0" && process.env.MOCK_COMPUTE === "0");
+const estimate = overrides.estimate ?? ((input: ReturnType<typeof parseEstimate>) => serviceJson<EstimateResult>("pricing", `${pricingUrl()}/agent/task-estimate`, { body: input, timeoutMs: 13000 }));
 
 // Keep an audit record before any remote reservation or ledger mutation. An uncertain
 // payment remains pending, preserving its reservation for operator reconciliation.
@@ -51,7 +80,7 @@ tasksRouter.post("/tasks/estimate", async (req, res) => {
     let source: "bedrock" | "fallback" = "fallback";
     let modelId: string | null = null;
     try {
-      const result = await serviceJson<{ source: string; modelId: string | null; sizing: unknown }>("pricing", `${pricingUrl()}/agent/task-estimate`, { body: input, timeoutMs: 13000 });
+      const result = await estimate(input);
       const validated = parseSizing(result.sizing, input.type);
       if (result.source === "bedrock" || result.source === "fallback") {
         sizing = validated;
@@ -76,7 +105,7 @@ tasksRouter.post("/tasks/estimate", async (req, res) => {
 async function computeJson<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
   let response: globalThis.Response;
   try {
-    response = await fetch(`${computeUrl()}${path}`, {
+    response = await fetchUpstream(`${computeUrl()}${path}`, {
       method: init.method ?? "GET", headers: internalHeaders(init.body !== undefined),
       body: init.body === undefined ? undefined : JSON.stringify(init.body), signal: AbortSignal.timeout(5000),
     });
@@ -128,14 +157,17 @@ async function releaseHold(id: string, bookingId: string): Promise<void> {
   try {
     await computeJson(`/bookings/${encodeURIComponent(bookingId)}`, { method: "DELETE" });
     updateBooking(id, "cancelled", bookingId);
-  } catch { updateBooking(id, "cancellation_pending", bookingId); }
+  } catch {
+    try { updateBooking(id, "cancellation_pending", bookingId); } catch { /* Keep the durable pre-submit pending row. */ }
+    throw new TaskError("CANCELLATION_PENDING", "The payment failed. Releasing the reservation is awaiting reconciliation. Do not submit another payment.", 503);
+  }
 }
 
 tasksRouter.post("/bookings", async (req: Request, res: Response) => {
   try {
     let holder: ReturnType<typeof actorFor>;
     try { holder = actorFor(req); } catch { throw new TaskError("NOT_CONNECTED", "Connect your wallet to reserve a GPU.", 401); }
-    if (process.env.MOCK_XRPL !== "0" || process.env.MOCK_COMPUTE !== "0") throw new TaskError("BOOKING_UNAVAILABLE", "Live reservations are not enabled.", 503);
+    if (!liveEnabled()) throw new TaskError("BOOKING_UNAVAILABLE", "Live reservations are not enabled.", 503);
     const data = req.body as Record<string, unknown> | undefined;
     const gpuId = typeof data?.gpuId === "string" ? data.gpuId : "";
     if (!/^gpu-[a-z0-9-]{1,40}$/.test(gpuId)) throw new TaskError("BAD_REQUEST", "gpuId is invalid.");
@@ -175,7 +207,7 @@ tasksRouter.post("/bookings", async (req: Request, res: Response) => {
       } catch (error) { updateBooking(redemptionId, error instanceof TaskError && error.status === 409 ? "cancelled" : "reservation_pending"); throw error; }
       updateBooking(redemptionId, "payment_pending", bookingId);
       const payment = await settleHeldBooking({
-        charge: () => ledger.payForInference({ payer: holder, gpuId: gpuId as GpuId, amount: quote.totalPrice, memo: `MS_BOOKING ${redemptionId} ${start} ${end}` }),
+        charge: () => pay({ payer: holder, gpuId: gpuId as GpuId, amount: quote.totalPrice, memo: `MS_BOOKING ${redemptionId} ${start} ${end}` }),
         release: () => releaseHold(redemptionId, bookingId),
         pending: hash => updateBooking(redemptionId, "payment_pending", bookingId, hash),
       });
@@ -189,8 +221,8 @@ tasksRouter.post("/bookings", async (req: Request, res: Response) => {
         updateBooking(redemptionId, "confirmed", bookingId, payment.hash, result);
         db.exec("COMMIT");
       } catch {
-        db.exec("ROLLBACK");
-        updateBooking(redemptionId, "payment_pending", bookingId, payment.hash);
+        try { db.exec("ROLLBACK"); } catch { /* BEGIN itself may have failed. */ }
+        try { updateBooking(redemptionId, "payment_pending", bookingId, payment.hash); } catch { /* Preserve the explicit paid-but-pending response even if the database is unavailable. */ }
         throw new TaskError("BOOKING_PENDING", "Your payment was confirmed. Reservation records are awaiting reconciliation. Do not pay again.", 503);
       }
       broadcast("calendar", { gpu_id: gpuId, start, end, kind: "BOOKED", ref: redemptionId });
@@ -199,3 +231,8 @@ tasksRouter.post("/bookings", async (req: Request, res: Response) => {
     });
   } catch (error) { fail(res, error); }
 });
+
+return tasksRouter;
+}
+
+export const tasksRouter = createTasksRouter();

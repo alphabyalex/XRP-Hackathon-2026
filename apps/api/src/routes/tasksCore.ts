@@ -94,15 +94,17 @@ export async function settleHeldBooking<T extends { hash: string; validated: boo
 }): Promise<T> {
   let payment: T;
   try { payment = await operations.charge(); } catch {
-    operations.pending(null);
+    try { operations.pending(null); } catch { /* The pre-submit pending row remains the authority. */ }
     throw new TaskError("PAYMENT_PENDING", "Payment confirmation is pending. The reservation is held for reconciliation. Do not pay again.", 503);
   }
   if (!payment.validated) {
-    operations.pending(payment.hash);
+    try { operations.pending(payment.hash); } catch { /* Never turn an uncertain payment into a generic retryable error. */ }
     throw new TaskError("PAYMENT_PENDING", "Payment confirmation is pending. Do not pay again.", 503);
   }
   if (payment.result !== "tesSUCCESS") {
-    await operations.release();
+    try { await operations.release(); } catch {
+      throw new TaskError("CANCELLATION_PENDING", "The payment failed. Releasing the reservation is awaiting reconciliation. Do not submit another payment.", 503);
+    }
     throw new TaskError("PAYMENT_FAILED", "The payment did not complete. No rental charge was settled.", 402);
   }
   return payment;
