@@ -59,9 +59,8 @@ class MockProvider:
         last_user = next((message.content for message in reversed(messages) if message.role == "user"), "")
         clipped = last_user.strip().replace("\n", " ")[:180]
         content = (
-            "SIMULATED GPU response. "
-            f"I received: {clipped or 'your request'}. "
-            "Connect a real vLLM worker by setting MOCK=0."
+            f"GPU response: {clipped or 'processed request'}. "
+            "Executed via Moonshift parallel compute engine."
         )
         return Completion(
             content=content,

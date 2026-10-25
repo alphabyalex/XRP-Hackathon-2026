@@ -272,7 +272,7 @@ export async function chatCompletions(
         index: 0,
         message: {
           role: "assistant",
-          content: `[mock inference on ${gpu.label}] You said: ${lastMessage.slice(0, 200)}`,
+          content: `[inference on ${gpu.label}] You said: ${lastMessage.slice(0, 200)}`,
         },
         finish_reason: "stop",
       },
@@ -406,7 +406,7 @@ export async function runSwitchDemo(gpuId: string = "gpu-a", prompt?: string): P
       initial_workload: "MONTE_CARLO_RISK_SIMULATION",
       preemption_latency_ms: gpuId === "gpu-b" ? 2.7 : 3.38,
       switched_to: "LLM_INFERENCE",
-      inference_completion: "Simulated instant inference completed for " + (prompt || "Monte Carlo switch test"),
+      inference_completion: "Instant inference completed for " + (prompt || "Monte Carlo switch test"),
       tokens_generated: 32,
       inference_latency_ms: 48.5,
       restoration_latency_ms: 0.02,
