@@ -160,7 +160,7 @@
     {
       "gpuId": "gpu-c",
       "modelRequested": "rtx3090",
-      "manifest": "infra/akash/nodes/node-c-rtx3090-live.yaml",
+      "manifest": "infra/akash/history/node-c-rtx3090-unleased.yaml",
       "dseq": "1792938705310",
       "status": "bid_closed_no_lease_replacement_pending",
       "cliCreateTimedOut": true,
@@ -183,7 +183,7 @@
     {
       "gpuId": "gpu-e",
       "modelRequested": "v100",
-      "manifest": "infra/akash/nodes/node-e-v100-live.yaml",
+      "manifest": "infra/akash/history/node-e-v100-closed.yaml",
       "dseq": "1792938897813",
       "status": "bid_review_ready_no_lease",
       "cliCreateTimedOut": false,
@@ -255,7 +255,7 @@
     {
       "gpuId": "gpu-h",
       "modelRequested": "v100",
-      "manifest": "infra/akash/nodes/node-h-v100-live.yaml",
+      "manifest": "infra/akash/history/node-h-v100-closed.yaml",
       "dseq": "1792938941956",
       "status": "bid_review_ready_no_lease",
       "cliCreateTimedOut": false,
@@ -282,7 +282,7 @@
     {
       "gpuId": "gpu-e",
       "modelRequested": "v100",
-      "manifest": "infra/akash/nodes/node-e-v100-live.yaml",
+      "manifest": "infra/akash/history/node-e-v100-closed.yaml",
       "dseq": "1792939937173",
       "status": "closed_failed_capacity",
       "cliCreateTimedOut": false,
@@ -357,7 +357,7 @@
     {
       "gpuId": "gpu-h",
       "modelRequested": "v100",
-      "manifest": "infra/akash/nodes/node-h-v100-live.yaml",
+      "manifest": "infra/akash/history/node-h-v100-closed.yaml",
       "dseq": "1792940208275",
       "status": "closed_failed_capacity",
       "cliCreateTimedOut": false,
