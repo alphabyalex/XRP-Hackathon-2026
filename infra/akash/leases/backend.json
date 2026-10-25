@@ -37,7 +37,7 @@
     "runtimeLimitHours": null,
     "runtimeEndsAt": null
   },
-  "status": "installed_inert",
+  "status": "state_migrated_inert",
   "verification": {
     "verifiedAt": "2026-10-25T14:11:55.797526Z",
     "leaseAccepted": true,
@@ -60,5 +60,32 @@
     "remoteRevisionAndDependenciesVerified": true,
     "savedSdlRevisionVerified": true,
     "updateWasNotRetried": true
+  },
+  "migrationVerification": {
+    "verifiedAt": "2026-10-25T14:16:59.280670Z",
+    "snapshotCompressedBytes": 770300,
+    "manifestSha256": "52050199fa2f962c4afb27de548ee8ad823d4d3c23e06b1428c7fc40656501f3",
+    "fileHashMatchCount": 11,
+    "sourceStopped": true,
+    "sqliteCountsMatchSource": true,
+    "sqliteIntegrityAllOk": true,
+    "databaseSummaries": {
+      "api/moonshift.db": {
+        "tableCount": 27,
+        "totalRows": 12208
+      },
+      "router/router.db": {
+        "tableCount": 5,
+        "totalRows": 614
+      },
+      "credit/credit.db": {
+        "tableCount": 8,
+        "totalRows": 16
+      }
+    },
+    "activationFileExists": false,
+    "apiProcessCount": 0,
+    "uvicornProcessCount": 0,
+    "transport": "akt console shell --stdin, exact bounded byte count; tar completed with exit zero"
   }
 }
