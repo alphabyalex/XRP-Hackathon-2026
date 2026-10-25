@@ -50,6 +50,7 @@ class Constraints:
     gpuModel: str | None = None  # noqa: N815
     region: str | None = None
     excludeProviders: tuple[str, ...] = ()  # noqa: N815
+    gpuId: str | None = None  # noqa: N815
 
 
 @dataclass(frozen=True)
@@ -202,6 +203,7 @@ def candidates(views: Sequence[GpuView], order: OrderSpec) -> list[GpuView]:
             and v.executable
             and (v.fresh or v.degraded)
             and v.tokensPerSec > 0
+            and (c.gpuId is None or v.id == c.gpuId)
             and (c.gpuModel is None or v.gpuModel == c.gpuModel)
             and (c.region is None or v.region == c.region)
             and v.provider not in c.excludeProviders
@@ -329,6 +331,8 @@ def service_fleet(views: Sequence[GpuView], order: OrderSpec) -> list[GpuView] |
 
 
 def level_rate(g: GpuView, mode: Mode) -> float:
+    if C.FLEET_SOURCE != "mock":
+        return g.priceUsdcPerHour
     if mode == "cheapest":
         return g.spotUsdcPerHour
     if mode == "fastest":
@@ -344,7 +348,7 @@ def _level_part(g: GpuView, units: int, order: OrderSpec, mode: Mode, params: Pa
         work = float(units * C.SLOT_MINUTES)
         run_s = work * 60.0
     start = earliest_start(g, g.startupSeconds + run_s, params.booking_guard_s if g.bookedWindows else 0.0)
-    wall = run_s * (1 + C.PAUSABLE_SLOWDOWN) if mode == "cheapest" else run_s
+    wall = run_s * (1 + C.PAUSABLE_SLOWDOWN) if mode == "cheapest" and C.FLEET_SOURCE == "mock" else run_s
     cost = level_rate(g, mode) / 3600.0 * run_s  # paid per GPU-second served; pauses are not billed
     return Part(g, units, work, start, run_s, start + g.startupSeconds + wall, cost, 0.0, params.resume_latency_s, 0.0)
 

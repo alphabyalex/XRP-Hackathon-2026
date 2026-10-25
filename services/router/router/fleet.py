@@ -106,7 +106,7 @@ def per_gpu(o: Offer) -> float:
     return o.pricePerHourUsd / max(o.gpuCount, 1)
 
 
-def load_entries(catalog: dict[str, Offer]) -> list[FleetEntry]:
+def load_entries(catalog: dict[str, Offer], economy_rates: dict[str, dict] | None = None) -> list[FleetEntry]:
     path = C.CONFIG_DIR / FLEET_FILES.get(C.FLEET_SOURCE, "fleet.json")
     raw = json.loads(path.read_text())["gpus"]
     out: list[FleetEntry] = []
@@ -126,6 +126,17 @@ def load_entries(catalog: dict[str, Offer]) -> list[FleetEntry]:
                     spot = benchmark_offer(catalog, spec["gpuModel"], "spot", spec.get("provider"))
                     if spot is not None:
                         bench |= {"spotOfferKey": spot.key, "spotPricePerGpuHourUsd": round(per_gpu(spot), 6)}
+            if C.FLEET_SOURCE != "mock":
+                comparison = bench
+                economy = (economy_rates or {}).get(m["gpuModel"])
+                valid = False
+                if economy:
+                    now = now_utc()
+                    valid = (0 < economy["pricePerGpuHourUsd"]
+                             and -300 <= (now - parse_time(economy["asOf"])).total_seconds() < 48 * 3600
+                             and -300 <= (now - parse_time(economy["checkedAt"])).total_seconds() < 1800)
+                bench = {**economy, "awsComparison": comparison} if valid else None
+                price = float(economy["pricePerGpuHourUsd"]) if valid else 0.0
             offer = make_offer(
                 provider="moonshift",
                 region=m.get("region", "moonshift"),
@@ -296,8 +307,13 @@ class FleetState:
         # Fresh: within CATALOG_MAX_AGE. Last good snapshot: up to 4x that, still usable but degraded
         # (availability treated as unknown, the optimizer adds risk). Older: excluded.
         age = 0.0 if C.FLEET_SOURCE == "mock" and e.offer.provider == "moonshift" else e.offer.age_seconds(now)
-        fresh = age <= C.CATALOG_MAX_AGE_SECONDS
-        degraded = not fresh and age <= C.CATALOG_MAX_AGE_SECONDS * C.LAST_GOOD_FACTOR
+        if (e.benchmark or {}).get("source") == "GPU Economy":
+            checked_age = (now - parse_time(e.benchmark["checkedAt"])).total_seconds()
+            fresh = age < 48 * 3600 and checked_age < 1800
+            degraded = False
+        else:
+            fresh = age <= C.CATALOG_MAX_AGE_SECONDS
+            degraded = not fresh and age <= C.CATALOG_MAX_AGE_SECONDS * C.LAST_GOOD_FACTOR
         reason = None
         if not e.offerFound:
             reason = "OFFER_MISSING"
@@ -344,7 +360,8 @@ class FleetState:
             asOf=e.offer.asOf,
             reason=reason,
             degraded=degraded,
-            spotUsdcPerHour=float((e.benchmark or {}).get("spotPricePerGpuHourUsd", 0.0)),
+            spotUsdcPerHour=(float(e.offer.pricePerHourUsd) if (e.benchmark or {}).get("source") == "GPU Economy"
+                            else float((e.benchmark or {}).get("spotPricePerGpuHourUsd", 0.0))),
         )
 
     def describe(self, e: FleetEntry, now: datetime) -> dict[str, Any]:
@@ -359,7 +376,9 @@ class FleetState:
             "gpuModel": v.gpuModel,
             "capacityType": v.capacityType,
             "offerKey": v.offerKey,
-            "pricePerHourUsdc": f"{v.priceUsdcPerHour:.6f}",
+            "pricePerHourUsdc": f"{v.priceUsdcPerHour:.6f}" if e.offerFound else None,
+            "pricingSource": (e.benchmark or {}).get("source"),
+            "priceUpdatedAt": (e.benchmark or {}).get("asOf"),
             "tokensPerSec": v.tokensPerSec,
             "interruptible": v.interruptionRatePerHour > 0,
             "interruptionRatePerHour": v.interruptionRatePerHour,

@@ -441,12 +441,14 @@ class Orders:
         """Best other GPU (any provider) for the remaining work, in the order's own mode."""
         views = [v for v in self.service.views(now_utc()) if v.id != current.id]
         c = order.get("constraints") or {}
+        if c.get("gpuId"):
+            raise RouterError(409, "GPU_OFFLINE", "The requested GPU cannot continue this order.")
         spec = O.OrderSpec(
             spec.kind,
             tokens=spec.tokens,
             requests=spec.requests,
             minutes=spec.minutes,
-            constraints=O.Constraints(c.get("gpuModel"), c.get("region"), tuple(c.get("excludeProviders", ()))),
+            constraints=O.Constraints(c.get("gpuModel"), c.get("region"), tuple(c.get("excludeProviders", ())), c.get("gpuId")),
         )
         # Only a GPU that can finish the rest inside the remaining budget (cap minus what was spent).
         while True:
@@ -456,7 +458,7 @@ class Orders:
                 budgetUsdc=budget, constraints=spec.constraints,
             )
             choice = O.best_for(bounded, order["mode"], views)  # type: ignore[arg-type]
-            if choice.plan is None:
+            if choice.plan is None and not c.get("gpuId"):
                 relaxed = O.OrderSpec(spec.kind, tokens=spec.tokens, requests=spec.requests, minutes=spec.minutes, budgetUsdc=budget)
                 choice = O.best_for(relaxed, "cheapest", views)
             if choice.plan is not None:

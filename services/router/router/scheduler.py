@@ -50,6 +50,7 @@ async def initial_load(service: Any, store: CatalogStore) -> None:
     last_good = await asyncio.to_thread(store.latest)
     if last_good:
         service.load_catalog(last_good)
+    await service.refresh_economy()
     if C.STATE_BACKEND == "dynamodb":
         return
     errors: dict[str, str] = {}
@@ -63,6 +64,7 @@ async def run_forever(service: Any, store: CatalogStore) -> None:
     if C.STATE_BACKEND == "dynamodb":
         while True:  # the Lambdas collect; we only read
             try:
+                await service.refresh_economy()
                 service.load_catalog(await asyncio.to_thread(store.latest))
             except Exception as e:  # noqa: BLE001
                 log.warning("catalog reload failed: %s", type(e).__name__)
@@ -71,6 +73,7 @@ async def run_forever(service: Any, store: CatalogStore) -> None:
     next_due = {g: start + interval for g, interval in C.COLLECT_INTERVALS.items()}
     while True:
         now = time.monotonic()
+        await service.refresh_economy()
         for group, interval in C.COLLECT_INTERVALS.items():
             if now >= next_due[group]:
                 next_due[group] = now + interval

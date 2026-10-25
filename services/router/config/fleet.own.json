@@ -1,5 +1,5 @@
 {
-  "_note": "Only the existing Akash Network T4 is configured. Its deployed model is Qwen2.5-1.5B-Instruct. AWS prices are comparisons, not EC2 capacity. Admission requires a real endpoint health check and a live price benchmark. No static rate is used when the live feed is unavailable.",
+  "_note": "Only the existing Akash Network T4 is configured, running Qwen2.5-1.5B-Instruct. The own-fleet hourly rate is the cached live GPU Economy median shared by catalog and task quotes. AWS spot and on-demand feeds are comparison metadata only. Missing or stale market medians disable pricing. One physical card has no invented tier premium or speed difference.",
   "gpus": [
     {
       "id": "gpu-a",
