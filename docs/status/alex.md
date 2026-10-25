@@ -25,6 +25,12 @@ Night run, 2026-10-25. Branch `alex`. Started 04:36 ET from de6b6e8 (alex = main
 - 05:30 Home showcase keeps going after a failed question (it moves to the next one after the pause) instead of stopping.
 - 05:22 Home showcase pins `gpuId: "gpu-a"` (Tharun's new option). The task page offers text inference only (the endpoint answers TASK_TYPE_UNAVAILABLE for the others).
 
+- 07:28 release: stopped the stack, `npm run demo:reset` (ok), final integration (origin/lucy status only; kristian, tharun nothing new), typecheck clean in all four workspaces, xrpl tests pass, api 57 of 59 (same two Kristian tests), pricing 26, risk 39, credit 96, router 166 + 1 SAM CLI not installed, compute 37 + 3 failing (Tharun's resume and Monte Carlo tests).
+- 07:29 `npm run demo:prod` with a fresh `next build` (compiled, 24 static pages). No activity bot exists in the repo; the market maker runs.
+- 07:31 `npm run demo:check`: 12 of 12 ok (deposit, escrow, loan, crash, margin call, crash, liquidation, restore, second loan, early payoff, collateral back, closed).
+- 07:34 to 07:50 four headless walks on the production build (fresh testnet-funded wallet each time, signed challenge, 1280 and 400 px): Home, Market, describe and size, book a future hour (paid), buy 1 share, Borrow, Lend, Docs, Portfolio, admin and all nine pages at 400 px pass every time with zero console errors. Run a task on Balanced completed with charge and refund in passes 2 (on the resubmit) and 3 (first try); it failed in pass 1 and both tries in pass 4. Models Try it failed in passes 3 and 4. Every failure is GPU-A's endpoint failing generation (compute returns 503 UPSTREAM_ERROR, router ORDER_FAILED, full refund); 5 direct calls at 07:41 gave 2 successes.
+- 07:52 fast-forwarded main to alex and tagged `demo-safe`.
+
 ## Next
 
 1. 05:30 checkpoint, 05:40 integration (kristian, tharun, lucy into alex).
@@ -33,6 +39,8 @@ Night run, 2026-10-25. Branch `alex`. Started 04:36 ET from de6b6e8 (alex = main
 4. Release 07:30 to 08:20: demo:reset, demo:check, demo:prod, browser walk, fast-forward main, tag demo-safe.
 
 ## Blockers
+
+- GPU-A generation is intermittent (07:30 onward): about half of all orders fail at 9 to 26 s with compute 503 UPSTREAM_ERROR ("The model endpoint could not start this request"), router ORDER_FAILED, fully refunded. The health check passes. My 06:20 and 06:42 walks (stack started 05:17, before Tharun's 05:40 commits) completed every task; I could not tell from the logs whether the change or the node is the cause. Not touched: compute and router are Tharun's and the Akash lease is off limits.
 
 - api tests 57 of 59, both Kristian's: `GPU nodes cataloged with multi-provider attributes` (expects two READY GPUs; GPU-B is now correctly OFFLINE) and `Credit profile caches responses` (cached read took 140 ms against a 60 ms limit while the full stack was running). Note: `npm test` in apps/api runs 0 tests on Windows because the quoted glob reaches tsx literally; run `npx tsx --test tests/**/*.test.ts` from bash.
 
