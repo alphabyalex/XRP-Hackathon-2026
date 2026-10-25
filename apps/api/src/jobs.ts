@@ -6,9 +6,16 @@ import { logTx } from "./db/helpers.js";
 import { broadcast } from "./sse.js";
 import * as svc from "./lending/service.js";
 import * as risk from "./adapters/riskClient.js";
+import { quoteMarket } from "./marketMaker.js";
 import { oraclePrice, lendingAvailable } from "./adapters/lendingAdapter.js";
 
 export function startBackgroundJobs(): void {
+  // Re-quote the share books around NAV every 10 minutes (MARKET_MAKER=0 turns it off).
+  setInterval(() => {
+    if (process.env.MARKET_MAKER === "0" || process.env.MOCK_XRPL !== "0") return;
+    void quoteMarket().catch(() => {});
+  }, 10 * 60_000);
+
   // Refresh pricing NAV, hook point for a future cache. Keeps the pricing
   // service warm and gives us a place to broadcast NAV changes later.
   setInterval(async () => {

@@ -5,7 +5,6 @@ import { RESOURCE_BREAKDOWN, type GpuId } from "@moonshift/shared";
 import { useLiveGpu, useApiUnreachable, useNow } from "@/lib/liveData";
 import { gpuView } from "@/lib/gpuView";
 import { fmt } from "@/lib/format";
-import { mockPriceHistory, change24h } from "@/lib/mockPriceHistory";
 import { DataMoon } from "./DataMoon";
 import { ScheduleRows } from "./ScheduleRows";
 import { TradePanel } from "./TradePanel";
@@ -28,8 +27,7 @@ export function GpuDetailContent({ id }: { id: string }) {
 
   const v = gpuView(gpu, now);
   const price = Number(gpu.sharePrice) || 0;
-  const history = mockPriceHistory(gpu.id, price);
-  const ch = change24h(history);
+  const ch = Number(gpu.change24hPct ?? 0);
 
   return (
     <main className="s">
