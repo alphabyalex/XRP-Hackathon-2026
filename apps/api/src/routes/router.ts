@@ -14,6 +14,7 @@ import { networkName, txExplorerUrl } from "@moonshift/shared";
 import type { AccountName } from "@moonshift/shared";
 import { internalHeaders } from "../adapters/serviceFetch.js";
 import { actorFor, asActor } from "../middleware/session.js";
+import { requirePromptFunding } from "../middleware/funding.js";
 import { getRentalCatalog } from "../marketData/rentalCatalog.js";
 import { selectServingGpu } from "./servingModel.js";
 
@@ -45,7 +46,7 @@ routerPublic.get("/router/fleet", (req, res) => proxy(req, res, "/fleet"));
 routerPublic.get("/router/health", (req, res) => proxy(req, res, "/health"));
 routerPublic.post("/router/quote", (req, res) => proxy(req, res, "/quote"));
 // The buyer is the signed-in account (never a name from the browser).
-routerPublic.post("/router/orders", asActor("body", "buyer"), (req, res) => {
+routerPublic.post("/router/orders", asActor("body", "buyer"), requirePromptFunding, (req, res) => {
   if (req.body?.taskType && req.body.taskType !== "inference") {
     res.status(409).json({ error: { code: "TASK_TYPE_UNAVAILABLE", message: "The current GPU endpoint supports text inference only." } });
     return;
@@ -122,7 +123,7 @@ routerPublic.get("/router/orders/:id/events", async (req, res) => {
 
 type Msg = { role: "system" | "user" | "assistant"; content: string };
 
-routerPublic.post("/v1/chat/completions", async (req, res) => {
+routerPublic.post("/v1/chat/completions", requirePromptFunding, async (req, res) => {
   const body = req.body as { model?: string; messages?: Msg[]; max_tokens?: number; priority?: string; gpuId?: string; gpu_id?: string };
   const pinnedGpu = body.gpuId ?? body.gpu_id;
   if (pinnedGpu !== undefined && (typeof pinnedGpu !== "string" || !/^gpu-[a-z]$/.test(pinnedGpu))) {
@@ -138,8 +139,7 @@ routerPublic.post("/v1/chat/completions", async (req, res) => {
     res.status(400).json({ error: { code: "BAD_REQUEST", message: "priority must be cheapest, balanced or fastest" } });
     return;
   }
-  // The signed-in account pays; the developer playground account otherwise. Never a name from the browser.
-  const buyer = req.user?.name ?? "DEV";
+  const buyer = req.body.buyer;
   try {
     const catalog = await getRentalCatalog();
     const selected = selectServingGpu(catalog.gpus, pinnedGpu, body.model);

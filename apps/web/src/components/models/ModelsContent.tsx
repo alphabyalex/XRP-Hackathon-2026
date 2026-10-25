@@ -1,13 +1,12 @@
 "use client";
 // /models: the model catalog (GET /models), a copyable OpenAI client sample
 // and a live Try it box. Signed in, Try it places a real order and streams its
-// token events; signed out, it calls /v1/chat/completions and shows the answer
-// when it returns. No text is revealed that the GPU has not written.
+// token events. A verified funded session is required for every prompt.
 import { useEffect, useRef, useState } from "react";
 import type { ApiGpuSummary } from "@moonshift/shared";
 import { apiFetch, getGpus } from "@/lib/api";
 import { fmt, taskUsdc } from "@/lib/format";
-import { chatRouted, createOrder, getOrder, MODES, orderEventsUrl, providerName, type Mode } from "@/lib/routerApi";
+import { createOrder, getOrder, MODES, orderEventsUrl, providerName, type Mode } from "@/lib/routerApi";
 import { useWallet } from "@/lib/wallet";
 import { txUrl } from "@/lib/lendingApi";
 import { Segmented } from "../Segmented";
@@ -50,6 +49,7 @@ from openai import OpenAI
 client = OpenAI(
     base_url="${BASE}",
     api_key="unused",
+    default_headers={"Cookie": os.environ["MOONSHIFT_SESSION_COOKIE"]},
 )
 
 r = client.chat.completions.create(
@@ -86,7 +86,10 @@ export function ModelsContent() {
   const [run, setRun] = useState<Run>(IDLE);
   const es = useRef<EventSource | null>(null);
   const runId = useRef(0);
-  const { wallet } = useWallet();
+  const walletState = useWallet();
+  const { wallet, account, loaded, refresh } = walletState;
+  const balanceFresh = Boolean(account?.balanceUpdatedAt && Date.now() - Date.parse(account.balanceUpdatedAt) >= 0 && Date.now() - Date.parse(account.balanceUpdatedAt) <= 15000);
+  const funded = Boolean(loaded && wallet?.verified && balanceFresh && Number(account?.balance) > 0);
 
   // The catalog and the GPUs behind it, polled every 5 s. Until GET /models
   // answers, the health-checked GPUs list stands in (each GPU's served model),
@@ -137,31 +140,11 @@ export function ModelsContent() {
   const current = models?.find((m) => `${m.gpuId}:${m.modelId}` === selected) ?? serving[0] ?? models?.[0] ?? null;
 
   async function tryIt() {
-    if (!current?.acceptsRequests || run.status === "running" || !prompt.trim()) return;
+    if (!funded || !current?.acceptsRequests || run.status === "running" || !prompt.trim()) { void refresh(); return; }
     const my = ++runId.current;
     es.current?.close();
     setRun({ ...IDLE, status: "running" });
     const messages = [{ role: "user", content: prompt.trim() }];
-    if (!wallet) {
-      // Signed out: the developer account pays; the answer arrives whole.
-      try {
-        const r = await chatRouted(prompt.trim(), priority, current.gpuId, current.modelId);
-        if (my !== runId.current) return;
-        setRun({
-          ...IDLE,
-          status: "done",
-          text: r.choices[0]?.message.content ?? "",
-          gpus: r.x_ms.gpus,
-          providers: r.x_ms.providers,
-          price: r.x_ms.price_usdc,
-          tokens: r.usage.completion_tokens,
-          payment: (r.x_ms as any).payment ?? null,
-        });
-      } catch (e) {
-        if (my === runId.current) setRun({ ...IDLE, status: "error", error: (e as Error).message });
-      }
-      return;
-    }
     try {
       const order = await createOrder({ kind: "inference", gpuId: current.gpuId, mode: priority, maxTokens: 160, requests: [messages] });
       if (my !== runId.current) return;
@@ -196,6 +179,7 @@ export function ModelsContent() {
         if (d.unit === "tokens") setRun((r) => ({ ...r, tokens: Math.round(d.done) }));
       });
       src.addEventListener("settled", (e) => {
+        void refresh();
         const d = parse(e);
         const refund = d.refund?.amountUsdc ?? d.refundUsdc ?? null;
         src.close();
@@ -238,6 +222,7 @@ export function ModelsContent() {
         void poll();
       };
     } catch (e) {
+      void refresh();
       if (my === runId.current) setRun({ ...IDLE, status: "error", error: (e as Error).message });
     }
   }
@@ -324,7 +309,7 @@ export function ModelsContent() {
           <Code lang="Python" text={sample(current?.modelId ?? "Qwen/Qwen2.5-1.5B-Instruct", priority, current?.gpuId)} />
           <p className="note">
             Base URL <code className="mdl-inline">{BASE}</code>. The response&apos;s <code className="mdl-inline">x_ms</code> field names the GPUs that
-            served it, any move between them, and the payment.
+            served it, any move between them, and the payment. Requests require a funded, signed-in session.
           </p>
         </div>
 
@@ -338,12 +323,12 @@ export function ModelsContent() {
           <textarea id="mdl-prompt" rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
           <div className="mdl-row">
             <span className="note" style={{ margin: 0 }}>
-              {wallet ? "Paid from your account, streamed as the GPU writes." : "Connect a wallet to stream the answer token by token."}
+              {!wallet ? "Connect your wallet to run a model." : !balanceFresh ? "Checking your USDC balance." : !funded ? "Add USDC to your account to run a model." : "Paid from your account, streamed as the GPU writes."}
             </span>
             <button
               type="button"
               className="btn ink sm"
-              disabled={run.status === "running" || !current?.acceptsRequests || !prompt.trim()}
+              disabled={!funded || run.status === "running" || !current?.acceptsRequests || !prompt.trim()}
               onClick={tryIt}
             >
               {run.status === "running" ? "Running..." : "Run"}

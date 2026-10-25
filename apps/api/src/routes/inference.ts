@@ -3,10 +3,11 @@ import * as compute from "../adapters/computeClient.js";
 import { ComputeError } from "../adapters/computeClient.js";
 import { routerPublic } from "./router.js";
 import type { InferenceChatBody } from "@moonshift/shared";
+import { requirePromptFunding } from "../middleware/funding.js";
 
 export const inferenceRouter = Router();
 
-inferenceRouter.post("/inference/chat", async (req, res, next) => {
+inferenceRouter.post("/inference/chat", requirePromptFunding, async (req, res, next) => {
   const body = req.body as InferenceChatBody;
   if (!body.messages?.length) {
     res.status(400).json({ error: { code: "BAD_REQUEST", message: "messages required" } });
@@ -29,8 +30,7 @@ inferenceRouter.post("/inference/chat", async (req, res, next) => {
     routerPublic(req, res, next);
     return;
   }
-  // The signed-in account pays; the developer playground account otherwise. Never a name from the browser.
-  const buyer = req.user?.name ?? "DEV";
+  const buyer = req.body.buyer;
   try {
     const result = await compute.chatCompletions({ messages: body.messages }, buyer, body.bookingId);
     // Compute's UsageReporter sends the metered event once. Recording it here

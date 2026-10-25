@@ -42,9 +42,16 @@ export function slotEndFor(slotStart: string, slots: number): string {
   return new Date(new Date(slotStart).getTime() + slots * SLOT_MINUTES * 60_000).toISOString();
 }
 
-export async function getGpus(): Promise<ComputeGpuStatus[]> {
-  const rows = await computeJson<ComputeGpuStatus[]>("/gpus");
-  return rows.filter((row) => !row.simulated && row.state !== "OFFLINE");
+const fleetReads = new Map<string, Promise<ComputeGpuStatus[]>>();
+export function getGpus(): Promise<ComputeGpuStatus[]> {
+  const key = process.env.COMPUTE_URL ?? "default";
+  const pending = fleetReads.get(key);
+  if (pending) return pending;
+  const read = computeJson<ComputeGpuStatus[]>("/gpus").then(rows => rows.filter(row => !row.simulated && row.state !== "OFFLINE")).finally(() => {
+    if (fleetReads.get(key) === read) fleetReads.delete(key);
+  });
+  fleetReads.set(key, read);
+  return read;
 }
 
 export function getCalendar(gpuId: GpuId, from: string, to: string): Promise<CalendarEntry[]> {

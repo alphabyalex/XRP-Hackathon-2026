@@ -10,8 +10,16 @@ import { gpuHealth, isListed, listedGpus } from "../gpuHealth.js";
 import { gpuStats, payoutYield } from "../gpuStats.js";
 import { verifiedGpuResources, verifiedGpuSpec } from "../marketData/rentalCatalog.js";
 import { canSignGpuTreasury } from "../treasuryCapabilities.js";
+import { requirePromptFunding } from "../middleware/funding.js";
+import { swr } from "../lending/swr.js";
+import { onDataEvent } from "../sse.js";
 
 export const gpusRouter = Router();
+const summaries = swr<Awaited<ReturnType<typeof buildSummary>>>("gpu-summary", 1500, 6000);
+const details = swr<Awaited<ReturnType<typeof buildDetail>>>("gpu-detail", 1500, 6000);
+const stats = swr<Awaited<ReturnType<typeof gpuStats>>>("gpu-stats", 1500, 6000);
+onDataEvent(() => { summaries.invalidate(); details.invalidate(); stats.invalidate(); });
+const summaryFor = (id: GpuId) => summaries.get(id, () => buildSummary(id));
 
 async function buildSummary(gpuId: GpuId) {
   const gpu = GPUS.find((g) => g.id === gpuId)!;
@@ -70,7 +78,7 @@ gpusRouter.get("/monte-carlo/status", async (_req, res) => {
   }
 });
 
-gpusRouter.post("/monte-carlo/switch-demo", async (req, res) => {
+gpusRouter.post("/monte-carlo/switch-demo", requirePromptFunding, async (req, res) => {
   try {
     const gpuId = (req.query.gpu_id as string) || "gpu-a";
     const prompt = (req.query.prompt as string) || (req.body?.prompt as string);
@@ -87,8 +95,8 @@ gpusRouter.get("/gpus-health", (_req, res) => res.json(gpuHealth()));
 gpusRouter.get("/gpus", async (_req, res) => {
   try {
     // Only GPUs whose endpoint passed its health check, plus the mock GPU (gpuHealth.ts).
-    const summaries = await Promise.all(listedGpus().map((g) => buildSummary(g.id)));
-    res.json(summaries);
+    const rows = await Promise.all(listedGpus().map((g) => summaryFor(g.id)));
+    res.json(rows.filter(g => isListed(g.id)));
   } catch (err) {
     res.status(500).json({ error: { code: "INTERNAL", message: (err as Error).message } });
   }
@@ -103,7 +111,7 @@ gpusRouter.get("/gpus/:id/stats", async (req, res) => {
     return;
   }
   try {
-    res.json(await gpuStats(gpuId));
+    res.json(await stats.get(gpuId, () => gpuStats(gpuId)));
   } catch (err) {
     res.status(500).json({ error: { code: "INTERNAL", message: (err as Error).message } });
   }
@@ -117,7 +125,14 @@ gpusRouter.get("/gpus/:id", async (req, res) => {
     return;
   }
   try {
-    const summary = await buildSummary(gpuId);
+    res.json(await details.get(gpuId, () => buildDetail(gpuId)));
+  } catch (err) {
+    res.status(500).json({ error: { code: "INTERNAL", message: (err as Error).message } });
+  }
+});
+
+async function buildDetail(gpuId: GpuId) {
+    const summary = await summaryFor(gpuId);
     const now = new Date();
     // Same window the web schedule draws: 20 hours back, 4 hours ahead.
     const from = new Date(now.getTime() - 21 * 60 * 60 * 1000).toISOString();
@@ -131,8 +146,5 @@ gpusRouter.get("/gpus/:id", async (req, res) => {
       .all(gpuId);
     const oracle = xrpl.getOracle(gpuId);
 
-    res.json({ ...summary, calendar, recentRequests, holders, oracle, priceHistory: priceHistory(gpuId) });
-  } catch (err) {
-    res.status(500).json({ error: { code: "INTERNAL", message: (err as Error).message } });
-  }
-});
+    return { ...summary, calendar, recentRequests, holders, oracle, priceHistory: priceHistory(gpuId) };
+}

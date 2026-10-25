@@ -175,6 +175,7 @@ export const reclaim = (id: string, adminKey: string, warningSeconds?: number) =
   });
 
 export interface RoutedChat {
+  model: string;
   choices: { message: { content: string } }[];
   usage: { completion_tokens: number };
   x_ms: { order_id: string; priority: Mode; price_usdc: string; gpus: string[]; providers: string[]; moves: Move[] };
@@ -182,10 +183,10 @@ export interface RoutedChat {
 
 // The api picks who pays (the signed-in account, or the developer playground account).
 // gpuId pins the request to one GPU (the Home showcase asks GPU-A only).
-export const chatRouted = (content: string, priority: Mode, gpuId?: string, modelId?: string) =>
+export const chatRouted = (content: string, priority: Mode, gpuId?: string, modelId?: string, maxTokens = 160) =>
   apiFetch<RoutedChat>("/v1/chat/completions", {
     method: "POST",
-    body: JSON.stringify({ ...(modelId ? { model: modelId } : {}), messages: [{ role: "user", content }], max_tokens: 160, priority, ...(gpuId ? { gpuId } : {}) }),
+    body: JSON.stringify({ ...(modelId ? { model: modelId } : {}), messages: [{ role: "user", content }], max_tokens: maxTokens, priority, ...(gpuId ? { gpuId } : {}) }),
   });
 
 const PROVIDERS: Record<string, string> = {

@@ -4,6 +4,7 @@
 // itself binds to (packages/shared PORTS.api).
 
 import { PORTS } from "@moonshift/shared";
+import { isPublicRead, publicReadCache } from "./publicReadCache";
 import type {
   ApiGpuSummary,
   ApiGpuDetail,
@@ -49,14 +50,26 @@ export class ApiUnreachableError extends Error {
 
 // NEXT_PUBLIC_DEBUG_TIMING=1 logs start, end and duration of every api call.
 const DEBUG_TIMING = process.env.NEXT_PUBLIC_DEBUG_TIMING === "1";
+const publicReads = publicReadCache();
+export function invalidatePublicReads() { publicReads.invalidate(); }
+
+function readOrFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const write = (init?.method ?? "GET").toUpperCase() !== "GET";
+  if (write) {
+    invalidatePublicReads();
+    return apiFetchRaw<T>(path, init).finally(invalidatePublicReads);
+  }
+  if (typeof window !== "undefined" && isPublicRead(path, init)) return publicReads.get(path, () => apiFetchRaw<T>(path, init));
+  return apiFetchRaw<T>(path, init);
+}
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!DEBUG_TIMING) return apiFetchRaw<T>(path, init);
+  if (!DEBUG_TIMING) return readOrFetch<T>(path, init);
   const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
   const name = `${init?.method ?? "GET"} ${path.split("?")[0]}`;
   console.log(`[timing] ${name} start ${Math.round(t0)} ms`);
   try {
-    return await apiFetchRaw<T>(path, init);
+    return await readOrFetch<T>(path, init);
   } finally {
     const t1 = typeof performance !== "undefined" ? performance.now() : Date.now();
     console.log(`[timing] ${name} end ${Math.round(t1)} ms (${Math.round(t1 - t0)} ms)`);
@@ -138,3 +151,11 @@ export const quoteTask = (q: Omit<Sizing, "model"> & { gpuId: string; mode: stri
   apiFetch<TaskQuote>("/tasks/quote", { method: "POST", body: JSON.stringify(q) });
 export const bookHour = (gpuId: string, slotStart: string, priceCap: string) =>
   apiFetch<Booking>("/bookings", { method: "POST", body: JSON.stringify({ gpuId, slotStart, durationSeconds: 3600, priceCap }) });
+
+import type { BookingRange, BookingQuote, BookingChallenge, SignedBooking } from "./bookingWallet";
+export const quoteBookingRange = (range: BookingRange) =>
+  apiFetch<BookingQuote>("/bookings/quote", { method: "POST", body: JSON.stringify(range) });
+export const requestBookingConsent = (range: BookingRange & { priceCap: string }) =>
+  apiFetch<BookingChallenge>("/bookings/challenge", { method: "POST", body: JSON.stringify(range) });
+export const bookRange = (signed: SignedBooking) =>
+  apiFetch<Booking>("/bookings", { method: "POST", headers: { "Idempotency-Key": signed.challengeId }, body: JSON.stringify(signed) });

@@ -4,6 +4,8 @@ import type { SseEventType } from "@moonshift/shared";
 const clients = new Set<Response>();
 const accountListeners = new Set<() => void>();
 export function onAccountEvent(listener: () => void): void { accountListeners.add(listener); }
+const dataListeners = new Set<() => void>();
+export function onDataEvent(listener: () => void): void { dataListeners.add(listener); }
 
 export function sseHandler(req: Request, res: Response): void {
   res.setHeader("Content-Type", "text/event-stream");
@@ -17,6 +19,7 @@ export function sseHandler(req: Request, res: Response): void {
 }
 
 export function broadcast(type: SseEventType, data: unknown): void {
+  for (const listener of dataListeners) listener();
   if (["dividend", "tx", "loan", "risk", "calendar"].includes(type)) {
     for (const listener of accountListeners) listener();
   }

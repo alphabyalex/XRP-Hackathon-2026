@@ -6,13 +6,13 @@
 // sees the address, public key and signature. The last wallet is remembered in
 // localStorage for an instant header on the next page load; the api's session
 // stays the source of truth.
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { walletChallenge, walletDisconnect, walletGet, walletVerify, type ConnectedWallet } from "./lendingApi";
 
 const STORE_KEY = "moonshift.wallet";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-type Account = { address: string };
+type Account = { address: string; balance?: string | null; balanceUpdatedAt?: string | null };
 // signing: waiting for Crossmark; setup: the api is preparing the account.
 export type WalletPhase = "idle" | "signing" | "setup" | "disconnecting";
 
@@ -37,7 +37,7 @@ type Stored = { wallet: ConnectedWallet; account: Account | null };
 
 function remember(v: Stored | null) {
   try {
-    if (v) localStorage.setItem(STORE_KEY, JSON.stringify(v));
+    if (v) localStorage.setItem(STORE_KEY, JSON.stringify({ wallet: v.wallet, account: v.account ? { address: v.account.address } : null }));
     else localStorage.removeItem(STORE_KEY);
   } catch {
     // storage blocked (private mode): the session cookie still works
@@ -69,6 +69,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<WalletPhase>("idle");
   const [wrongNetwork, setWrongNetwork] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pendingRefresh = useRef<Promise<void> | null>(null);
+  const epoch = useRef(0);
 
   const set = useCallback((w: ConnectedWallet | null, a: Account | null) => {
     setWalletState(w);
@@ -76,27 +78,42 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     remember(w ? { wallet: w, account: a } : null);
   }, []);
 
-  const refresh = useCallback(async () => {
-    try {
-      const me = await walletGet();
-      set(me.wallet, me.account);
-    } catch {
-      // api unreachable: keep what we have
-    } finally {
-      setLoaded(true);
-    }
+  const refresh = useCallback(() => {
+    if (pendingRefresh.current) return pendingRefresh.current;
+    const started = epoch.current;
+    const read = (async () => {
+      try {
+        const me = await walletGet({ cache: "no-store" });
+        if (started === epoch.current) set(me.wallet, me.account);
+      } catch {
+        // An old balance expires in the model gate. Do not extend its timestamp.
+      } finally {
+        if (started === epoch.current) setLoaded(true);
+      }
+    })().finally(() => { if (pendingRefresh.current === read) pendingRefresh.current = null; });
+    pendingRefresh.current = read;
+    return read;
   }, [set]);
 
   useEffect(() => {
     const r = recalled();
     if (r) {
       setWalletState(r.wallet);
-      setAccount(r.account);
+      setAccount(r.account ? { address: r.account.address } : null);
     }
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const timer = setInterval(() => { if (wallet && document.visibilityState === "visible") void refresh(); }, 5000);
+    const visible = () => { if (document.visibilityState === "visible") void refresh(); };
+    document.addEventListener("visibilitychange", visible);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", visible); };
+  }, [wallet?.address, refresh]);
+
   const connect = useCallback(async () => {
+    epoch.current++;
+    pendingRefresh.current = null;
     setPhase("signing");
     setError(null);
     try {
@@ -128,6 +145,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [set]);
 
   const disconnect = useCallback(async () => {
+    epoch.current++;
+    pendingRefresh.current = null;
     setPhase("disconnecting");
     setError(null);
     try {

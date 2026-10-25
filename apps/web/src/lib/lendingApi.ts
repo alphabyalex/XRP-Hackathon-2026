@@ -65,7 +65,7 @@ export const quoteMemo = (quoteId: string, waitMs = 12_000) =>
   privateRead(`/loans/quote/${quoteId}/memo`, () => apiFetch<{ status: "ready" | "pending"; memo: AgentText | null }>(`/loans/quote/${quoteId}/memo?wait=${waitMs}`), { quoteId, waitMs }, sourceVersion, 500);
 // The signed-in wallet (Crossmark testnet sign-in) and its Moonshift account.
 export type ConnectedWallet = { network: string; address: string; verified: boolean; status: string; connectedAt: string };
-export type WalletSession = { wallet: ConnectedWallet | null; account: { address: string; created?: boolean; setupMs?: number } | null };
+export type WalletSession = { wallet: ConnectedWallet | null; account: { address: string; created?: boolean; setupMs?: number; balance?: string | null; balanceUpdatedAt?: string | null } | null };
 export const walletGet = async (init?: RequestInit) => {
   const epoch = sessionEpoch;
   const result = await apiFetch<WalletSession & { activity?: unknown[] }>("/wallet/me", init);

@@ -10,7 +10,8 @@ import { broadcast } from "../sse.js";
 import * as svc from "../lending/service.js";
 import { requireOperator } from "../middleware/auth.js";
 import { actorFor, asActor, clearedSessionCookie, cookieValue, sessionCookie } from "../middleware/session.js";
-import { SESSION_COOKIE, createSession, endSession } from "../users/accounts.js";
+import { SESSION_COOKIE, createSession, endSession, userForWallet } from "../users/accounts.js";
+import { readFunding } from "../middleware/funding.js";
 
 export const lendingRouter = Router();
 
@@ -150,7 +151,10 @@ lendingRouter.post(
     const out = await svc.walletSignIn({ challengeId, publicKey, signature, address });
     const s = createSession(out.wallet.address);
     res.setHeader("Set-Cookie", sessionCookie(s.token, s.maxAgeSeconds));
-    return out;
+    res.setHeader("Cache-Control", "private, no-store");
+    const user = userForWallet(out.wallet.address);
+    const funding = user ? await readFunding(user.name).catch(() => ({ balance: null, balanceUpdatedAt: null })) : { balance: null, balanceUpdatedAt: null };
+    return { ...out, account: { ...out.account, ...funding } };
   })
 );
 // Operator: give a wallet a fresh account (clean Moonshift loan history).
@@ -165,7 +169,14 @@ lendingRouter.post(
 );
 
 // The signed-in wallet and its account (wallet: null when signed out).
-lendingRouter.get("/wallet/me", handle(async (req) => svc.walletMe(req.user ?? null)));
+lendingRouter.get("/wallet/me", handle(async (req, res) => {
+  res.setHeader("Cache-Control", "private, no-store");
+  const [me, funding] = await Promise.all([
+    svc.walletMe(req.user ?? null),
+    req.user ? readFunding(req.user.name).catch(() => ({ balance: null, balanceUpdatedAt: null })) : Promise.resolve(null),
+  ]);
+  return { ...me, account: me.account ? { ...me.account, ...funding } : null };
+}));
 lendingRouter.delete(
   "/wallet/me",
   handle(async (req, res) => {

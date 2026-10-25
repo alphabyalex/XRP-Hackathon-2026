@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { ApiGpuDetail } from "@moonshift/shared";
-import { apiFetch, getGpu, getGpus, eventsUrl, ApiUnreachableError } from "./api";
+import { apiFetch, getGpu, getGpus, eventsUrl, ApiUnreachableError, invalidatePublicReads } from "./api";
 
 export type GpuMap = Record<string, ApiGpuDetail>;
 
@@ -55,15 +55,23 @@ export function LiveDataProvider({
   }).current;
 
   useEffect(() => {
+    let refreshing = false;
+    let alive = true;
     async function refresh() {
+      if (refreshing) return;
+      refreshing = true;
       try {
         const listed = await getGpus();
-        const entries = await Promise.all(listed.map((g) => getGpu(g.id)));
-        setGpus(Object.fromEntries(entries.map((e) => [e.id, e])));
+        const results = await Promise.allSettled(listed.map((g) => getGpu(g.id)));
+        if (!alive) return;
+        setGpus(old => Object.fromEntries(listed.flatMap((g, i) => {
+          const r = results[i];
+          return r.status === "fulfilled" ? [[g.id, r.value]] : old[g.id] ? [[g.id, old[g.id]]] : [];
+        })));
         setUnreachable(false);
       } catch (err) {
-        if (err instanceof ApiUnreachableError) setUnreachable(true);
-      }
+        if (alive && err instanceof ApiUnreachableError) setUnreachable(true);
+      } finally { refreshing = false; }
     }
 
     function scheduleRefresh() {
@@ -78,6 +86,7 @@ export function LiveDataProvider({
       es = new EventSource(eventsUrl());
       for (const type of EVENT_TYPES) {
         es.addEventListener(type, () => {
+          invalidatePublicReads();
           scheduleRefresh();
           listeners.current.forEach((fn) => fn(type));
         });
@@ -85,6 +94,7 @@ export function LiveDataProvider({
       // EventSource reconnects by itself. When it does (for example after the
       // api restarts), clear the error and pull fresh data without a reload.
       es.onopen = () => {
+        invalidatePublicReads();
         setUnreachable(false);
         scheduleRefresh();
       };
@@ -100,6 +110,7 @@ export function LiveDataProvider({
     const poll = setInterval(refresh, 5_000);
 
     return () => {
+      alive = false;
       clearTimeout(debounceRef.current);
       clearInterval(poll);
       es?.close();
