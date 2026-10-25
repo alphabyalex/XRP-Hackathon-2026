@@ -1,0 +1,33 @@
+{
+  "endpoint": "GET /orders/{id}",
+  "note": "status: paid | running | completed | settled | failed. segments are where the work actually ran: a move closes one segment and opens the next on another GPU (possibly another provider), so served work sums to the order size and nothing is billed twice. restarts is always 0. payment is the buyer's MS_ORDER payment; settlements are MS_SETTLE payments per GPU for served work; refund returns the unused amount. output holds the generated text per request (inference).",
+  "response": {
+    "orderId": "ord_7a3f19c2",
+    "kind": "inference",
+    "mode": "balanced",
+    "buyer": "ALICE",
+    "status": "settled",
+    "priceUsdc": "0.002000",
+    "etaSeconds": 12.0,
+    "createdAt": "2026-10-24T22:00:00Z",
+    "completesAt": "2026-10-24T22:00:12Z",
+    "catalogAsOf": "2026-10-24T22:00:00Z",
+    "plan": "<plan, see quote.json options.balanced>",
+    "payment": { "from": "ALICE", "to": "ORDER_TREASURY", "amountUsdc": "0.002000", "hash": "A1B2...", "explorerUrl": "https://devnet.xrpl.org/transactions/A1B2...", "validated": true },
+    "segments": [
+      { "gpuId": "gpu-a3", "label": "GPU-A3", "provider": "azure", "pool": "gpu-a", "request": 0, "startedAt": "2026-10-24T22:00:01Z", "endedAt": "2026-10-24T22:00:05Z", "served": 180, "unit": "tokens", "reason": "PLANNED" },
+      { "gpuId": "gpu-a1", "label": "GPU-A1", "provider": "moonshift", "pool": "gpu-a", "request": 0, "startedAt": "2026-10-24T22:00:07Z", "endedAt": "2026-10-24T22:00:10Z", "served": 120, "unit": "tokens", "reason": "RECLAIMED" }
+    ],
+    "moves": [
+      { "at": "2026-10-24T22:00:05Z", "from": "gpu-a3", "to": "gpu-a1", "fromProvider": "azure", "toProvider": "moonshift", "toLabel": "GPU-A1", "reason": "RECLAIMED", "resumedAt": 180, "resumeSeconds": 2.1 }
+    ],
+    "progress": { "done": 300, "total": 300, "unit": "tokens", "pct": 100.0 },
+    "restarts": 0,
+    "settlements": [
+      { "gpuId": "gpu-a3", "to": "EXTERNAL_TREASURY", "served": 180, "amountUsdc": "0.000860", "hash": "C3D4...", "explorerUrl": "https://devnet.xrpl.org/transactions/C3D4..." },
+      { "gpuId": "gpu-a1", "to": "TREASURY_GPU_A", "served": 120, "amountUsdc": "0.000700", "hash": "E5F6...", "explorerUrl": "https://devnet.xrpl.org/transactions/E5F6..." }
+    ],
+    "refund": { "to": "ALICE", "amountUsdc": "0.000440", "hash": "0718...", "explorerUrl": "https://devnet.xrpl.org/transactions/0718..." },
+    "output": ["Volume-weighted average price is the average price paid for a security over a period, weighted by the volume traded at each price."]
+  }
+}

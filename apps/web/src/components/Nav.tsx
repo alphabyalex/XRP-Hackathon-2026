@@ -3,15 +3,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { MoonMark } from "./MoonMark";
-import { Button } from "./Button";
-import { ThemeToggle } from "./ThemeToggle";
+import { WalletButton } from "./WalletButton";
 
 const LINKS = [
-  { href: "/market", label: "Market" },
-  { href: "/#schedule", label: "How it earns" },
   { href: "/borrow", label: "Borrow" },
   { href: "/lend", label: "Lend" },
+  { href: "/market", label: "Market" },
   { href: "/playground", label: "Developers" },
+  { href: "/#schedule", label: "How it earns" },
 ];
 
 export function Nav() {
@@ -43,10 +42,10 @@ export function Nav() {
           ))}
         </nav>
         <div className="nav-end">
-          <ThemeToggle />
-          <Button href="/market" size="sm" className="cta">
-            Open app
-          </Button>
+          <Link className="nav-tab" href="/portfolio">
+            Portfolio
+          </Link>
+          <WalletButton />
         </div>
       </div>
     </header>

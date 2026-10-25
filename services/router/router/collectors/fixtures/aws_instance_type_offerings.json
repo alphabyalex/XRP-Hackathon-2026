@@ -1,0 +1,35 @@
+{
+ "_source": "shape: ec2.DescribeInstanceTypeOfferings LocationType=region.",
+ "InstanceTypeOfferings": [
+  {
+   "InstanceType": "g4dn.xlarge",
+   "LocationType": "region",
+   "Location": "us-east-2"
+  },
+  {
+   "InstanceType": "g5.xlarge",
+   "LocationType": "region",
+   "Location": "us-east-2"
+  },
+  {
+   "InstanceType": "g6.xlarge",
+   "LocationType": "region",
+   "Location": "us-east-2"
+  },
+  {
+   "InstanceType": "g4dn.xlarge",
+   "LocationType": "region",
+   "Location": "us-east-1"
+  },
+  {
+   "InstanceType": "g5.xlarge",
+   "LocationType": "region",
+   "Location": "us-east-1"
+  },
+  {
+   "InstanceType": "g6.xlarge",
+   "LocationType": "region",
+   "Location": "us-east-1"
+  }
+ ]
+}

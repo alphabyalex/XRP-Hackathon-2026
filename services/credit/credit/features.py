@@ -153,10 +153,23 @@ def extract(h: History) -> dict[str, Feature]:
     else:
         age = Feature(0)
 
+    # A large outflow (over LARGE_OUTFLOW_RATIO of the balance before it) only counts against the
+    # borrower: it is left out of the transaction count, counterparties, sent volume and balance
+    # stability, so a new counterparty or a crossed band can never cancel its penalty.
+    large: set[str] = set()
+    for t in ok:
+        x = t.delivered_xrp() if t.type == "Payment" else None
+        change = t.balance_change(a)
+        if t.account == a and t.destination != a and x is not None and change and change[0] > 0:
+            if x / change[0] >= Decimal(str(C.LARGE_OUTFLOW_RATIO)):
+                large.add(t.hash)
+
     vol_in: list[tuple[Decimal, str]] = []
     vol_out: list[tuple[Decimal, str]] = []
     counterparties: set[str] = set()
     for t in payments:
+        if t.hash in large:
+            continue
         x = t.delivered_xrp()
         if t.destination == a and t.account != a:
             counterparties.add(t.account)
@@ -175,7 +188,8 @@ def extract(h: History) -> dict[str, Feature]:
         if change is None:
             continue
         before, after = change
-        series.append(after)
+        if t.hash not in large:
+            series.append(after)
         x = t.delivered_xrp() if t.type == "Payment" else None
         if t.account == a and t.destination != a and x is not None and before > 0:
             ratio = x / before
@@ -215,7 +229,7 @@ def extract(h: History) -> dict[str, Feature]:
 
     return {
         "accountAgeDays": age,
-        "txCount": Feature(len(h.txs)),
+        "txCount": Feature(len(h.txs) - len(large)),
         "paymentVolumeInXrp": Feature(xrp_str(sum((x for x, _ in vol_in), Decimal(0))), _top(vol_in)),
         "paymentVolumeOutXrp": Feature(xrp_str(sum((x for x, _ in vol_out), Decimal(0))), _top(vol_out)),
         "distinctCounterparties": Feature(len(counterparties)),
@@ -224,6 +238,7 @@ def extract(h: History) -> dict[str, Feature]:
         "largestOutflowRatio": Feature(
             round(float(worst[0]), 2) if worst else None, [worst[1]] if worst else []
         ),
+        "largeOutflows": Feature(len(large), sorted(large)[:TOP_HASHES]),
         "msRepaysOnTime": Feature(len(on_time), sorted(on_time)),
         "msRepaysLate": Feature(len(late), sorted(late)),
         "msMarginCalls": Feature(len(margin_calls), sorted(margin_calls)),

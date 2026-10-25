@@ -46,6 +46,8 @@ export interface CreditComponent {
   features: string[];
   ownScore: { score: number; grade: string; confidence: string };
   ownership?: { verified: boolean; status: string } | null;
+  role?: "reference"; // shown for context (its own score), not part of the combined score
+  weight?: number; // connected wallet: share of the score its history carries (by confidence)
 }
 
 // GET /credit/stats (proxy of services/credit GET /stats)
@@ -211,7 +213,7 @@ export interface AgentText {
 export type XlsLoanStatus = "open" | "margin_call" | "repaid" | "liquidated" | "defaulted";
 
 export interface LoanQuoteApiRequest {
-  borrower: string; // AccountName (ALICE) or address
+  borrower: string; // AccountName (a user's U_<address>, or a system account) or address
   gpuId: string;
   collateralShares: DecimalString;
   principal: DecimalString;
@@ -241,6 +243,9 @@ export interface LoanQuoteApiResponse {
   credit: CreditProfile;
   memo: AgentText | null; // null while Bedrock is still writing it (memoStatus "pending")
   memoStatus: "ready" | "pending";
+  // Set when the amount asked for was above what risk approves: this quote is
+  // for the largest approved amount instead (grades A-D; only E declines).
+  counterOffer?: { requested: string; offered: string } | null;
   revenue24h: DecimalString;
   sources: { credit: DataSource; risk: DataSource; memo: DataSource | "pending"; revenue: DataSource; oracle: DataSource };
 }

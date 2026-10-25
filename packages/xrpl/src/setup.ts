@@ -163,10 +163,17 @@ export async function setupNetwork(): Promise<AccountsFile> {
   await ensureTokenSupply(contractIssuer, wallets.TREASURY_GPU_A, "HRA", "200", "TREASURY_GPU_A");
   await ensureTokenSupply(contractIssuer, wallets.TREASURY_GPU_B, "HRB", "200", "TREASURY_GPU_B");
 
-  // 10,000 TDX to each persona and to LENDING_POOL
-  const tdxRecipients: AccountName[] = ["ALICE", "BOB", "CAROL", "DEV", "LENDING_POOL"];
-  for (const acct of tdxRecipients) {
-    await ensureTokenSupply(tdxIssuer, wallets[acct], "TDX", "10000", acct);
+  // TDX float: lenders BOB and CAROL 60,000, borrowers ALICE and DEV 15,000,
+  // LENDING_POOL 10,000 (topped up to these, never above)
+  const tdxTargets: [AccountName, string][] = [
+    ["ALICE", "15000"],
+    ["BOB", "60000"],
+    ["CAROL", "60000"],
+    ["DEV", "15000"],
+    ["LENDING_POOL", "10000"],
+  ];
+  for (const [acct, target] of tdxTargets) {
+    await ensureTokenSupply(tdxIssuer, wallets[acct], "TDX", target, acct);
   }
 
   // Step 5: Initial DEX Sell Offers
@@ -416,7 +423,10 @@ export async function ensureLendingRounds(): Promise<void> {
       subscriptionSeconds: 3 * 24 * 3600,
       termSeconds: 14 * 24 * 3600,
       coverAmount: "500",
-      seedDeposits: [{ lender: "CAROL", amount: "1000" }],
+      seedDeposits: [
+        { lender: "BOB", amount: "20000" },
+        { lender: "CAROL", amount: "1000" },
+      ],
       log: (m) => console.log(`  ${m}`),
     });
   }

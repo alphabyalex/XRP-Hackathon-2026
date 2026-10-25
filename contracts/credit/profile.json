@@ -20,6 +20,7 @@
       "trustlines": { "value": 2, "points": 2, "reason": "TRUSTLINES_1_PLUS", "txHashes": [] },
       "balanceStability": { "value": 0.64, "points": 3, "reason": "BALANCE_STABLE", "txHashes": [] },
       "largestOutflowRatio": { "value": 0.58, "points": -4, "reason": "LARGE_OUTFLOW_50PCT", "txHashes": ["0000000000000000000000000000000000000000000000000000000000000005"] },
+      "largeOutflows": { "value": 1, "points": 0, "reason": "NO_REPEATED_LARGE_OUTFLOWS", "txHashes": ["0000000000000000000000000000000000000000000000000000000000000005"] },
       "msRepaysOnTime": { "value": 0, "points": 0, "reason": "NO_MS_REPAYS", "txHashes": [] },
       "msRepaysLate": { "value": 0, "points": 0, "reason": "NO_LATE_REPAYS", "txHashes": [] },
       "msMarginCalls": { "value": 0, "points": 0, "reason": "NO_MARGIN_CALLS", "txHashes": [] },

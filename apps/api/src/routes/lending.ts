@@ -7,6 +7,8 @@ import { sources } from "../adapters/serviceFetch.js";
 import { logTx } from "../db/helpers.js";
 import { broadcast } from "../sse.js";
 import * as svc from "../lending/service.js";
+import { actorFor, asActor, clearedSessionCookie, cookieValue, sessionCookie } from "../middleware/session.js";
+import { SESSION_COOKIE, createSession, endSession } from "../users/accounts.js";
 
 export const lendingRouter = Router();
 
@@ -19,7 +21,7 @@ export function handle(fn: (req: Request, res: Response) => Promise<unknown>) {
       if (!res.headersSent) res.json(out);
     } catch (e) {
       const err = e as any;
-      if (err instanceof svc.LendingError) {
+      if (err instanceof svc.LendingError || (typeof err?.status === "number" && typeof err?.code === "string")) {
         res.status(err.status).json({ error: { code: err.code, message: err.message } });
         return;
       }
@@ -39,11 +41,13 @@ lendingRouter.get("/vault", handle(async () => lending.vaultOverview()));
 
 lendingRouter.get(
   "/vault/positions/:account",
+  asActor("params", "account"),
   handle(async (req) => ({ account: req.params.account, positions: await lending.lenderPositions(svc.asAccountName(req.params.account)) }))
 );
 
 lendingRouter.post(
   "/vault/deposit",
+  asActor("body", "lender"),
   handle(async (req) => {
     const { lender, amount, round } = req.body as { lender: string; amount: string; round?: number };
     if (!lender || !(Number(amount) > 0)) throw new svc.LendingError("BAD_REQUEST", "lender and a positive amount are required");
@@ -56,6 +60,7 @@ lendingRouter.post(
 
 lendingRouter.post(
   "/vault/withdraw",
+  asActor("body", "lender"),
   handle(async (req) => {
     const { lender, amount, round } = req.body as { lender: string; amount: string; round?: number };
     if (!lender || !(Number(amount) > 0)) throw new svc.LendingError("BAD_REQUEST", "lender and a positive amount are required");
@@ -95,7 +100,37 @@ lendingRouter.get(
 // Loans (borrowers)
 // ---------------------------------------------------------------------------
 
-lendingRouter.post("/loans/quote", handle(async (req) => svc.buildQuote(req.body as LoanQuoteApiRequest)));
+// principal may be "max": the largest amount risk approves for the collateral.
+lendingRouter.post("/loans/quote", asActor("body", "borrower"), handle(async (req) => svc.buildQuote(req.body as LoanQuoteApiRequest)));
+
+// The borrower's cached credit profile on the lending network.
+lendingRouter.get("/loans/profile/:borrower", asActor("params", "borrower"), handle(async (req) => svc.borrowerProfile(req.params.borrower)));
+
+// Sign in with a wallet (Crossmark testnet): challenge, then verify the
+// signature. The wallet is the user: verify looks up or creates its Moonshift
+// account and sets the session cookie. There is no sign-in without a signature.
+lendingRouter.post("/wallet/challenge", handle(async () => svc.walletChallenge()));
+lendingRouter.post(
+  "/wallet/verify",
+  handle(async (req, res) => {
+    const { challengeId, publicKey, signature, address } = req.body ?? {};
+    if (!challengeId || !publicKey || !signature) throw new svc.LendingError("BAD_REQUEST", "challengeId, publicKey and signature are required");
+    const out = await svc.walletSignIn({ challengeId, publicKey, signature, address });
+    const s = createSession(out.wallet.address);
+    res.setHeader("Set-Cookie", sessionCookie(s.token, s.maxAgeSeconds));
+    return out;
+  })
+);
+// The signed-in wallet and its account (wallet: null when signed out).
+lendingRouter.get("/wallet/me", handle(async (req) => svc.walletMe(req.user ?? null)));
+lendingRouter.delete(
+  "/wallet/me",
+  handle(async (req, res) => {
+    endSession(cookieValue(req, SESSION_COOKIE));
+    res.setHeader("Set-Cookie", clearedSessionCookie());
+    return { wallet: null };
+  })
+);
 
 // The quote's Bedrock memo, written in the background. ?wait=ms long-polls up to 14 s.
 lendingRouter.get(
@@ -104,9 +139,13 @@ lendingRouter.get(
 );
 
 // { borrower, gpuId, collateralShares } -> { maxPrincipal, collateralValue, termSeconds }
-lendingRouter.post("/loans/max", handle(async (req) => svc.maxApprovedPrincipal(req.body)));
+lendingRouter.post("/loans/max", asActor("body", "borrower"), handle(async (req) => svc.maxApprovedPrincipal(req.body)));
 
-lendingRouter.get("/loans", handle(async (req) => ({ loans: await svc.listLoans(req.query.borrower as string | undefined) })));
+// ?borrower=me: the signed-in account's loans. Without it: the public loan book.
+lendingRouter.get(
+  "/loans",
+  handle(async (req) => ({ loans: await svc.listLoans(req.query.borrower ? actorFor(req, req.query.borrower) : undefined) }))
+);
 
 lendingRouter.get(
   "/loans/:id",
@@ -122,7 +161,7 @@ lendingRouter.get(
 
 lendingRouter.post(
   "/loans/:id/pay",
-  handle(async (req) => svc.repay(req.params.id, ((req.body ?? {}) as { mode?: "full" | "next" }).mode ?? "next"))
+  handle(async (req) => svc.repay(req.params.id, ((req.body ?? {}) as { mode?: "full" | "next" }).mode ?? "next", (b) => actorFor(req, b)))
 );
 
 // ---------------------------------------------------------------------------

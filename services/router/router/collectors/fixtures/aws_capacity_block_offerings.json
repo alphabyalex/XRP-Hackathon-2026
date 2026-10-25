@@ -1,0 +1,4 @@
+{
+ "_source": "shape: ec2.DescribeCapacityBlockOfferings. Capacity Blocks cover P and large G instances, none for the small G types we route to.",
+ "CapacityBlockOfferings": []
+}

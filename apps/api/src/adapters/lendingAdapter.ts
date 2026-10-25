@@ -24,6 +24,7 @@ import {
 } from "@moonshift/shared";
 import { mockFlag } from "../env.js";
 import * as xrpl from "./xrplAdapter.js";
+import { swr } from "../lending/swr.js";
 
 export const MOCK = mockFlag("MOCK_XRPL");
 
@@ -143,17 +144,27 @@ export async function vaultOverview(): Promise<VaultOverview> {
     const wrap = (r?: MockRound) => (r ? { ...r.state, broker: r.broker } : null);
     return { network: "mock", simulated: true, investing: wrap(find("investment")), subscribing: wrap(find("subscription")), rounds: mock.rounds.map((r) => r.state) };
   }
+  return vaultCache.get("vault", readVaultOverview);
+}
+
+// Reading every round from the ledger takes over a second, and /borrow and
+// /lend ask for it on every quote. Served from cache (fresh 10 s, then
+// refreshed in the background); any vault or loan write here drops it.
+const vaultCache = swr<VaultOverview>("vault", 10_000, 30 * 60_000);
+const afterWrite = <T>(p: Promise<T>) =>
+  p.finally(() => {
+    vaultCache.invalidate();
+    positionsCache.invalidate();
+  });
+
+async function readVaultOverview(): Promise<VaultOverview> {
   const state = realXrpl.loadLendingState();
-  const rounds: VaultState[] = [];
-  for (const r of state.rounds) {
-    const v = await realXrpl.getVaultSummary(r.vaultId);
-    if (v) rounds.push(v);
-  }
-  const pick = async (phase: VaultState["phase"]) => {
-    const v = [...rounds].reverse().find((x) => x.phase === phase);
-    return v ? { ...v, broker: await realXrpl.getLoanBroker(v.loanBrokerId) } : null;
-  };
-  return { network: networkInfo().name, simulated: false, investing: await pick("investment"), subscribing: await pick("subscription"), rounds };
+  const rounds = (await Promise.all(state.rounds.map((r) => realXrpl.getVaultSummary(r.vaultId)))).filter((v): v is VaultState => !!v);
+  const pick = (phase: VaultState["phase"]) => [...rounds].reverse().find((x) => x.phase === phase);
+  const [investing, subscribing] = await Promise.all(
+    [pick("investment"), pick("subscription")].map(async (v) => (v ? { ...v, broker: await realXrpl.getLoanBroker(v.loanBrokerId) } : null))
+  );
+  return { network: networkInfo().name, simulated: false, investing, subscribing, rounds };
 }
 
 function roundFor(round: number | undefined, phase: VaultState["phase"]) {
@@ -174,7 +185,7 @@ export async function vaultDeposit(lender: AccountName, amount: string, round?: 
   }
   const r = round ? realXrpl.findRound(round) : realXrpl.currentRound("subscription");
   if (!r) throw new Error("NO_SUBSCRIBING_ROUND: no round is open for deposits right now.");
-  return { tx: await realXrpl.depositToVault({ lender, vaultId: r.vaultId, amount }), round: r.round };
+  return { tx: await afterWrite(realXrpl.depositToVault({ lender, vaultId: r.vaultId, amount })), round: r.round };
 }
 
 export async function vaultWithdraw(lender: AccountName, amount: string, round?: number): Promise<{ tx: TxResult; round: number }> {
@@ -190,7 +201,7 @@ export async function vaultWithdraw(lender: AccountName, amount: string, round?:
   }
   const r = round ? realXrpl.findRound(round) : realXrpl.currentRound("subscription") ?? realXrpl.currentRound("redemption");
   if (!r) throw new Error("NO_WITHDRAWABLE_ROUND");
-  return { tx: await realXrpl.withdrawFromVault({ lender, vaultId: r.vaultId, amount }), round: r.round };
+  return { tx: await afterWrite(realXrpl.withdrawFromVault({ lender, vaultId: r.vaultId, amount })), round: r.round };
 }
 
 // A lender's vault shares per round (shares are worth sharePrice TDX each).
@@ -201,22 +212,26 @@ export async function lenderPositions(lender: AccountName): Promise<{ round: num
       return { round: r.state.round, phase: r.state.phase, shares: fix6(s), value: fix6(s * Number(r.state.sharePrice)) };
     });
   }
-  const out = [];
-  const addr = realXrpl.getAccountAddress(lender);
-  for (const r of realXrpl.loadLendingState().rounds) {
-    const shares = await realXrpl.getVaultShares(addr, r.shareMptId);
-    const v = await realXrpl.getVault(r.vaultId);
-    out.push({ round: r.round, phase: v?.phase ?? "unknown", shares, value: fix6(Number(shares) * Number(v?.sharePrice ?? 1)) });
-  }
-  return out;
+  return positionsCache.get(lender, async () => {
+    const addr = realXrpl.getAccountAddress(lender);
+    return Promise.all(
+      realXrpl.loadLendingState().rounds.map(async (r) => {
+        const [shares, v] = await Promise.all([realXrpl.getVaultShares(addr, r.shareMptId), realXrpl.getVault(r.vaultId)]);
+        return { round: r.round, phase: v?.phase ?? "unknown", shares, value: fix6(Number(shares) * Number(v?.sharePrice ?? 1)) };
+      })
+    );
+  });
 }
+
+// Same cache rules as the vault overview: fresh 10 s, dropped on any write.
+const positionsCache = swr<{ round: number; phase: string; shares: string; value: string }[]>("positions", 10_000, 30 * 60_000);
 
 // ---------------------------------------------------------------------------
 // Loans
 // ---------------------------------------------------------------------------
 
 export async function openLoan(p: OpenLendingLoanParams): Promise<OpenLendingLoanResult> {
-  if (!MOCK) return realXrpl.openLendingLoan(p);
+  if (!MOCK) return afterWrite(realXrpl.openLendingLoan(p));
   const r = roundFor(p.round, "investment");
   if (!r) throw new Error("NO_LENDING_ROUND");
   const principal = Number(p.principal);
@@ -265,7 +280,7 @@ export async function getLoan(loanId: string): Promise<LedgerLoan | null> {
 }
 
 export async function repay(loanId: string, mode: "full" | "next"): Promise<RepayLoanResult> {
-  if (!MOCK) return realXrpl.repayLendingLoan({ loanId, mode });
+  if (!MOCK) return afterWrite(realXrpl.repayLendingLoan({ loanId, mode }));
   const m = mock.loans.get(loanId);
   if (!m) throw new Error(`Unknown loanId: ${loanId}`);
   const tx = mockTx();
@@ -295,7 +310,7 @@ export async function marginCall(loanId: string, observedLtv: string, threshold:
 }
 
 export async function liquidate(loanId: string, reason: string): Promise<{ seizeTx: TxResult | null; defaultTx: TxResult | null; defaultEligibleAt: string | null; defaulted: boolean }> {
-  if (!MOCK) return realXrpl.liquidateLoan({ loanId, reason });
+  if (!MOCK) return afterWrite(realXrpl.liquidateLoan({ loanId, reason }));
   const m = mock.loans.get(loanId);
   if (!m) throw new Error(`Unknown loanId: ${loanId}`);
   m.loan.collateral = m.loan.collateral ? { ...m.loan.collateral, locked: false } : null;
@@ -315,7 +330,7 @@ export async function liquidate(loanId: string, reason: string): Promise<{ seize
 }
 
 export async function defaultLoan(loanId: string): Promise<TxResult | null> {
-  if (!MOCK) return realXrpl.defaultLoan(loanId);
+  if (!MOCK) return afterWrite(realXrpl.defaultLoan(loanId));
   return null; // mock liquidations default immediately
 }
 

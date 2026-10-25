@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@crossmarkio/sdk": "^0.4.0",
     "@moonshift/shared": "*",
     "@next/env": "^15.5.28",
     "@swc/helpers": "^0.5.15",

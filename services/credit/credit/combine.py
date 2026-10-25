@@ -41,10 +41,16 @@ async def build(
     address: str,
     link: dict[str, Any],
     refresh: bool = False,
+    reference: dict[str, Any] | None = None,
+    refresh_link: bool = False,
 ) -> dict[str, Any]:
-    """link = {"mainnetAddress", "ownership": {"verified": bool, "status": str, ...}}"""
+    """link = {"mainnetAddress", "ownership": {...}} (a mainnet history), or a connected wallet
+    {"network": "testnet", "address", "ownership": {...}}. reference: a mainnet link shown as its
+    own line (own score) but not part of this score, used when a connected wallet replaces it."""
+    link_net = link.get("network", "mainnet")
+    link_addr = link.get("address") or link["mainnetAddress"]
     own_body, own_hist = await profile.build(network, address, refresh)
-    linked_body, linked_hist = await profile.build("mainnet", link["mainnetAddress"], refresh)
+    linked_body, linked_hist = await profile.build(link_net, link_addr, refresh or refresh_link)
     feats = merge(F.extract(own_hist), F.extract(linked_hist))
     s = scoring.score(feats)
     reasons = list(s.reasons)
@@ -52,7 +58,7 @@ async def build(
         reasons.append("HISTORY_TRUNCATED")
     general = [k for k in s.features if k not in MOONSHIFT_FEATURES]
     for k, v in s.features.items():
-        v["from"] = network if k in MOONSHIFT_FEATURES else "mainnet"
+        v["from"] = network if k in MOONSHIFT_FEATURES else link_net
     return {
         "address": address,
         "network": network,
@@ -82,9 +88,9 @@ async def build(
                 "ownScore": {"score": own_body["score"], "grade": own_body["grade"], "confidence": own_body["confidence"]},
             },
             {
-                "part": "Linked payment history",
-                "network": "mainnet",
-                "address": link["mainnetAddress"],
+                "part": "Connected wallet" if link_net != "mainnet" else "Linked payment history",
+                "network": link_net,
+                "address": link_addr,
                 "source": linked_body["source"],  # "quicknode" when configured
                 "readOnly": True,
                 "features": general,
@@ -92,9 +98,63 @@ async def build(
                 "ownScore": {"score": linked_body["score"], "grade": linked_body["grade"], "confidence": linked_body["confidence"]},
                 "ownership": link["ownership"],
             },
+            *([await reference_line(reference)] if reference else []),
         ],
         "history": own_body["history"],
         "portfolio": None,
         "ownership": link["ownership"],
         "asOf": iso(own_hist.now),
     }
+
+
+async def reference_line(link: dict[str, Any]) -> dict[str, Any]:
+    """A mainnet history kept for context next to a connected wallet: its own score, no weight."""
+    body, _ = await profile.build("mainnet", link["mainnetAddress"])
+    return {
+        "part": "Mainnet history",
+        "role": "reference",
+        "network": "mainnet",
+        "address": link["mainnetAddress"],
+        "source": body["source"],
+        "readOnly": True,
+        "features": [],
+        "history": body["history"],
+        "ownScore": {"score": body["score"], "grade": body["grade"], "confidence": body["confidence"]},
+        "ownership": link["ownership"],
+    }
+
+
+# Weight of a connected wallet's history, by its confidence: a thin wallet nudges the borrower's
+# score, a long history moves it. Changes seen after connecting count at least LIVE_WEIGHT, so a
+# payment or an outflow always shows.
+WALLET_WEIGHT = {"low": 0.2, "medium": 0.5, "high": 0.8}
+LIVE_WEIGHT = 0.5
+
+
+def blend(base: dict[str, Any], wallet: dict[str, Any], connect_score: int) -> dict[str, Any]:
+    """base: the borrower's profile without the wallet. wallet: the profile with the wallet's history.
+    score = base + w * (wallet at connect - base) + max(w, LIVE_WEIGHT) * (wallet now - wallet at connect)"""
+    w = WALLET_WEIGHT.get(wallet["confidence"], 0.2)
+    live = max(w, LIVE_WEIGHT)
+    raw = base["score"] + w * (connect_score - base["score"]) + live * (wallet["score"] - connect_score)
+    final = max(0, min(100, int(raw + 0.5)))
+    out = dict(wallet)
+    out.update(
+        {
+            "score": final,
+            "grade": scoring.grade_for(final),
+            "confidence": base["confidence"],
+            "blend": {
+                "baseScore": base["score"],
+                "walletScore": wallet["score"],
+                "walletConfidence": wallet["confidence"],
+                "connectScore": connect_score,
+                "weight": w,
+                "liveWeight": live,
+            },
+        }
+    )
+    out["components"] = [
+        {**c, "weight": w} if c.get("part") == "Connected wallet" else c for c in wallet["components"]
+    ]
+    return out

@@ -220,6 +220,8 @@ class Monitor:
         self.db, self.bus, self.poster = db, events, poster
         self.seen: set[str] = set()
         self.on_watch_change: Callable[[str], None] | None = None  # set by the WebSocket fallback
+        # Any validated tx touching a watched address (network, address, tx, via): live rescoring.
+        self.on_tx: Callable[[str, str, Tx, str], None] | None = None
         self._tasks: set[asyncio.Task[None]] = set()
 
     # ---- watchlist ----
@@ -297,6 +299,8 @@ class Monitor:
         for addr in dict.fromkeys(candidates):
             if not self.is_watched(network, addr):
                 continue
+            if self.on_tx:
+                self.on_tx(network, addr, t, via)
             self._update_loans(network, addr, t, lenders)
             for ev in classify(network, addr, t, via, lenders):
                 if self.emit(ev):

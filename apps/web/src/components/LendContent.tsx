@@ -4,7 +4,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { BookStats, VaultOverview, VaultState, XlsLoanRecord } from "@moonshift/shared";
 import { fmt, shortHash, typedAmount } from "@/lib/format";
-import { LENDER, bookStats, deposit, getPositions, getVault, listLoans, pct, useApiEvents, withdraw } from "@/lib/lendingApi";
+import { bookStats, deposit, getPositions, getVault, listLoans, pct, useApiEvents, withdraw } from "@/lib/lendingApi";
+import { useWallet } from "@/lib/wallet";
+import { ConnectPrompt } from "./ConnectPrompt";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
 import { StatusChip, StressControls, TxLink } from "./LendingBits";
@@ -72,18 +74,30 @@ export function LendContent() {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const toast = useToast();
+  // Deposits and positions are the signed-in account's; the vault and the loan book are public.
+  const { wallet } = useWallet();
+  const signedIn = !!wallet;
 
+  // Each piece renders as soon as it arrives; the vault numbers do not wait on positions.
   const refresh = useCallback(async () => {
-    try {
-      const [v, l, p] = await Promise.all([getVault(), listLoans(), getPositions(LENDER)]);
-      setVault(v);
-      setLoans(l.loans);
-      setPositions(p.positions);
-      setErr(null);
-    } catch (e) {
-      setErr((e as Error).message);
-    }
-  }, []);
+    const fail = (e: unknown) => setErr((e as Error).message);
+    await Promise.all([
+      getVault()
+        .then((v) => {
+          setVault(v);
+          setErr(null);
+        })
+        .catch(fail),
+      listLoans()
+        .then((l) => setLoans(l.loans))
+        .catch(fail),
+      signedIn
+        ? getPositions()
+            .then((p) => setPositions(p.positions))
+            .catch(fail)
+        : Promise.resolve(setPositions([])),
+    ]);
+  }, [signedIn]);
 
   useEffect(() => {
     void refresh();
@@ -97,7 +111,7 @@ export function LendContent() {
   async function move(kind: "deposit" | "withdraw") {
     setBusy(kind);
     try {
-      const r = kind === "deposit" ? await deposit(LENDER, amount) : await withdraw(LENDER, amount);
+      const r = kind === "deposit" ? await deposit(amount) : await withdraw(amount);
       toast(
         kind === "deposit" ? `Deposited ${fmt(Number(amount), 2)} USDC` : `Withdrew ${fmt(Number(amount), 2)} USDC`,
         `round ${r.round} · ${kind === "deposit" ? "VaultDeposit" : "VaultWithdraw"} tx ${shortHash(r.tx.hash)}`
@@ -139,6 +153,10 @@ export function LendContent() {
             )}
             {vault.subscribing ? (
               <RoundCard v={vault.subscribing} title="Open for deposits" network={net}>
+                {!signedIn ? (
+                  <ConnectPrompt />
+                ) : (
+                  <>
                 <label className="lbl" htmlFor="dep" style={{ marginTop: 18 }}>
                   Amount
                 </label>
@@ -159,6 +177,8 @@ export function LendContent() {
                     Your position:{" "}
                     {pos.map((p) => `round ${p.round} ${fmt(Number(p.value), 2)} USDC`).join(", ")}
                   </p>
+                )}
+                  </>
                 )}
               </RoundCard>
             ) : (

@@ -1,0 +1,34 @@
+{
+  "_note": "What each price collector asks for. Small single-GPU shapes that fit Moonshift's model (Qwen3 1.7B), plus a few larger cards so the catalog shows the wider market.",
+  "aws": {
+    "regions": ["us-east-2", "us-east-1"],
+    "instanceTypes": {
+      "g4dn.xlarge": { "gpuModel": "T4", "gpuCount": 1 },
+      "g5.xlarge": { "gpuModel": "A10G", "gpuCount": 1 },
+      "g6.xlarge": { "gpuModel": "L4", "gpuCount": 1 }
+    }
+  },
+  "azure": {
+    "regions": ["eastus"],
+    "skus": {
+      "Standard_NC4as_T4_v3": { "gpuModel": "T4", "gpuCount": 1 },
+      "Standard_NV36ads_A10_v5": { "gpuModel": "A10", "gpuCount": 1 }
+    }
+  },
+  "gcp": {
+    "regions": ["us-central1"],
+    "gpus": { "Nvidia Tesla T4": "T4", "Nvidia L4": "L4" }
+  },
+  "oracle": {
+    "region": "us-ashburn-1",
+    "partNumbers": { "B95909": "A10", "B95907": "A100", "B109479": "L40S" }
+  },
+  "runpod": {
+    "region": "global",
+    "gpuTypes": ["NVIDIA GeForce RTX 4090", "NVIDIA L40S", "NVIDIA A100 80GB PCIe"]
+  },
+  "vast": {
+    "gpuNames": ["RTX 4090"],
+    "minReliability": 0.97
+  }
+}

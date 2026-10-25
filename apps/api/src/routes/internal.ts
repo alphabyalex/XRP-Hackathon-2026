@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { seedHistory } from "../marketHistory.js";
 import { recordUsage } from "../db/helpers.js";
 import { broadcast } from "../sse.js";
 import type { CreditEvent, KeeperActionBody, UsageEvent } from "@moonshift/shared";
@@ -48,12 +49,18 @@ internalRouter.get(
   }))
 );
 
+// npm run demo and demo:reset: the last 24 hours of GPU activity and a dividend, then the live simulator.
+internalRouter.post("/seed-history", handle(async () => seedHistory()));
+
 // Credit events (Lucy, services/credit). Duplicate ids are ignored.
 internalRouter.post(
   "/credit-events",
   handle(async (req) => {
     const e = req.body as CreditEvent;
     if (!e?.id || !e?.kind || !e?.address) throw new svc.LendingError("BAD_REQUEST", "id, kind, address required");
+    // A live rescore: drop the cached profile before /borrow refetches it.
+    const borrower = (e as any).borrower;
+    if (e.kind === "PROFILE_CHANGED" && typeof borrower === "string") svc.creditProfileChanged(borrower);
     const r = db
       .prepare(`INSERT OR IGNORE INTO credit_events (id, kind, address, body, received_at) VALUES (?, ?, ?, ?, ?)`)
       .run(e.id, e.kind, e.address, JSON.stringify(e), new Date().toISOString());

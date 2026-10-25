@@ -77,14 +77,15 @@ def propose(
             eligible.append((account, shares))
 
     held = sum((s for _, s in eligible), Decimal(0))
-    if held > shares_total:
-        raise ValueError(f"holders hold {held} shares but only {shares_total} exist")
+    # New Moonshift accounts start with newly issued shares, so the outstanding supply can grow
+    # past the original count: divide by what is outstanding, so payouts never exceed distributable.
+    outstanding = max(Decimal(shares_total), held)
 
     fee = round6(gross_revenue * hosting_fee_bps / BPS)
     reserve = round6((gross_revenue - fee) * reserve_bps / BPS)
     distributable = gross_revenue - fee - reserve
 
-    denom = Decimal(shares_total) if denominator == "outstanding" else held
+    denom = outstanding if denominator == "outstanding" else held
     payouts: list[Payout] = []
     if denom > 0:
         for account, shares in sorted(eligible):

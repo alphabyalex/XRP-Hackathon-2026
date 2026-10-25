@@ -8,6 +8,7 @@ import type { CreditFeature, CreditProfile, CreditStats, DataSource, RiskCreditP
 import { mockFlag } from "../env.js";
 import { serviceJson, noteSource, ServiceUnavailable } from "./serviceFetch.js";
 import { db } from "../db/db.js";
+import { swr } from "../lending/swr.js";
 
 const CREDIT_URL = () => process.env.CREDIT_URL ?? "http://localhost:7100";
 
@@ -58,6 +59,7 @@ export function mockProfile(network: string, address: string, accountName?: stri
     trustlines: f(2 + (h[6] % 4), 2, "TRUSTLINES_1_PLUS"),
     balanceStability: f(Number((0.4 + (h[7] % 50) / 100).toFixed(2)), 3, "BALANCE_STABLE"),
     largestOutflowRatio: f(Number((0.2 + (h[8] % 50) / 100).toFixed(2)), h[8] % 50 > 30 ? -4 : 0, h[8] % 50 > 30 ? "LARGE_OUTFLOW_50PCT" : "NO_LARGE_OUTFLOW", pick(3)),
+    largeOutflows: f(0, 0, "NO_REPEATED_LARGE_OUTFLOWS"),
     msRepaysOnTime: f(0, 0, "NO_MS_REPAYS"),
     msRepaysLate: f(0, 0, "NO_LATE_REPAYS"),
     msMarginCalls: f(0, 0, "NO_MARGIN_CALLS"),
@@ -90,21 +92,35 @@ export function mockProfile(network: string, address: string, accountName?: stri
   };
 }
 
-export async function getProfile(
-  network: string,
-  address: string,
-  accountName?: string
-): Promise<{ profile: CreditProfile; source: DataSource }> {
+// The combined profile reads devnet and linked mainnet history. Served from
+// cache: refreshed in the background at most every 60 s, kept up to 30 min so
+// a borrower's page never waits on a full history read. Fallbacks are not kept.
+const profileCache = swr<{ profile: CreditProfile; source: DataSource }>("credit-profile", 60_000, 30 * 60_000, (r) => r.source === "live");
+
+export function getProfile(network: string, address: string, accountName?: string): Promise<{ profile: CreditProfile; source: DataSource }> {
+  if (mockFlag("MOCK_CREDIT")) return readProfile(network, address, accountName);
+  return profileCache.get(`${network}:${address}`, () => readProfile(network, address, accountName));
+}
+
+// A loan event changes the borrower's Moonshift history: read it fresh next time.
+export function invalidateProfile(network: string, address: string): void {
+  profileCache.invalidate(`${network}:${address}`);
+}
+
+async function readProfile(network: string, address: string, accountName?: string): Promise<{ profile: CreditProfile; source: DataSource }> {
   if (mockFlag("MOCK_CREDIT")) {
     noteSource("credit", "mock");
     return { profile: mockProfile(network, address, accountName), source: "mock" };
   }
   try {
-    const profile = await serviceJson<CreditProfile>("credit", `${CREDIT_URL()}/profile/${network}/${address}`);
+    // A new wallet's first score reads its whole history through Quicknode: allow it time.
+    const profile = await serviceJson<CreditProfile>("credit", `${CREDIT_URL()}/profile/${network}/${address}`, { timeoutMs: 20_000 });
     noteSource("credit", "live");
     return { profile, source: "live" };
   } catch (e) {
     if (!(e instanceof ServiceUnavailable)) throw e;
+    // A user's score is never made up: their quote waits for the credit service.
+    if (accountName?.startsWith("U_")) throw e;
     noteSource("credit", "mock-fallback");
     return { profile: { ...mockProfile(network, address, accountName), source: "mock-fallback" }, source: "mock-fallback" };
   }
@@ -156,4 +172,10 @@ export function toRiskProfile(p: CreditProfile): RiskCreditProfile {
     evidence,
     reasons: p.reasons ?? [],
   };
+}
+
+// Raw call to the credit service (wallet connect routes). Errors keep the
+// service's status and message so the page can show them.
+export async function creditRequest<T>(path: string, init: { method?: string; body?: unknown; timeoutMs?: number } = {}): Promise<T> {
+  return serviceJson<T>("credit", `${CREDIT_URL()}${path}`, { timeoutMs: 15_000, ...init });
 }

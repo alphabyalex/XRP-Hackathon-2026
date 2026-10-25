@@ -2,10 +2,11 @@ import { Router } from "express";
 import { GPUS } from "@moonshift/shared";
 import * as xrpl from "../adapters/xrplAdapter.js";
 import { db } from "../db/db.js";
+import { asActor } from "../middleware/session.js";
 
 export const portfolioRouter = Router();
 
-portfolioRouter.get("/portfolio/:account", async (req, res) => {
+portfolioRouter.get("/portfolio/:account", asActor("params", "account"), async (req, res) => {
   const account = req.params.account;
   try {
     const balances = await xrpl.getBalances(account as any);

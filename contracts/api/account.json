@@ -1,0 +1,81 @@
+{
+  "account": "ALICE",
+  "address": "MOCK_ADDR_ALICE",
+  "explorerUrl": null,
+  "updatedAt": "2026-10-24T22:30:29.835Z",
+  "balances": {
+    "usdc": "1000.000000",
+    "xrp": "1000.000000",
+    "shares": []
+  },
+  "holdings": [],
+  "gpuPerformance": [],
+  "loans": [],
+  "activity": [
+    {
+      "id": "MOCK36A1F218215A7391739CA8CA4C2081E598022677E70A460BDC5F9C7E7310",
+      "time": "2026-10-24T21:17:49.933Z",
+      "type": "Payment",
+      "direction": "out",
+      "amount": null,
+      "unit": "USDC",
+      "txHash": "MOCK36A1F218215A7391739CA8CA4C2081E598022677E70A460BDC5F9C7E7310",
+      "explorerUrl": null
+    },
+    {
+      "id": "MOCK3FF2A09CF9909C906C05CC447CEC66BD96B0AB2E19462531EAAFE5AB286D",
+      "time": "2026-10-24T21:17:49.933Z",
+      "type": "Collateral released",
+      "direction": "neutral",
+      "amount": "100.000000",
+      "unit": "shares",
+      "txHash": "MOCK3FF2A09CF9909C906C05CC447CEC66BD96B0AB2E19462531EAAFE5AB286D",
+      "explorerUrl": null
+    },
+    {
+      "id": "MOCK2A2DAA0AE018B8D21FAEBF2947C1CAF91331083798A38E87A0DAE433748B",
+      "time": "2026-10-24T21:17:49.178Z",
+      "type": "Payment",
+      "direction": "out",
+      "amount": null,
+      "unit": "USDC",
+      "txHash": "MOCK2A2DAA0AE018B8D21FAEBF2947C1CAF91331083798A38E87A0DAE433748B",
+      "explorerUrl": null
+    },
+    {
+      "id": "MOCK14FE192A24E396FADBAEAB4834A949B0E77BF44DEA0D4D5C1D37DA1637EF",
+      "time": "2026-10-24T21:17:48.613Z",
+      "type": "Payment",
+      "direction": "out",
+      "amount": null,
+      "unit": "USDC",
+      "txHash": "MOCK14FE192A24E396FADBAEAB4834A949B0E77BF44DEA0D4D5C1D37DA1637EF",
+      "explorerUrl": null
+    },
+    {
+      "id": "MOCKF85AF373020738E276EB66933EC816A699477BA711E9545DE6153C4F8567",
+      "time": "2026-10-24T21:17:47.861Z",
+      "type": "Payment",
+      "direction": "out",
+      "amount": null,
+      "unit": "USDC",
+      "txHash": "MOCKF85AF373020738E276EB66933EC816A699477BA711E9545DE6153C4F8567",
+      "explorerUrl": null
+    },
+    {
+      "id": "MOCK874E2FF817640B25D9D68DFE41023BB336EAB3C37F7B5BE26DB6551A9838",
+      "time": "2026-10-24T21:17:39.114Z",
+      "type": "Loan opened",
+      "direction": "in",
+      "amount": "200.000000",
+      "unit": "USDC",
+      "txHash": "MOCK874E2FF817640B25D9D68DFE41023BB336EAB3C37F7B5BE26DB6551A9838",
+      "explorerUrl": null
+    }
+  ],
+  "totals": {
+    "totalValue": "1000.000000",
+    "earned7d": "0.000000",
+    "earned30d": "0.000000"
+  }
+}

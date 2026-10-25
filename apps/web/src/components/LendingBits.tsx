@@ -45,10 +45,19 @@ export function HealthMeter({ ltv, marginCallLtv, liquidationLtv }: { ltv: numbe
         <span className="tick" style={{ left: at(marginCallLtv) }} />
         <span className="tick" style={{ left: at(liquidationLtv), background: "var(--down)" }} />
       </div>
+      {/* A row, not labels pinned under the ticks: the two lines are often a few percent apart. */}
       <div className="meter-l">
-        <span style={{ left: 0 }}>LTV {pct(ltv)}</span>
-        <span style={{ left: at(marginCallLtv), transform: "translateX(-50%)" }}>margin call {pct(marginCallLtv, 0)}</span>
-        <span style={{ left: at(liquidationLtv), transform: "translateX(-50%)", color: "var(--down)" }}>liquidation {pct(liquidationLtv, 0)}</span>
+        <span>LTV {pct(ltv)}</span>
+        <span className="lines">
+          <span>
+            <i className="key" />
+            margin call {pct(marginCallLtv, 0)}
+          </span>
+          <span style={{ color: "var(--down)" }}>
+            <i className="key" style={{ background: "var(--down)" }} />
+            liquidation {pct(liquidationLtv, 0)}
+          </span>
+        </span>
       </div>
     </div>
   );

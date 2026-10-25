@@ -1,0 +1,24 @@
+{
+  "endpoint": "GET /orders/{id}/events (Server-Sent Events)",
+  "note": "Replays the order's past events, then streams new ones until settled or failed. Each event: event: <type>\\ndata: <json>\\n\\n. token events carry generated text so a client renders one continuous answer across a move. ': ping' every 15 seconds.",
+  "examples": [
+    { "type": "quoted", "data": { "orderId": "ord_7a3f19c2", "mode": "balanced", "priceUsdc": "0.002000", "etaSeconds": 12.0, "gpus": ["gpu-a3"], "providers": ["azure"] } },
+    { "type": "paid", "data": { "orderId": "ord_7a3f19c2", "amountUsdc": "0.002000", "hash": "A1B2...", "explorerUrl": "https://devnet.xrpl.org/transactions/A1B2..." } },
+    { "type": "running", "data": { "orderId": "ord_7a3f19c2", "gpuId": "gpu-a3", "label": "GPU-A3", "provider": "azure", "request": 0 } },
+    { "type": "token", "data": { "orderId": "ord_7a3f19c2", "request": 0, "text": " weighted", "index": 41 } },
+    { "type": "progress", "data": { "orderId": "ord_7a3f19c2", "done": 120, "total": 300, "unit": "tokens", "pct": 40.0 } },
+    { "type": "checkpointed", "data": { "orderId": "ord_7a3f19c2", "gpuId": "gpu-a3", "done": 176, "reason": "REBALANCE" } },
+    { "type": "moved", "data": { "orderId": "ord_7a3f19c2", "from": "gpu-a3", "to": "gpu-a1", "fromProvider": "azure", "toProvider": "moonshift", "toLabel": "GPU-A1", "reason": "RECLAIMED", "resumedAt": 180, "at": "2026-10-24T22:00:05Z" } },
+    { "type": "completed", "data": { "orderId": "ord_7a3f19c2", "served": [{ "gpuId": "gpu-a3", "work": 180 }, { "gpuId": "gpu-a1", "work": 120 }], "restarts": 0, "at": "2026-10-24T22:00:10Z" } },
+    { "type": "settled", "data": { "orderId": "ord_7a3f19c2", "settlements": [{ "gpuId": "gpu-a3", "hash": "C3D4..." }, { "gpuId": "gpu-a1", "hash": "E5F6..." }], "refund": { "hash": "0718...", "amountUsdc": "0.000440" } } },
+    { "type": "failed", "data": { "orderId": "ord_7a3f19c2", "reason": "NO_CAPACITY_FOR_REMAINING_WORK" } }
+  ],
+  "moveReasons": {
+    "RECLAIMED": "POST /fleet/{id}/reclaim, or a provider reclaim (EC2 Spot Instance Interruption Warning, Azure Scheduled Events Preempt, GCP preemption metadata)",
+    "BOOKING": "a booked slot is about to start on that GPU (compute's drain window)",
+    "CAPACITY_BLOCK_ENDING": "an EC2 Capacity Block the GPU runs in is ending"
+  },
+  "checkpointOnlyReasons": {
+    "REBALANCE": "EC2 Instance Rebalance Recommendation: checkpoint early, keep running, do not move yet"
+  }
+}

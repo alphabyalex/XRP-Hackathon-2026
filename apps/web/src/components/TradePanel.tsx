@@ -9,7 +9,6 @@ import { perSharePerNight, mockSlotPrice } from "@/lib/economics";
 import { buyShares, bookSlots, redeemSlots } from "@/lib/api";
 import { useRefreshLive } from "@/lib/liveData";
 import { useToast } from "./Toast";
-import { ACCOUNT } from "@/lib/session";
 
 // Ported from .trade / #seg / trade() in moonshift_v2_source.html.
 export function TradePanel({
@@ -58,7 +57,7 @@ export function TradePanel({
     try {
       // Buy the slot tokens, then redeem each run of back-to-back slots so the
       // GPU's calendar actually shows the time as booked.
-      const tx = await bookSlots(ACCOUNT, gpuId, String(sel.size));
+      const tx = await bookSlots(gpuId, String(sel.size));
       const picked = Array.from(sel).sort((a, b) => a - b);
       const runs: { start: number; len: number }[] = [];
       for (const i of picked) {
@@ -67,7 +66,7 @@ export function TradePanel({
         else runs.push({ start: i, len: 1 });
       }
       for (const r of runs) {
-        await redeemSlots(ACCOUNT, gpuId, String(r.len), timeAt(windowStart, r.start).toISOString());
+        await redeemSlots(gpuId, String(r.len), timeAt(windowStart, r.start).toISOString());
       }
       toast(`Booked ${sel.size * 5} minutes on ${gpuLabel}`, txToastLine(`${sel.size} ${gpuLabel} hours · ${fmt(pricePerSlot * sel.size, 4)} USDC`, tx.hash));
       setSel(new Set());
@@ -84,7 +83,7 @@ export function TradePanel({
     if (!qty || busy) return;
     setBusy(true);
     try {
-      const tx = await buyShares(ACCOUNT, gpuId, String(qty));
+      const tx = await buyShares(gpuId, String(qty));
       toast(`Bought ${qty} ${gpuLabel} shares`, txToastLine(`${fmt(qty * sharePrice, 2)} USDC · OfferCreate`, tx.hash));
       refreshLive();
       onTraded?.();

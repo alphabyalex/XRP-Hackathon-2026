@@ -2,14 +2,16 @@
 // /borrow: credit profile, live risk quote, Bedrock memo, then a real XLS-66
 // loan on devnet with GPU shares escrowed. Loan health updates live.
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AgentText, CreditStats, LoanQuoteApiResponse, PortfolioResponse, XlsLoanRecord } from "@moonshift/shared";
+import type { AgentText, CreditProfile, LoanQuoteApiResponse, PortfolioResponse, XlsLoanRecord } from "@moonshift/shared";
 import { getPortfolio } from "@/lib/api";
 import { fmt, shortHash, typedAmount } from "@/lib/format";
-import { creditStats, listLoans, maxPrincipal, openFromQuote, payNext, payOff, pct, quoteLoan, quoteMemo, txUrl, useApiEvents } from "@/lib/lendingApi";
+import { borrowerProfile, listLoans, maxPrincipal, openFromQuote, walletGet, type ConnectedWallet, payNext, payOff, pct, quoteLoan, quoteMemo, txUrl, useApiEvents } from "@/lib/lendingApi";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
 import { HealthMeter, LoanTxs, StatusChip, StressControls, TxLink } from "./LendingBits";
-import { ACCOUNT } from "@/lib/session";
+import { WalletConnect } from "./WalletConnect";
+import { useWallet } from "@/lib/wallet";
+import { ConnectPrompt } from "./ConnectPrompt";
 
 const FACTOR_TEXT: Record<string, string> = {
   accountAgeDays: "Account age (days)",
@@ -20,15 +22,58 @@ const FACTOR_TEXT: Record<string, string> = {
   trustlines: "Trust lines",
   balanceStability: "Balance stability",
   largestOutflowRatio: "Largest outflow ratio",
+  largeOutflows: "Outflows over half the balance",
   msRepaysOnTime: "Moonshift repayments on time",
   msRepaysLate: "Moonshift repayments late",
   msMarginCalls: "Margin calls",
   msLiquidations: "Liquidations",
+  msDividendsReceived: "GPU dividends received",
+  msShareTrades: "GPU share trades",
 };
+
+// One line of the connected wallet's activity feed (credit service shape).
+type Activity = {
+  at: string;
+  type: string;
+  direction: "in" | "out";
+  amount: string | null;
+  currency: string | null;
+  counterparty: string | null;
+  txHash: string;
+  network: string;
+  ok: boolean;
+};
+type FactorChange = { feature: string; before: unknown; after: unknown; pointsBefore: number; pointsAfter: number; delta: number };
+
+// How long a live change stays highlighted.
+const HIGHLIGHT_MS = 8000;
+
+function factorValue(v: unknown) {
+  if (v === null || v === undefined) return "none";
+  const n = Number(v);
+  return Number.isFinite(n) ? fmt(n, Number.isInteger(n) ? 0 : 2) : String(v);
+}
+
+// "Counterparties +2", or the value move when the points did not change.
+function changeText(c: FactorChange) {
+  const label = FACTOR_TEXT[c.feature] ?? c.feature;
+  const move = `${factorValue(c.before)} to ${factorValue(c.after)}`;
+  return c.delta !== 0 ? `${label} ${c.delta > 0 ? "+" : ""}${c.delta} (${move})` : `${label} ${move}`;
+}
+
+function activityText(a: Activity) {
+  if (a.type !== "Payment") return a.type;
+  return a.direction === "out" ? "Sent" : "Received";
+}
+
+function clock(iso: string) {
+  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+}
 
 function days(seconds: number) {
   const d = seconds / 86400;
-  return d >= 1 ? `${fmt(d, d >= 10 ? 0 : 1)} days` : `${Math.round(seconds / 60)} min`;
+  // One decimal unless whole, the same way the credit memo writes it.
+  return d >= 1 ? `${fmt(d, Number.isInteger(Math.round(d * 10) / 10) ? 0 : 1)} days` : `${Math.round(seconds / 60)} min`;
 }
 
 function until(iso: string | null | undefined, now: number) {
@@ -40,70 +85,163 @@ function until(iso: string | null | undefined, now: number) {
   return h >= 24 ? `${Math.floor(h / 24)}d ${h % 24}h` : `${h}h ${m}m`;
 }
 
+type MaxAmount = { maxPrincipal: string; collateralValue: string; termSeconds: number };
+
 export function BorrowContent({
   initialPortfolio,
+  initialProfile,
+  initialMax,
+  initialWallet,
+  defaultShares,
   gpuId,
   gpuLabel,
 }: {
-  initialPortfolio: PortfolioResponse;
+  initialPortfolio: PortfolioResponse | null;
+  initialProfile: CreditProfile | null;
+  initialMax: MaxAmount | null;
+  initialWallet: ConnectedWallet | null;
+  defaultShares: string;
   gpuId: string;
   gpuLabel: string;
   sharePrice: number;
 }) {
   const [portfolio, setPortfolio] = useState(initialPortfolio);
-  const [shares, setShares] = useState("100");
+  const [shares, setShares] = useState(defaultShares);
+  // The borrower types the amount; the largest approved one is shown beside it.
   const [principal, setPrincipal] = useState("");
-  // Until the borrower types an amount, it follows the largest approved one.
-  const [amountTouched, setAmountTouched] = useState(false);
+  const [max, setMax] = useState<MaxAmount | null>(initialMax);
   const [quote, setQuote] = useState<LoanQuoteApiResponse | null>(null);
+  const [profile, setProfile] = useState<CreditProfile | null>(initialProfile);
+  // The site-wide wallet (header pill). Until the api answers, the server-rendered one stands in.
+  const site = useWallet();
+  const wallet = site.loaded ? site.wallet : (site.wallet ?? initialWallet);
+  const walletKey = wallet?.address ?? "";
+  const firstWallet = useRef(walletKey);
+  useEffect(() => {
+    if (walletKey === firstWallet.current) return;
+    firstWallet.current = walletKey;
+    setRequote((n) => n + 1); // new history: refetch the profile, the max and the quote
+  }, [walletKey]);
+  const [activity, setActivity] = useState<Activity[]>([]);
+  // The last live rescore: what moved, shown briefly on the card.
+  const [live, setLive] = useState<{ at: number; scoreBefore: number; score: number; changes: FactorChange[] } | null>(null);
   const [quoteErr, setQuoteErr] = useState<string | null>(null);
   const [quoting, setQuoting] = useState(false);
   const [loans, setLoans] = useState<XlsLoanRecord[]>([]);
   const [alerts, setAlerts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
-  const [qn, setQn] = useState<CreditStats | null>(null);
   const [memo, setMemo] = useState<AgentText | null>(null);
   const [requote, setRequote] = useState(0);
   const toast = useToast();
   const seq = useRef(0);
+  // The max on screen answers this request; the server-rendered one counts.
+  const maxFor = useRef(initialMax ? `${defaultShares}|${gpuId}|0` : "");
 
-  const held = Number(portfolio.shares.find((s) => s.gpuId === gpuId)?.qty ?? 0);
+  const held = Number(portfolio?.shares.find((s) => s.gpuId === gpuId)?.qty ?? 0);
   const code = `${gpuLabel} shares`;
 
   const refresh = useCallback(async () => {
-    const [p, l] = await Promise.all([getPortfolio(ACCOUNT).catch(() => null), listLoans(ACCOUNT).catch(() => null)]);
+    const [p, l] = await Promise.all([getPortfolio().catch(() => null), listLoans(true).catch(() => null)]);
     if (p) setPortfolio(p);
     if (l) setLoans(l.loans);
   }, []);
 
-  // Default the amount to the largest one risk approves for these shares.
+  // Credit profile (cached by the api). The server usually renders it already.
   useEffect(() => {
-    if (amountTouched || !(Number(shares) > 0)) return;
+    if (initialProfile && requote === 0) return;
+    let alive = true;
+    // A new wallet's first score can take a few seconds: retry rather than give up.
+    (async () => {
+      for (let i = 0; i < 5 && alive; i++) {
+        try {
+          const p = await borrowerProfile();
+          if (alive) setProfile(p);
+          return;
+        } catch {
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [initialProfile, requote]);
+
+  // The connected wallet's newest transactions (the feed then grows live).
+  useEffect(() => {
+    if (!wallet) return setActivity([]);
+    let alive = true;
+    walletGet()
+      .then((r) => alive && setActivity(((r as { activity?: Activity[] }).activity ?? []).slice(0, 8)))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [wallet]);
+
+  // Live rescore from the credit service (Quicknode WebSocket on the wallet):
+  // add the tx to the feed, highlight what moved, refetch the profile, the max
+  // and the quote (and so the memo).
+  useApiEvents(["credit"], (_type, data) => {
+    if (data?.kind !== "PROFILE_CHANGED" || !profile || data.borrower !== profile.address) return;
+    // Connected (or switched) from another tab or device: pick the wallet up too.
+    if (wallet?.address !== data.address) void site.refresh();
+    const item = data.activity as Activity | undefined;
+    // The new profile and what moved land together, so highlighted rows already show the new points.
+    borrowerProfile()
+      .then(setProfile)
+      .catch(() => {})
+      .finally(() => {
+        if (item) setActivity((list) => [item, ...list.filter((x) => x.txHash !== item.txHash)].slice(0, 8));
+        setLive({ at: Date.now(), scoreBefore: data.scoreBefore, score: data.score, changes: data.changes ?? [] });
+        setRequote((n) => n + 1);
+      });
+  });
+  useEffect(() => {
+    if (!live) return;
+    const t = setTimeout(() => setLive((l) => (l && Date.now() - l.at >= HIGHLIGHT_MS ? null : l)), HIGHLIGHT_MS);
+    return () => clearTimeout(t);
+  }, [live]);
+
+  // Largest approved amount for the shares entered, shown under the amount field.
+  useEffect(() => {
+    const s = Number(shares);
+    if (!(s > 0)) return setMax(null);
+    const key = `${s}|${gpuId}|${requote}`;
+    if (key === maxFor.current) return;
     let alive = true;
     const t = setTimeout(() => {
-      maxPrincipal(ACCOUNT, gpuId, String(Number(shares)))
+      maxPrincipal(gpuId, String(s))
         .then((m) => {
-          if (alive && !amountTouched) setPrincipal(Number(m.maxPrincipal) > 0 ? String(Number(m.maxPrincipal)) : "1");
+          if (!alive) return;
+          maxFor.current = key;
+          setMax(m);
         })
-        .catch(() => alive && !amountTouched && setPrincipal((p) => p || "50"));
+        .catch(() => alive && setMax(null));
     }, 300);
     return () => {
       alive = false;
       clearTimeout(t);
     };
-  }, [shares, gpuId, amountTouched, requote]);
+  }, [shares, gpuId, requote]);
 
-  // Live quote, debounced. Stale responses are dropped.
+  // Live quote once an amount is entered, debounced. Stale responses are dropped.
   useEffect(() => {
     const s = Number(shares);
     const p = Number(principal);
-    if (!(s > 0) || !(p > 0)) return;
+    if (!(s > 0) || !(p > 0)) {
+      ++seq.current;
+      setQuote(null);
+      setQuoting(false);
+      setQuoteErr(null);
+      return;
+    }
     const mine = ++seq.current;
     setQuoting(true);
     const t = setTimeout(async () => {
       try {
-        const q = await quoteLoan(ACCOUNT, gpuId, String(s), String(p));
+        const q = await quoteLoan(gpuId, String(s), String(p));
         if (mine === seq.current) {
           setQuote(q);
           setQuoteErr(null);
@@ -144,15 +282,12 @@ export function BorrowContent({
     };
   }, [quote]);
 
-  // Live Quicknode counters from the credit service, next to the profile.
-  useEffect(() => {
-    const load = () => creditStats().then(setQn).catch(() => {});
-    load();
-    const t = setInterval(load, 15_000);
-    return () => clearInterval(t);
-  }, [quote]);
 
   useEffect(() => {
+    if (!walletKey) {
+      setLoans([]);
+      return;
+    }
     void refresh();
     const t = setInterval(() => setNow(Date.now()), 1000);
     const poll = setInterval(() => void refresh(), 20_000);
@@ -160,7 +295,7 @@ export function BorrowContent({
       clearInterval(t);
       clearInterval(poll);
     };
-  }, [refresh]);
+  }, [refresh, walletKey]);
 
   useApiEvents(["loan", "vault", "risk"], (type, data) => {
     if (type === "loan" && data?.alert?.text) setAlerts((a) => ({ ...a, [data.id]: data.alert.text }));
@@ -178,9 +313,8 @@ export function BorrowContent({
         `Borrowed ${fmt(Number(loan.principal), 2)} USDC on ${loan.network}`,
         `XLS-66 LoanSet tx ${shortHash(loan.txs.loanSet ?? "")} · ${loan.collateralShares} ${code} escrowed`
       );
-      setQuote(null);
-      setAmountTouched(false); // next loan: back to the largest approved amount
-      setRequote((n) => n + 1); // a quote opens one loan; fetch a fresh one
+      setPrincipal(""); // a quote opens one loan; the next one starts from a fresh amount
+      setRequote((n) => n + 1); // the profile and the max change after a loan
       await refresh();
     } catch (e) {
       toast("Borrow failed", (e as Error).message);
@@ -208,13 +342,39 @@ export function BorrowContent({
   const q = quote?.quote;
   const active = loans.filter((l) => l.status === "open" || l.status === "margin_call");
   const past = loans.filter((l) => !(l.status === "open" || l.status === "margin_call")).slice(0, 6);
-  const credit = quote?.credit;
+  // The profile drives the card: it is refetched on every wallet change, so it
+  // is never older than the quote's copy.
+  const credit = profile ?? quote?.credit;
+  const changed = new Map((live?.changes ?? []).map((c) => [c.feature, c]));
   const topFactors = credit
     ? Object.entries(credit.features)
-        .filter(([, f]) => f.points !== 0)
-        .sort((a, b) => Math.abs(b[1].points) - Math.abs(a[1].points))
-        .slice(0, 5)
+        .filter(([k, f]) => f.points !== 0 || changed.has(k))
+        .sort((a, b) => Number(changed.has(b[0])) - Number(changed.has(a[0])) || Math.abs(b[1].points) - Math.abs(a[1].points))
+        .slice(0, Math.max(5, changed.size))
     : [];
+
+  const head = (
+    <div className="shead">
+      <h2>Borrow against your GPU shares.</h2>
+      <p>
+        Your shares stay yours. They sit in an XRPL escrow while you borrow USDC from the Moonshift lending vault, and they come back the moment you
+        repay. Terms come from your on-chain payment history and the GPU&apos;s real revenue.
+      </p>
+    </div>
+  );
+
+  if (!wallet) {
+    return (
+      <main className="s">
+        <div className="wrap">
+          {head}
+          <div className="trade card">
+            <ConnectPrompt />
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="s">
@@ -233,19 +393,25 @@ export function BorrowContent({
             <span className="lbl">Credit profile</span>
             {credit ? (
               <>
-                <div className="score">
+                <div className={live && live.score !== live.scoreBefore ? "score flash" : "score"}>
                   <div className="bignum">{credit.score}</div>
                   <div>
                     <div className="grade">Grade {credit.grade}</div>
                     <div className="muted">{credit.confidence} confidence</div>
                   </div>
                 </div>
+                <WalletConnect />
+                {live && live.changes.length > 0 && (
+                  <p className="changes">
+                    {live.score !== live.scoreBefore ? `Score ${live.scoreBefore} to ${live.score}. ` : "Updated just now. "}
+                    {live.changes.map(changeText).join(" · ")}
+                  </p>
+                )}
                 <div className="factors">
                   {topFactors.map(([k, f]) => (
-                    <div key={k}>
+                    <div key={k} className={changed.has(k) ? "flash" : undefined}>
                       <span>
                         {FACTOR_TEXT[k] ?? k}
-                        {f.from && <em className="from">{f.from}</em>}
                       </span>
                       <b className={f.points < 0 ? "dn" : "up"}>
                         {f.points > 0 ? "+" : ""}
@@ -256,7 +422,7 @@ export function BorrowContent({
                           .filter((h) => !/^0+[0-9]$/.test(h))
                           .slice(0, 1)
                           .map((h) => {
-                            const url = txUrl(credit.network, h);
+                            const url = txUrl(f.from ?? credit.network, h);
                             return url ? (
                               <a key={h} className="txl" href={url} target="_blank" rel="noreferrer">
                                 {shortHash(h)}
@@ -269,32 +435,45 @@ export function BorrowContent({
                 </div>
                 {credit.components && credit.components.length > 0 && (
                   <div className="sources">
-                    {credit.components.map((c) => (
-                      <div key={c.part}>
-                        <b>{c.part}</b>
-                        <span>
-                          {c.source === "quicknode" ? `Read through Quicknode (XRPL ${c.network})` : `XRPL ${c.network}`} · {shortHash(c.address)}
-                        </span>
-                        {c.ownership && !c.ownership.verified && <span className="unverified">Ownership not verified</span>}
+                    {credit.components.map((c) =>
+                      c.role === "reference" ? (
+                        <div key={c.part} className="ref">
+                          <span>
+                            Mainnet history · {shortHash(c.address)} · score {c.ownScore.score}
+                          </span>
+                        </div>
+                      ) : (
+                        <div key={c.part}>
+                          <b>{c.part}</b>
+                          <span>
+                            {c.network === "mainnet" ? "" : `XRPL ${c.network} · `}
+                            {shortHash(c.address)}
+                          </span>
+                          {/* the wallet row above already says it for a connected wallet */}
+                          {c.ownership && !c.ownership.verified && !wallet && <span className="unverified">Ownership not verified</span>}
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+                {wallet && activity.length > 0 && (
+                  <div className="activity">
+                    <span className="lbl">Wallet activity</span>
+                    {activity.map((a) => (
+                      <div key={a.txHash}>
+                        <span>{clock(a.at)}</span>
+                        <span>{activityText(a)}</span>
+                        <b>{a.amount ? `${fmt(Number(a.amount), 2)} ${a.currency ?? ""}` : ""}</b>
+                        <span>{a.counterparty ? shortHash(a.counterparty) : ""}</span>
+                        <TxLink network={a.network} hash={a.txHash} />
                       </div>
                     ))}
                   </div>
                 )}
-                {qn && qn.dataSource === "live" && (
-                  <p className="note qn">
-                    Read through Quicknode: {qn.quicknode.calls} calls, {fmt(qn.quicknode.creditsUsed, 0)} credits
-                    {qn.quicknode.p50LatencyMs ? `, p50 ${Math.round(qn.quicknode.p50LatencyMs)} ms` : ""}, {Math.round(qn.totals.cacheHitRate * 100)}% served from cache
-                  </p>
-                )}
-                {credit.portfolio && (
-                  <p className="note">
-                    Borrowers in grade {credit.portfolio.grade} default {credit.portfolio.defaultRatePct}% of the time (model estimate)
-                  </p>
-                )}
-                {!credit.components?.length && <p className="note">Source: XRPL {credit.network}</p>}
+                {credit.components?.some((c) => c.source === "quicknode") && <p className="via">via Quicknode</p>}
               </>
             ) : (
-              <p className="note">{quoteErr ?? "Reading your payment history..."}</p>
+              <p className="note">{"Reading your payment history..."}</p>
             )}
           </div>
 
@@ -316,14 +495,26 @@ export function BorrowContent({
                   Borrow
                 </label>
                 <div className="inp">
-                  <input id="amt" type="text" autoComplete="off" value={principal} inputMode="decimal" onChange={(e) => {
-                      setAmountTouched(true);
-                      setPrincipal(typedAmount(e.target.value));
-                    }}
+                  <input
+                    id="amt"
+                    type="text"
+                    autoComplete="off"
+                    placeholder="0"
+                    value={principal}
+                    inputMode="decimal"
+                    onChange={(e) => setPrincipal(typedAmount(e.target.value))}
                   />
                   <span>USDC</span>
                 </div>
-                <span className="note">Collateral worth {quote ? fmt(Number(quote.collateralValue), 2) : "..."} USDC</span>
+                {quote?.counterOffer ? (
+                  <span className="note">Approved for {fmt(Number(quote.counterOffer.offered), 2)} USDC</span>
+                ) : max && Number(max.maxPrincipal) > 0 ? (
+                  <button type="button" className="note max-hint" onClick={() => setPrincipal(String(Number(max.maxPrincipal)))}>
+                    Up to {fmt(Number(max.maxPrincipal), 0)} USDC
+                  </button>
+                ) : (
+                  <span className="note">{max ? "No approved amount for these shares" : " "}</span>
+                )}
               </div>
             </div>
 
@@ -362,7 +553,7 @@ export function BorrowContent({
                 {memo ? (
                   <blockquote className="memo">
                     {memo.text.replace(/TDX/g, "USDC")}
-                    <span>{memo.fellBack ? "Credit memo" : "Credit memo by Amazon Bedrock"}</span>
+                    {!memo.fellBack && <span className="via">via Amazon Bedrock</span>}
                   </blockquote>
                 ) : (
                   <p className="memo-pending">Writing credit memo...</p>
@@ -374,8 +565,10 @@ export function BorrowContent({
               {busy === "open"
                 ? "Signing LoanSet on devnet..."
                 : q?.decision === "decline"
-                  ? "Lower the amount to get approved"
-                  : `Lock ${fmt(Number(shares) || 0, 0)} ${code}, borrow ${fmt(Number(principal) || 0, 2)} USDC`}
+                  ? "Not approved"
+                  : Number(principal) > 0
+                    ? `Lock ${fmt(Number(shares) || 0, 0)} ${code}, borrow ${fmt(Number(quote?.counterOffer ? quote.principal : principal), 2)} USDC`
+                    : "Enter an amount"}
             </Button>
           </div>
         </div>

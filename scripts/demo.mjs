@@ -177,12 +177,28 @@ if (!mockXrpl) {
 }
 
 start("api", "npm", ["run", "dev", "-w", "apps/api"], { cwd: ROOT, env: apiEnv });
-if (!args.has("--no-web")) start("web", "npm", ["run", "dev", "-w", "apps/web"], { cwd: ROOT, env: baseEnv });
+// --prod (npm run demo:prod): production build of the web app (next build, then next start).
+const prodWeb = args.has("--prod");
+if (!args.has("--no-web")) {
+  if (prodWeb) {
+    log("demo", "building the web app for production (next build)...");
+    const built = spawnSync("npm", ["run", "build", "-w", "apps/web"], { cwd: ROOT, env: baseEnv, stdio: "inherit", shell: true });
+    if (built.status !== 0) {
+      log("demo", "next build failed; stopping");
+      process.exit(1);
+    }
+  }
+  start("web", "npm", ["run", prodWeb ? "start" : "dev", "-w", "apps/web"], { cwd: ROOT, env: baseEnv });
+}
 
-// Prewarm: read the borrower's credit profile (devnet history + linked mainnet
-// history through Quicknode) once, so the first /borrow load is instant.
+// Prewarm the shared caches (vault, oracle, Bedrock) with the DEV system account (gpu-a, 100 shares,
+// largest approved amount), so the credit profile, vault read, max search and
+// Bedrock memo are cached before anyone opens the page. Then compile the web
+// pages (next dev builds a route on its first request) and re-warm every
+// 4 minutes so nothing expires during a pitch.
 (async () => {
   const api = "http://localhost:4000";
+  const web = "http://localhost:3000";
   for (let i = 0; i < 90; i++) {
     try {
       if ((await fetch(`${api}/health`)).ok) break;
@@ -191,19 +207,45 @@ if (!args.has("--no-web")) start("web", "npm", ["run", "dev", "-w", "apps/web"],
     }
     await new Promise((r) => setTimeout(r, 2000));
   }
+  const json = { "Content-Type": "application/json", "X-MS-Internal-Key": baseEnv.INTERNAL_API_KEY };
+  const warm = async () => {
+    await Promise.all([fetch(`${api}/loans/profile/DEV`, { headers: json }), fetch(`${api}/vault`)]);
+    const q = await (await fetch(`${api}/loans/quote`, { method: "POST", headers: json, body: JSON.stringify({ borrower: "DEV", gpuId: "gpu-a", collateralShares: "100", principal: "max" }) })).json();
+    const m = q.quoteId ? await (await fetch(`${api}/loans/quote/${q.quoteId}/memo?wait=14000`)).json() : null;
+    return m?.memo ? (m.memo.fellBack ? `fallback (${m.memo.outcome ?? "?"})` : `Bedrock ${m.memo.latencyMs} ms`) : "not ready";
+  };
   const t0 = Date.now();
   try {
-    await fetch(`${api}/credit/${apiEnv.NETWORK}/ALICE`);
-    const json = { "Content-Type": "application/json" };
-    const max = await (await fetch(`${api}/loans/max`, { method: "POST", headers: json, body: JSON.stringify({ borrower: "ALICE", gpuId: "gpu-a", collateralShares: "100" }) })).json();
-    // One full quote so Bedrock is warm too: its first call is the slowest.
-    const q = await (await fetch(`${api}/loans/quote`, { method: "POST", headers: json, body: JSON.stringify({ borrower: "ALICE", gpuId: "gpu-a", collateralShares: "100", principal: max.maxPrincipal }) })).json();
-    const m = q.quoteId ? await (await fetch(`${api}/loans/quote/${q.quoteId}/memo?wait=14000`)).json() : null;
-    const memo = m?.memo ? (m.memo.fellBack ? `fallback (${m.memo.outcome ?? "?"})` : `Bedrock ${m.memo.latencyMs} ms`) : "not ready";
-    log("demo", `prewarmed ALICE's credit profile, quote and memo (${memo}) in ${Math.round((Date.now() - t0) / 1000)} s`);
+    const memo = await warm();
+    log("demo", `prewarmed the vault, oracle, a quote and the memo (${memo}) in ${Math.round((Date.now() - t0) / 1000)} s`);
   } catch {
     log("demo", "prewarm skipped (api not reachable yet)");
   }
+  // The last 24 hours of GPU activity and a dividend, so yield, schedules and
+  // avatars are live before anyone opens the market (idempotent).
+  try {
+    const t2 = Date.now();
+    const seeded = await (await fetch(`${api}/internal/seed-history`, { method: "POST", headers: json })).json();
+    const line = Object.entries(seeded)
+      .map(([g, v]) => `${g}: +${v.inference ?? 0} inference, +${v.booked ?? 0} bookings, dividend ${typeof v.dividend === "string" ? v.dividend : v.dividend?.status ?? "?"}`)
+      .join("; ");
+    log("demo", `market history ready in ${Math.round((Date.now() - t2) / 1000)} s (${line})`);
+  } catch {
+    log("demo", "market history seed skipped (api not reachable)");
+  }
+  setInterval(() => void warm().catch(() => {}), 4 * 60_000);
+  if (args.has("--no-web")) return;
+  for (let i = 0; i < 60; i++) {
+    try {
+      await fetch(web);
+      break;
+    } catch {
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+  const t1 = Date.now();
+  for (const path of ["/", "/borrow", "/lend"]) await fetch(web + path).catch(() => {});
+  log("demo", `${prodWeb ? "warmed" : "compiled"} /, /borrow and /lend in ${Math.round((Date.now() - t1) / 1000)} s`);
 })();
 
 log("demo", `network: ${apiEnv.NETWORK}  ledger: ${mockXrpl ? "in-memory mock" : "real devnet (XLS-65/66)"}`);

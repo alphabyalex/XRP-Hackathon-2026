@@ -46,39 +46,10 @@
   --feather: clamp(80px, 8vw, 132px);
   color-scheme: light;
 }
-:root[data-theme="dark"] {
-  --bg: #0c0c0f;
-  --tint: #1c1c24;
-  --tint2: #2c2c36;
-  --surface: #26262f;
-  --ink: #f3f3f4;
-  --ink2: #b0b1b6;
-  --ink3: #8b8c93;
-  --rule: rgba(255, 255, 255, 0.1);
-  --rule2: rgba(255, 255, 255, 0.18);
-  --accent-ink: #ff8f66;
-  --accent-wash: rgba(255, 90, 31, 0.16);
-  --up: #3dca7a;
-  --down: #ff6d64;
-  --up-wash: rgba(61, 202, 122, 0.16);
-  --down-wash: rgba(255, 109, 100, 0.16);
-  --idle: #2c2c32;
-  --open: #5c5c64;
-  --nav: rgba(12, 12, 15, 0.86);
-  --night: #070708;
-  --plate: #0a0a0c;
-  --card-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 24px 50px -28px rgba(0, 0, 0, 0.7);
-  color-scheme: dark;
-}
 :root[data-accent="moon"] {
   --accent: #ffc21a;
   --accent-ink: #946800;
   --accent-wash: #fff7dc;
-}
-:root[data-theme="dark"][data-accent="moon"] {
-  --accent: #ffc21a;
-  --accent-ink: #ffd56a;
-  --accent-wash: rgba(255, 194, 26, 0.14);
 }
 * {
   box-sizing: border-box;
@@ -162,16 +133,14 @@ p {
   --mk-b: var(--night-ink);
 }
 .nav.on-night .logo,
-.nav.on-night .theme-toggle,
+.nav.on-night .nav-tab:hover,
 .nav.on-night .links a:hover {
   color: var(--night-ink);
 }
 .nav.on-night .links,
-.nav.on-night .links a {
+.nav.on-night .links a,
+.nav.on-night .nav-tab {
   color: var(--night-muted);
-}
-.nav.on-night .theme-toggle {
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
 }
 .nav.on-night .btn.ink {
   background: var(--night-ink);
@@ -215,30 +184,76 @@ p {
   align-items: center;
   gap: 10px;
 }
-.theme-toggle {
-  width: 36px;
-  height: 36px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
+/* Portfolio sits in the top right, next to the wallet pill */
+.nav-tab {
+  font-size: 14.5px;
   color: var(--ink2);
-  display: grid;
-  place-items: center;
-  box-shadow: inset 0 0 0 1px var(--rule2);
-  transition: color 0.2s, box-shadow 0.2s, background 0.2s;
+  text-decoration: none;
+  padding: 0 6px;
+  transition: color 0.2s;
 }
-.theme-toggle:hover {
+.nav-tab:hover {
   color: var(--ink);
-  box-shadow: inset 0 0 0 1px var(--ink);
 }
-.theme-toggle .sun {
+
+/* Signed out: one line and the button where something personal would be */
+.connect-prompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding: 22px 0;
+}
+.connect-prompt p {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink2);
+}
+
+/* Header wallet pill and its menu */
+.wallet-pill {
+  white-space: nowrap;
+}
+.wallet-pill .mono {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.wallet-menu {
+  position: relative;
+}
+.wallet-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 180px;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), inset 0 0 0 1px var(--rule2);
   display: none;
+  flex-direction: column;
+  z-index: 60;
 }
-:root[data-theme="dark"] .theme-toggle .moon {
-  display: none;
+.wallet-pop.open {
+  display: flex;
 }
-:root[data-theme="dark"] .theme-toggle .sun {
-  display: block;
+.wallet-pop > button,
+.wallet-pop > a {
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.wallet-pop > button:hover,
+.wallet-pop > a:hover {
+  background: var(--tint);
 }
 .btn {
   display: inline-flex;
@@ -785,7 +800,7 @@ section.tinted .nowline span {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  padding: 16px 0;
+  padding: 11px 0;
   border-bottom: 1px solid var(--rule);
 }
 .facts > div:first-child {
@@ -793,12 +808,12 @@ section.tinted .nowline span {
 }
 .facts span {
   color: var(--ink2);
-  font-size: 15px;
+  font-size: 14px;
 }
 .facts b {
   font-family: var(--mono);
   font-weight: 500;
-  font-size: 17px;
+  font-size: 15px;
 }
 
 /* trade */
@@ -1045,16 +1060,29 @@ section.tinted .nowline span {
   background: var(--ink3);
 }
 .meter-l {
-  position: relative;
-  height: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
   font-size: 12.5px;
   color: var(--ink3);
   font-family: var(--mono);
 }
 .meter-l span {
-  position: absolute;
-  top: 0;
   white-space: nowrap;
+}
+.meter-l .lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.meter-l .key {
+  display: inline-block;
+  width: 1.5px;
+  height: 10px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  background: var(--ink3);
 }
 input[type="range"] {
   -webkit-appearance: none;
@@ -1093,7 +1121,7 @@ input[type="range"]::-moz-range-thumb {
 .bignum {
   font-family: var(--sans);
   font-variant-numeric: lining-nums;
-  font-size: clamp(44px, 5.4vw, 68px);
+  font-size: clamp(32px, 3.6vw, 46px);
   letter-spacing: -0.035em;
   font-weight: 600;
   line-height: 1;
@@ -1384,7 +1412,7 @@ footer .wrap {
   align-items: start;
 }
 .trade.card {
-  padding: 28px;
+  padding: 24px;
 }
 .two {
   display: grid;
@@ -1446,39 +1474,39 @@ footer .wrap {
   line-height: 1.55;
   color: var(--ink);
 }
-.memo span {
-  display: block;
-  margin-top: 8px;
-  font-size: 12px;
+.max-hint {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
   color: var(--ink3);
+  cursor: pointer;
+  text-align: left;
 }
+.max-hint:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* Status labels are plain text: no tinted pill backgrounds. */
 .chip {
   display: inline-block;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--tint);
   color: var(--ink2);
   text-transform: capitalize;
   white-space: nowrap;
 }
 .chip-open {
-  background: var(--up-wash);
-  color: var(--up);
+  color: var(--ink);
 }
 .chip-margin_call {
-  background: var(--accent-wash);
   color: var(--accent-ink);
 }
 .chip-liquidated,
 .chip-defaulted {
-  background: var(--down-wash);
   color: var(--down);
-}
-.chip-phase {
-  background: var(--accent-wash);
-  color: var(--accent-ink);
 }
 .txl {
   font-size: 12.5px;
@@ -1556,24 +1584,129 @@ a.txl:hover {
 .sources b {
   font-weight: 500;
 }
-.sources span,
-.note.qn {
+.sources span {
   color: var(--ink2);
+}
+/* The one source mark per card: "via Quicknode", "via Amazon Bedrock" */
+.via {
+  display: block;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--ink3);
+}
+.memo .via {
+  margin-top: 8px;
 }
 
 .sources .unverified {
   color: var(--ink3);
   font-size: 12px;
 }
-.foot-links {
-  display: flex;
-  gap: 18px;
-  flex-wrap: wrap;
-}
-.foot-links a {
-  color: inherit;
+.sources .ref span {
+  font-size: 12px;
+  color: var(--ink3);
 }
 
+/* Live rescore: what moved, briefly highlighted */
+@keyframes flash {
+  from {
+    background: var(--accent-wash);
+  }
+  to {
+    background: transparent;
+  }
+}
+.factors > div.flash,
+.score.flash {
+  animation: flash 8s ease-out;
+}
+.changes {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--ink);
+}
+.activity {
+  margin-top: 16px;
+  display: grid;
+  gap: 4px;
+  font-size: 12.5px;
+}
+.activity > div {
+  display: grid;
+  grid-template-columns: 64px 64px 1fr auto auto;
+  gap: 10px;
+  align-items: baseline;
+  color: var(--ink2);
+}
+.activity b {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* Connected wallet row on the credit card */
+.wallet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 18px 0 4px;
+  font-size: 13px;
+}
+.wallet > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wallet b {
+  font-weight: 500;
+  font-family: var(--mono);
+}
+.wallet .ok {
+  color: var(--up);
+}
+.wallet .muted {
+  color: var(--ink3);
+}
+.wallet .note {
+  flex-basis: 100%;
+  margin-top: 0;
+}
+.wallet-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.wallet-paste {
+  display: flex;
+  gap: 8px;
+  flex-basis: 100%;
+  align-items: center;
+}
+.wallet-paste .inp {
+  flex: 1;
+  min-width: 0;
+}
+.linkish {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink3);
+  cursor: pointer;
+}
+.linkish.strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+.linkish:hover:not(:disabled) {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .memo-pending {
   margin: 18px 0 0;
   font-size: 13px;

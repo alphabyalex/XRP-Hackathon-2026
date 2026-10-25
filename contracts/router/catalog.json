@@ -1,0 +1,34 @@
+{
+  "endpoint": "GET /catalog?provider=&gpuModel=",
+  "note": "Every priced offer across providers (latest snapshot: DynamoDB ms-router-catalog or SQLite locally). One entry per provider + region + instanceType + capacityType. pricePerHourUsd is the provider's price for the whole instance; pricePerGpuHourUsd divides by gpuCount; pricePerHourUsdc is what Moonshift charges (external capacity x (1 + margin), Moonshift GPUs at their listed price). priceSource: live (called the API), static (hand table with asOf) or fixture (mock mode or no credentials). availability.status: live (provider reports capacity, count), likely (placement score >= 5 or on-demand), unknown, none. executable is true only for offers in the fleet (an account plus a worker endpoint).",
+  "request": { "provider": "aws", "gpuModel": "T4" },
+  "response": {
+    "catalogAsOf": "2026-10-24T22:00:00Z",
+    "count": 1,
+    "offers": [
+      {
+        "key": "aws#us-east-2#g4dn.xlarge#spot",
+        "provider": "aws",
+        "region": "us-east-2",
+        "instanceType": "g4dn.xlarge",
+        "gpuModel": "T4",
+        "gpuCount": 1,
+        "capacityType": "spot",
+        "pricePerHourUsd": 0.17358,
+        "pricePerGpuHourUsd": 0.17358,
+        "pricePerHourUsdc": 0.199617,
+        "priceSource": "live",
+        "availability": { "status": "likely", "count": null, "score": 7 },
+        "interruptible": true,
+        "interruptionRatePerHour": 0.000087,
+        "warningWindowSeconds": 120.0,
+        "tokensPerSec": 40.0,
+        "egressPerGbUsd": 0.09,
+        "startupSeconds": 3.0,
+        "asOf": "2026-10-24T22:00:00Z",
+        "executable": true,
+        "extra": { "availabilityZone": "us-east-2a", "advisorBand": 1, "savingsPct": 67 }
+      }
+    ]
+  }
+}

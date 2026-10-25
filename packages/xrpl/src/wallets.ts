@@ -67,7 +67,34 @@ export function getSeedEnvKey(name: AccountName, net: NetworkName = networkName(
   return net === "testnet" ? `${name}_SEED` : `${net.toUpperCase()}_${name}_SEED`;
 }
 
+// User accounts (U_<address>): custodial devnet accounts the api holds for each
+// connected wallet. Registered at runtime from the api's encrypted store, never
+// read from or written to .env.
+const userWallets = new Map<string, Wallet>();
+
+export function isUserAccount(name: string): boolean {
+  return name.startsWith("U_");
+}
+
+export function userAccountName(address: string): AccountName {
+  return `U_${address}`;
+}
+
+export function registerUserAccount(seed: string): { name: AccountName; address: string } {
+  const wallet = loadWalletFromSeed(seed);
+  const name = userAccountName(wallet.address);
+  userWallets.set(name, wallet);
+  return { name, address: wallet.address };
+}
+
+export function registeredUserAccounts(): AccountName[] {
+  return [...userWallets.keys()] as AccountName[];
+}
+
 export function getAccountWallet(name: AccountName): Wallet {
+  const user = userWallets.get(name);
+  if (user) return user;
+  if (isUserAccount(name)) throw new Error(`Unknown user account ${name}`);
   const envKey = getSeedEnvKey(name);
   const seed = process.env[envKey];
   if (!seed) {
@@ -149,6 +176,7 @@ export function appendOrUpdateEnvSeeds(seeds: Partial<Record<AccountName, string
 }
 
 export function getAccountAddress(name: AccountName): string {
+  if (isUserAccount(name)) return name.slice(2);
   const envKey = getSeedEnvKey(name);
   const seed = process.env[envKey];
   if (seed) {

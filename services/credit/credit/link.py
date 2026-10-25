@@ -29,18 +29,27 @@ CHALLENGE_TTL = timedelta(minutes=10)
 class Linker:
     db: Store
 
-    def challenge(self, borrower: str, mainnet_address: str, now: datetime) -> dict[str, Any]:
+    def challenge(self, borrower: str, mainnet_address: str, now: datetime, network: str = "mainnet") -> dict[str, Any]:
+        """network "mainnet": prove control of mainnet_address (a payment history to combine).
+        network "testnet": connect a wallet (Crossmark sign-in). The address may be empty: a wallet
+        only reports it while signing, so verify takes it from the signing key."""
         nonce = secrets.token_hex(4)
         expires = now + CHALLENGE_TTL
         expires_iso = expires.strftime("%Y-%m-%dT%H:%M:%SZ")
-        message = (
-            f"Moonshift link: borrower {borrower} controls {mainnet_address}. "
-            f"Nonce {nonce}. Expires {expires_iso}"
-        )
+        if network == "mainnet":
+            message = (
+                f"Moonshift link: borrower {borrower} controls {mainnet_address}. "
+                f"Nonce {nonce}. Expires {expires_iso}"
+            )
+        else:
+            message = (
+                f"Moonshift sign-in: connect an XRPL {network} wallet to borrower {borrower}. "
+                f"Nonce {nonce}. Expires {expires_iso}"
+            )
         cid = "lc_" + secrets.token_hex(6)
         self.db.execute(
-            "INSERT INTO link_challenges VALUES (?, ?, ?, ?, ?)",
-            (cid, borrower, mainnet_address, message, expires.isoformat()),
+            "INSERT INTO link_challenges (id, borrower, mainnet_address, message, expires_at, network) VALUES (?, ?, ?, ?, ?, ?)",
+            (cid, borrower, mainnet_address, message, expires.isoformat(), network),
         )
         return {
             "challengeId": cid,
@@ -56,11 +65,14 @@ class Linker:
         signature: str,
         now: datetime,
         client: XrplClient | None = None,
+        address: str | None = None,
     ) -> dict[str, Any]:
         rows = self.db.execute("SELECT * FROM link_challenges WHERE id = ?", (challenge_id,))
         if not rows or datetime.fromisoformat(rows[0]["expires_at"]) < now:
             raise LinkError(404, "CHALLENGE_NOT_FOUND", "unknown or expired challengeId")
         ch = rows[0]
+        if ch["network"] != "mainnet":
+            return await self._verify_wallet(ch, public_key, signature, now, client, address)
         try:
             derived = keypairs.derive_classic_address(public_key)
             valid = keypairs.is_valid_message(ch["message"].encode(), bytes.fromhex(signature), public_key)
@@ -87,6 +99,86 @@ class Linker:
             "mainnetAddress": ch["mainnet_address"],
             "verifiedAt": verified_at,
         }
+
+    async def _verify_wallet(
+        self,
+        ch: Any,
+        public_key: str,
+        signature: str,
+        now: datetime,
+        client: XrplClient | None,
+        address: str | None,
+    ) -> dict[str, Any]:
+        try:
+            derived = keypairs.derive_classic_address(public_key)
+            valid = keypairs.is_valid_message(ch["message"].encode(), bytes.fromhex(signature), public_key)
+        except Exception:  # malformed key or signature hex
+            raise LinkError(422, "BAD_SIGNATURE", "public key or signature is malformed") from None
+        if not valid:
+            raise LinkError(422, "BAD_SIGNATURE", "signature does not verify")
+        target = ch["mainnet_address"] or address or derived
+        if derived != target:
+            client = client or XrplClient(ch["network"])
+            info = await client.account_info(target, refresh=True)
+            if info.get("account_data", {}).get("RegularKey") != derived:
+                raise LinkError(422, "KEY_ADDRESS_MISMATCH", "publicKey is neither the master key nor the RegularKey")
+        self.db.execute("DELETE FROM link_challenges WHERE id = ?", (ch["id"],))
+        at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+        self.db.execute(
+            "INSERT OR REPLACE INTO verified_wallets VALUES (?, ?, ?, ?)", (ch["network"], target, public_key, at)
+        )
+        if not ch["borrower"]:
+            # Sign-in before the account exists: the api links the wallet to its account next.
+            return {"verified": True, "network": ch["network"], "address": target, "verifiedAt": at}
+        return self.connect_wallet(ch["borrower"], ch["network"], target, now, public_key)
+
+    # ---- connected wallet (testnet): replaces the configured payment history for its borrower ----
+
+    def connect_wallet(
+        self, borrower: str, network: str, address: str, now: datetime, public_key: str | None = None
+    ) -> dict[str, Any]:
+        """public_key set, or the wallet signed a challenge before: ownership verified. Otherwise a
+        pasted address, read-only."""
+        at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+        if public_key is None:
+            rows = self.db.execute(
+                "SELECT public_key FROM verified_wallets WHERE network = ? AND address = ?", (network, address)
+            )
+            public_key = rows[0]["public_key"] if rows else None
+        self.db.execute(
+            "INSERT OR REPLACE INTO wallets (borrower, network, address, public_key, verified, connected_at, connect_score) "
+            "VALUES (?, ?, ?, ?, ?, ?, NULL)",
+            (borrower, network, address, public_key, 1 if public_key else 0, at),
+        )
+        return self.wallet_for(borrower) or {}
+
+    def disconnect_wallet(self, borrower: str) -> dict[str, Any] | None:
+        w = self.wallet_for(borrower)
+        self.db.execute("DELETE FROM wallets WHERE borrower = ?", (borrower,))
+        return w
+
+    def wallet_for(self, borrower: str) -> dict[str, Any] | None:
+        rows = self.db.execute("SELECT * FROM wallets WHERE borrower = ?", (borrower,))
+        if not rows:
+            return None
+        r = rows[0]
+        return {
+            "borrower": r["borrower"],
+            "network": r["network"],
+            "address": r["address"],
+            "verified": bool(r["verified"]),
+            "status": "verified" if r["verified"] else "not verified",
+            "connectedAt": r["connected_at"],
+            "connectScore": r["connect_score"],
+        }
+
+    def set_connect_score(self, borrower: str, score: int) -> None:
+        """First score of a newly connected wallet; later changes are measured from it."""
+        self.db.execute("UPDATE wallets SET connect_score = ? WHERE borrower = ? AND connect_score IS NULL", (score, borrower))
+
+    def borrowers_for_wallet(self, network: str, address: str) -> list[str]:
+        rows = self.db.execute("SELECT borrower FROM wallets WHERE network = ? AND address = ?", (network, address))
+        return [r["borrower"] for r in rows]
 
     def ownership(self, mainnet_address: str) -> dict[str, Any] | None:
         rows = self.db.execute("SELECT * FROM links WHERE mainnet_address = ?", (mainnet_address,))

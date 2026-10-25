@@ -13,6 +13,7 @@ TEXT = {
     "trustlines": "Holds {v} trustlines",
     "balanceStability": "Balance stability {v} (1.0 is perfectly steady)",
     "largestOutflowRatio": "Largest single payment sent was {pct}% of the balance before it",
+    "largeOutflows": "Sent more than half the balance in one payment {v} times",
     "msRepaysOnTime": "{v} Moonshift loans repaid on time",
     "msRepaysLate": "{v} Moonshift loans repaid late or overdue",
     "msMarginCalls": "{v} Moonshift margin calls received",

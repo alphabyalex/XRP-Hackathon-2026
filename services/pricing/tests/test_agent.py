@@ -116,7 +116,28 @@ def test_credit_memo_number_guard_triggers_fallback_on_bad_bedrock_output(monkey
     # The returned memo must be the deterministic fallback, not the invented text
     assert "99999" not in res.memo
     assert "42.7" not in res.memo
-    assert "rTestBorrower" in res.memo
+    # The plain memo uses formatted values and leaves the address out.
+    assert "100.00 USDC" in res.memo and "8.00% APR" in res.memo and "30.00% LTV" in res.memo
+    assert "rTestBorrower" not in res.memo
+
+
+def test_formatted_memo_numbers_pass_the_guard():
+    """A memo written from the formatted inputs (200.00 USDC, 34.08% APR, 1.18x, 14 days) is accepted."""
+    from app.agent.memo_format import present
+
+    profile = {"score": 66, "grade": "B", "features": {"paymentVolumeInXrp": {"value": "1234.500000"}}}
+    quote = {"apr": "0.340800", "ltv": "0.400000", "maxLtv": "0.470675", "coverageRatio": "1.176687", "pd": "0.06"}
+    req = {"principal": "200.000000", "collateralShares": "100.000000", "gpuId": "gpu-a", "termSeconds": 1209600, "currency": "USDC"}
+    p = present(profile, quote, req)
+    assert p["loan"] == {"principal": "200.00 USDC", "collateral": "100 GPU-A shares", "term": "14 days"}
+    assert p["quote"]["apr"] == "34.08%" and p["quote"]["maxLtv"] == "47.07%" and p["quote"]["dividendCoverage"] == "1.18x"
+    assert p["borrower"]["factors"]["paymentVolumeInXrp"] == "1,234.50 XRP"
+    allowed = guardrails.allowed_numbers({"credit_profile": profile, "quote": quote, "loan_request": req}) | guardrails.allowed_numbers(p)
+    memo = (
+        "The borrower (grade B, score 66) asks for 200.00 USDC at 34.08% APR for 14 days against 100 GPU-A shares. "
+        "The loan opens at 40.00% LTV against a 47.07% maximum, with 1.18x dividend coverage and 1,234.50 XRP received."
+    )
+    assert guardrails.unknown_numbers(memo, allowed) == []
 
 
 def test_credit_memo_scrubs_one_bad_sentence_instead_of_falling_back(monkeypatch):

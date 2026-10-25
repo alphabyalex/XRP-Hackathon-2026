@@ -1,0 +1,33 @@
+{
+  "_note": "Decode throughput estimates for Moonshift's model (Qwen/Qwen3-1.7B, fp16, single stream) per GPU model, in tokens per second. T4 is the planning figure services/compute uses (TOKENS_PER_SEC); the rest scale from memory bandwidth relative to the T4 and are estimates until infra/benchmark.py is run on each card. aliases map provider GPU names onto these keys.",
+  "model": "Qwen/Qwen3-1.7B",
+  "tokensPerSec": {
+    "T4": 40,
+    "L4": 45,
+    "A10": 90,
+    "A10G": 90,
+    "RTX 4090": 140,
+    "L40S": 120,
+    "L40": 120,
+    "A100": 210,
+    "H100": 300,
+    "GH200": 330,
+    "MI300X": 280
+  },
+  "aliases": {
+    "Tesla T4": "T4",
+    "NVIDIA T4": "T4",
+    "NVIDIA T4 16GB": "T4",
+    "nvidia-tesla-t4": "T4",
+    "nvidia-l4": "L4",
+    "NVIDIA A10G": "A10G",
+    "A10 PCIe": "A10",
+    "RTX 4090": "RTX 4090",
+    "NVIDIA GeForce RTX 4090": "RTX 4090",
+    "NVIDIA L40S": "L40S",
+    "A100 PCIe": "A100",
+    "A100 SXM": "A100",
+    "H100 SXM": "H100",
+    "H100 PCIe": "H100"
+  }
+}

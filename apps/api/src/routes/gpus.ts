@@ -4,6 +4,7 @@ import * as xrpl from "../adapters/xrplAdapter.js";
 import * as compute from "../adapters/computeClient.js";
 import * as pricing from "../adapters/pricingClient.js";
 import { db } from "../db/db.js";
+import { historyCalendar } from "../marketHistory.js";
 
 export const gpusRouter = Router();
 
@@ -80,10 +81,10 @@ gpusRouter.get("/gpus/:id", async (req, res) => {
     // Same window the web schedule draws: 20 hours back, 4 hours ahead.
     const from = new Date(now.getTime() - 21 * 60 * 60 * 1000).toISOString();
     const to = new Date(now.getTime() + 5 * 60 * 60 * 1000).toISOString();
-    const [calendar, holders] = await Promise.all([
-      compute.getCalendar(gpuId, from, to),
-      xrpl.getHolders(gpuId),
-    ]);
+    const [live, holders] = await Promise.all([compute.getCalendar(gpuId, from, to), xrpl.getHolders(gpuId)]);
+    // compute keeps only upcoming bookings and the last 2 hours of inference;
+    // the api's records add the rest of the window.
+    const calendar = [...live, ...historyCalendar(gpuId, from, to)].sort((a, b) => a.start.localeCompare(b.start));
     const recentRequests = db
       .prepare(`SELECT * FROM usage_events WHERE gpu_id = ? ORDER BY started_at DESC LIMIT 20`)
       .all(gpuId);

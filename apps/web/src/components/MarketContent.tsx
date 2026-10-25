@@ -7,7 +7,6 @@ import { AppWindow } from "./AppWindow";
 import { MarketTable } from "./MarketTable";
 import { ResourcePricingBreakdown } from "./ResourcePricingBreakdown";
 import { ApiErrorNotice } from "./ApiErrorNotice";
-import { ACCOUNT_DISPLAY } from "@/lib/session";
 
 export function MarketContent() {
   const gpus = useLiveGpus();
@@ -23,7 +22,7 @@ export function MarketContent() {
           <p>Multi-cloud GPU compute: GPU-A on AWS EC2, GPU-B on Akash Network decentralized cloud. Transparent hardware resource pricing (GPU, vCPU, RAM, NVMe SSD) indexed in real time.</p>
         </div>
         {unreachable && <ApiErrorNotice />}
-        <AppWindow tabs={["Market", "Portfolio", "Borrow", "Playground"]} activeTab="Market" acct={<>{ACCOUNT_DISPLAY}&nbsp;&nbsp;<AccountBalance /> USDC</>}>
+        <AppWindow tabs={["Market", "Portfolio", "Borrow", "Playground"]} activeTab="Market" acct={<AccountBalance />}>
           <div className="tbl">
             <MarketTable views={views} />
           </div>

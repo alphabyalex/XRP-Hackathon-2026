@@ -6,6 +6,9 @@ import cors from "cors";
 import { PORTS } from "@moonshift/shared";
 import { gpusRouter } from "./routes/gpus.js";
 import { portfolioRouter } from "./routes/portfolio.js";
+import { accountRouter } from "./routes/account.js";
+import { gpuPricesRouter } from "./routes/gpuPrices.js";
+import { startGpuPricePolling } from "./marketData/gpuPrices.js";
 import { txRouter } from "./routes/tx.js";
 import { sharesRouter } from "./routes/shares.js";
 import { contractsRouter } from "./routes/contracts.js";
@@ -16,18 +19,24 @@ import { adminRouter } from "./routes/admin.js";
 import { internalRouter } from "./routes/internal.js";
 import { eventsRouter } from "./routes/events.js";
 import { requireAdminKey, requireInternalKey } from "./middleware/auth.js";
+import { sessionUser } from "./middleware/session.js";
+import { loadAccounts, refillPool } from "./users/accounts.js";
 import { startBackgroundJobs } from "./jobs.js";
 import "./db/db.js"; // ensures schema is created on boot
 
 const app = express();
 
 const webOrigin = process.env.WEB_ORIGIN ?? `http://localhost:${PORTS.web}`;
-app.use(cors({ origin: webOrigin }));
+// credentials: the session cookie (the signed-in wallet) rides along from the web app.
+app.use(cors({ origin: webOrigin, credentials: true }));
 app.use(express.json());
+app.use(sessionUser);
 
 // public reads
 app.use(gpusRouter);
 app.use(portfolioRouter);
+app.use(accountRouter);
+app.use(gpuPricesRouter);
 app.use(txRouter);
 
 // public writes
@@ -54,5 +63,9 @@ app.listen(PORT, () => {
   console.log(
     `network: ${process.env.NETWORK ?? "testnet"}  mocks: MOCK_XRPL=${process.env.MOCK_XRPL ?? "1"} MOCK_COMPUTE=${process.env.MOCK_COMPUTE ?? "1"} MOCK_PRICING=${process.env.MOCK_PRICING ?? "1"} MOCK_RISK=${process.env.MOCK_RISK ?? "1"} MOCK_CREDIT=${process.env.MOCK_CREDIT ?? "1"}`
   );
+  const accounts = loadAccounts();
+  if (accounts) console.log(`loaded ${accounts} Moonshift accounts`);
+  void refillPool();
   startBackgroundJobs();
+  startGpuPricePolling();
 });

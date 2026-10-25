@@ -1,0 +1,24 @@
+{
+  "endpoint": "POST /orders",
+  "note": "Runs the optimizer for the chosen mode (default balanced), reserves capacity with a lease per GPU (conditional write in ms-router-orders, or SQLite locally), and starts one orchestration per order (Step Functions Standard, or in-process when ORCHESTRATOR=local): pay, dispatch, wait for completion, settle. Payment on XRPL devnet: the buyer pays the quoted total in TDX to the Moonshift order treasury, memo MS_ORDER {orderId, mode}. On completion the router pays each GPU's Moonshift treasury (external capacity: the external-capacity treasury) for the work it actually served, memo MS_SETTLE {orderId, gpuId, tokensOrMinutes}, and refunds the unused amount. Inference orders carry requests (one list of chat messages each); rental orders book minutes through compute's booking route. Responds once paid. Header X-MS-Internal-Key when INTERNAL_API_KEY is set.",
+  "request": {
+    "kind": "inference",
+    "mode": "balanced",
+    "buyer": "ALICE",
+    "maxTokens": 300,
+    "requests": [
+      [{ "role": "user", "content": "Explain VWAP in one line" }]
+    ],
+    "deadlineSeconds": null,
+    "budgetUsdc": null,
+    "constraints": {}
+  },
+  "requestRental": { "kind": "rental", "mode": "cheapest", "buyer": "ALICE", "minutes": 30 },
+  "response": "<order, see order.json>",
+  "errors": {
+    "INVALID_ORDER": "422",
+    "NO_FEASIBLE_PLAN": "409, nothing meets the deadline, budget and constraints in this mode",
+    "CAPACITY_TAKEN": "409, another order took the slot between quote and order; quote again",
+    "PAYMENT_FAILED": "502, the devnet payment did not validate; leases are released"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "_note": "Per-provider planning constants. Warning windows and auth are from docs/ROUTER_PROVIDERS.md (verified 2026-10-24). startupSeconds: time for an already-registered worker to accept a job (model warm). egressPerGbUsd: list price for data leaving that provider, used when a resume moves a checkpoint across providers. spotRatePerHour: default interruption rate when a provider publishes no data. External capacity is resold at pricePerHourUsd x (1 + moonshiftMargin).",
+  "moonshiftMargin": 0.15,
+  "checkpointSizeGb": 0.0002,
+  "providers": {
+    "moonshift": { "displayName": "Moonshift", "startupSeconds": 1.0, "egressPerGbUsd": 0.0, "warningWindowSeconds": 20, "spotRatePerHour": 0.0, "secret": null },
+    "aws": { "displayName": "AWS", "startupSeconds": 3.0, "egressPerGbUsd": 0.09, "warningWindowSeconds": 120, "spotRatePerHour": null, "secret": null },
+    "azure": { "displayName": "Microsoft Azure", "startupSeconds": 4.0, "egressPerGbUsd": 0.087, "warningWindowSeconds": 30, "spotRatePerHour": 0.0004, "secret": null },
+    "gcp": { "displayName": "Google Cloud", "startupSeconds": 4.0, "egressPerGbUsd": 0.12, "warningWindowSeconds": 30, "spotRatePerHour": 0.0004, "secret": "gcpApiKey" },
+    "oracle": { "displayName": "Oracle Cloud", "startupSeconds": 4.0, "egressPerGbUsd": 0.0085, "warningWindowSeconds": 0, "spotRatePerHour": 0.0, "secret": null },
+    "lambda": { "displayName": "Lambda", "startupSeconds": 3.0, "egressPerGbUsd": 0.0, "warningWindowSeconds": 0, "spotRatePerHour": 0.0, "secret": "lambdaApiKey" },
+    "runpod": { "displayName": "RunPod", "startupSeconds": 3.0, "egressPerGbUsd": 0.0, "warningWindowSeconds": 0, "spotRatePerHour": 0.0, "secret": "runpodApiKey" },
+    "vast": { "displayName": "Vast.ai", "startupSeconds": 5.0, "egressPerGbUsd": 0.02, "warningWindowSeconds": 0, "spotRatePerHour": null, "secret": "vastApiKey" },
+    "coreweave": { "displayName": "CoreWeave", "startupSeconds": 4.0, "egressPerGbUsd": 0.0, "warningWindowSeconds": 0, "spotRatePerHour": 0.0, "secret": null }
+  }
+}
