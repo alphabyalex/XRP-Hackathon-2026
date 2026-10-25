@@ -9,7 +9,22 @@ import { GPUS, fix6, type GpuId } from "@moonshift/shared";
 import * as xrpl from "./adapters/xrplAdapter.js";
 import * as pricing from "./adapters/pricingClient.js";
 import { logTx } from "./db/helpers.js";
-import { priceMoved } from "./sharePrice.js";
+import { priceMoved, sharePrice } from "./sharePrice.js";
+import * as lending from "./adapters/lendingAdapter.js";
+import { recordOracle } from "./lending/service.js";
+
+// The on-ledger oracle (the loans' collateral price) tracks the market price,
+// so /borrow shows the same share price as the market, GPU and portfolio pages.
+const ORACLE_TOLERANCE = 0.0025;
+
+export async function syncOracle(gpuId: GpuId): Promise<string | null> {
+  const [market, oracle] = await Promise.all([sharePrice(gpuId), lending.oraclePrice(gpuId)]);
+  if (!(Number(market.price) > 0) || Math.abs(Number(market.price) / Number(oracle.price) - 1) <= ORACLE_TOLERANCE) return null;
+  const tx = await lending.publishPrice(gpuId, market.price);
+  recordOracle(gpuId, market.price, "market", tx.hash);
+  logTx(tx, "oracle.market", "ORACLE", `${gpuId} price ${market.price} USDC (market)`);
+  return tx.hash;
+}
 
 const BID_DISCOUNT = 0.03;
 const BID_SHARES = "100";
@@ -38,6 +53,12 @@ export function quoteMarket(): Promise<Record<string, unknown>> {
         out[g.id] = { error: (e as Error).message };
       } finally {
         priceMoved(g.id);
+      }
+      try {
+        const hash = await syncOracle(g.id);
+        if (hash && out[g.id] && typeof out[g.id] === "object") (out[g.id] as Record<string, unknown>).oracle = hash;
+      } catch {
+        // the oracle catches up on the next run
       }
     }
     return out;

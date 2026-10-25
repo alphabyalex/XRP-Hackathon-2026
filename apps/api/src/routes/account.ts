@@ -7,6 +7,8 @@ import * as pricing from "../adapters/pricingClient.js";
 import * as svc from "../lending/service.js";
 import { db } from "../db/db.js";
 import { buildReturns } from "../marketData/returns.js";
+import { change24hPct, sharePrice } from "../sharePrice.js";
+import { historyCalendar } from "../marketHistory.js";
 
 import { asActor } from "../middleware/session.js";
 export const accountRouter = Router();
@@ -47,13 +49,14 @@ export async function buildAccount(input: string): Promise<AccountResponse> {
     xrpl.getBalances(account), svc.listLoans(account),
     Promise.all(GPUS.map(async gpu => {
       const [nav, oracle, history, calendar] = await Promise.all([
-        pricing.getNav(gpu.id), lending.oraclePrice(gpu.id), compute.getRevenueHistory(gpu.id, 168),
+        pricing.getNav(gpu.id), sharePrice(gpu.id), compute.getRevenueHistory(gpu.id, 168),
         compute.getCalendar(gpu.id, since(1), new Date(now).toISOString()),
       ]);
+      // One activity state, from the same merged schedule the GPU page draws.
+      const merged = [...calendar, ...historyCalendar(gpu.id, since(1), new Date(now).toISOString())];
       const slots = Array.from({length:288}, (_,i): "b"|"l"|"i"|"o" => {
         const at = now-86400000+i*300000;
-        const event = calendar.find(e => Date.parse(e.start)<=at && Date.parse(e.end)>at);
-        return event?.kind === "BOOKED" ? "b" : event?.kind === "INFERENCE" ? "l" : "i";
+        return merged.some(e => Date.parse(e.start)<=at && Date.parse(e.end)>at) ? "l" : "i";
       });
       return { gpu, nav, oracle, history, slots };
     })),
@@ -67,8 +70,7 @@ export async function buildAccount(input: string): Promise<AccountResponse> {
     const free = n(balances.tokens[gpu.shareCode]);
     const locked = open.filter(l => l.gpuId === gpu.id && l.ledger?.collateral?.locked).reduce((s,l) => s + n(l.collateralShares),0);
     const shares = free + locked;
-    const prior = rows(`SELECT price FROM oracle_history WHERE gpu_id=? AND ts<=? ORDER BY ts DESC LIMIT 1`, gpu.id, since(1))[0];
-    return { gpuId: gpu.id, label: gpu.label, hardware: gpu.hw.replace(/\s*\(simulated[^)]*\)/gi, ""), slots, free: fix6(free), locked: fix6(locked), shares: fix6(shares), sharePrice: oracle.price, value: fix6(shares * n(oracle.price)), change24h: prior && n(prior.price)>0 ? fix6((n(oracle.price)/n(prior.price)-1)*100) : null, yield: nav.implied_yield_pct, earned7d: fix6(earned(7,gpu.id)), ownershipPct: fix6(shares/1000) };
+    return { gpuId: gpu.id, label: gpu.label, hardware: gpu.hw.replace(/\s*\(simulated[^)]*\)/gi, ""), slots, free: fix6(free), locked: fix6(locked), shares: fix6(shares), sharePrice: oracle.price, value: fix6(shares * n(oracle.price)), change24h: change24hPct(gpu.id, oracle.price), yield: nav.implied_yield_pct, earned7d: fix6(earned(7,gpu.id)), ownershipPct: fix6(shares/1000) };
   }).filter(h => n(h.shares)>0);
   const gpuPerformance = gpuData.filter(d => holdings.some(h => h.gpuId===d.gpu.id)).map(({gpu, history}) => {
     const dayMap = new Map<string, {booked:number; inference:number; active:number; minutes:number}>();

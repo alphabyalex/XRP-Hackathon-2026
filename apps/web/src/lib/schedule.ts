@@ -57,6 +57,12 @@ export function buildSchedule(
   return { slots, nowIndex, windowStart };
 }
 
+// Share of the schedule's past slots that were working (what the bars show).
+export function utilizationOf(slots: SlotState[], nowIndex: number): number {
+  const past = slots.slice(0, Math.max(0, nowIndex));
+  return past.length ? (past.filter((s) => s === "b" || s === "l").length / past.length) * 100 : 0;
+}
+
 export function timeAt(windowStart: Date, index: number): Date {
   return new Date(windowStart.getTime() + index * SLOT_MS);
 }

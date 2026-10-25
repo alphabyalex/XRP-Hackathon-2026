@@ -77,6 +77,8 @@ export async function recordTrade(gpuId: GpuId, hash: string, address: string): 
     // the trade stands; it just does not count as the last trade
   }
   priceMoved(gpuId);
+  // Loans' collateral price follows the market (marketMaker.ts).
+  void import("./marketMaker.js").then((m) => m.syncOracle(gpuId)).catch(() => {});
 }
 
 // Hourly closes for the last `days` days (the chart), oldest first.

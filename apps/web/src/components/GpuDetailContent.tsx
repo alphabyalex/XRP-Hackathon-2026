@@ -1,4 +1,5 @@
 "use client";
+import { utilizationOf } from "@/lib/schedule";
 import Link from "next/link";
 import clsx from "clsx";
 import { RESOURCE_BREAKDOWN, type GpuId } from "@moonshift/shared";
@@ -71,13 +72,13 @@ export function GpuDetailContent({ id }: { id: string }) {
               </span>
               <span>
                 <i className="k-o" />
-                Open to book
+                Ahead
               </span>
             </div>
             <div className="facts" style={{ marginTop: 40 }}>
               <div>
-                <span>Utilization, last 24h</span>
-                <b>{fmt(Number(gpu.utilizationPct) || 0, 1)}%</b>
+                <span>Working, last 20 hours</span>
+                <b>{fmt(utilizationOf(v.slots, v.nowIndex), 1)}%</b>
               </div>
               <div>
                 <span>Revenue, last 24h</span>

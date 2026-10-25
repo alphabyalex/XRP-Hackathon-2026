@@ -1,4 +1,5 @@
 "use client";
+import { utilizationOf } from "@/lib/schedule";
 import { AccountBalance } from "./AccountBalance";
 import dynamic from "next/dynamic";
 import { GPUS } from "@moonshift/shared";
@@ -30,7 +31,8 @@ export function HomeContent() {
   const featured = views.find((v) => v.gpu.id === "gpu-a") ?? views[0];
 
   const paidLastNight = views.reduce((s, v) => s + v.split.holders, 0);
-  const avgUtil = views.length ? views.reduce((s, v) => s + (Number(v.gpu.utilizationPct) || 0), 0) / views.length : 0;
+  // From the same slots the schedules draw, so the number and the bars agree.
+  const avgUtil = views.length ? views.reduce((s, v) => s + utilizationOf(v.slots, v.nowIndex), 0) / views.length : 0;
 
   return (
     <main id="top">
@@ -56,7 +58,7 @@ export function HomeContent() {
                 <b>{fmt(paidLastNight, 2)} USDC</b>paid to holders last night
               </div>
               <div>
-                <b>{fmt(avgUtil, 1)}%</b>of hours earning, 24h
+                <b>{fmt(avgUtil, 1)}%</b>of the last 20 hours working
               </div>
               <div>
                 <b>{GPUS.length}</b>GPUs live on the XRPL
@@ -119,13 +121,13 @@ export function HomeContent() {
                   </span>
                   <span>
                     <i className="k-o" />
-                    Open to book
+                    Ahead
                   </span>
                 </div>
                 <div className="facts" style={{ marginTop: 40 }}>
                   <div>
-                    <span>Earning, last 24h</span>
-                    <b>{fmt(Number(featured.gpu.utilizationPct) || 0, 1)}%</b>
+                    <span>Working, last 20 hours</span>
+                    <b>{fmt(utilizationOf(featured.slots, featured.nowIndex), 1)}%</b>
                   </div>
                   <div>
                     <span>Revenue, last 24h</span>
